@@ -1,7 +1,7 @@
 <template>
   <div class="notepad">
     <div class="rows">
-      <!-- Line number gutter -->
+      <!-- Line number gutter (hidden on small mobile screens) -->
       <div ref="gutterRef" class="gutter">
         <div v-for="n in lineCount" :key="n" class="g-num">{{ n }}</div>
       </div>
@@ -66,7 +66,7 @@
         <span v-if="copiedTotal" class="copied-mini">Copied!</span>
       </div>
 
-      <div class="status-center">
+      <div class="status-center desktop-only">
         <span>direct lines: <b>#1, L1, line1</b></span>
       </div>
 
@@ -180,7 +180,7 @@ const autocompleteSuggestions = computed(() => {
 const autocompleteStyle = computed(() => {
   return {
     top: '40px',
-    left: '60px'
+    left: '10px'
   }
 })
 
@@ -189,7 +189,6 @@ function updateCursorState() {
   const pos = inputRef.value.selectionStart || 0
   cursorPosition.value = pos
 
-  // Extract current word prefix before cursor
   const textBefore = tabContent.value.slice(0, pos)
   const match = textBefore.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/)
   if (match) {
@@ -229,7 +228,6 @@ function applyAutocomplete(varName) {
 }
 
 function handleKeyDown(e) {
-  // Handle autocomplete keyboard selection
   if (showAutocomplete.value && autocompleteSuggestions.value.length > 0) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -255,7 +253,6 @@ function handleKeyDown(e) {
     }
   }
 
-  // Handle Tab key indentation
   if (e.key === 'Tab') {
     e.preventDefault()
     const textarea = inputRef.value
@@ -344,7 +341,7 @@ defineExpose({
 })
 
 onMounted(() => {
-  if (inputRef.value) {
+  if (inputRef.value && window.innerWidth > 600) {
     inputRef.value.focus()
   }
 })
@@ -360,12 +357,13 @@ onMounted(() => {
   flex-direction: column;
   box-shadow: var(--shadow-lg);
   flex: 1;
+  width: 100%;
 }
 
 .rows {
   position: relative;
   display: flex;
-  min-height: 520px;
+  min-height: 480px;
   flex: 1;
 }
 
@@ -393,6 +391,7 @@ onMounted(() => {
   position: relative;
   flex: 1;
   display: flex;
+  min-width: 0;
 }
 
 .input-area {
@@ -409,6 +408,7 @@ onMounted(() => {
   white-space: pre;
   overflow-y: auto;
   tab-size: 2;
+  width: 100%;
 }
 
 .input-area::placeholder {
@@ -630,9 +630,38 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-@media (max-width: 820px) {
+/* Mobile & Tablet Optimizations */
+@media (max-width: 768px) {
   .results {
-    width: 180px;
+    width: 140px;
+    font-size: 13.5px;
+    padding: 14px 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .gutter {
+    display: none; /* Hide line numbers on mobile screens to maximize typing space */
+  }
+
+  .input-area {
+    font-size: 16px; /* Prevents mobile Safari auto-zooming on focus */
+    padding: 12px 10px;
+  }
+
+  .results {
+    width: 115px;
+    font-size: 13px;
+    padding: 12px 6px;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .status-bar {
+    padding: 8px 12px;
+    font-size: 11.5px;
   }
 }
 </style>
