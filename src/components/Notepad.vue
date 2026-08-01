@@ -221,7 +221,7 @@ function applyAutocomplete(varName) {
   currentPrefix.value = ''
 
   setTimeout(() => {
-    inputRef.value.focus()
+    inputRef.value.focus({ preventScroll: true })
     const newPos = startPos + varName.length
     inputRef.value.selectionStart = inputRef.value.selectionEnd = newPos
   }, 0)
@@ -330,7 +330,7 @@ function insertTextAtCursor(textToInsert) {
   tabContent.value = newText
 
   setTimeout(() => {
-    textarea.focus()
+    textarea.focus({ preventScroll: true })
     const newPos = start + textToInsert.length
     textarea.selectionStart = textarea.selectionEnd = newPos
   }, 0)
@@ -341,8 +341,9 @@ defineExpose({
 })
 
 onMounted(() => {
-  if (inputRef.value && window.innerWidth > 600) {
-    inputRef.value.focus()
+  // Ensure page remains at top on load without scrolling down to textarea
+  if (typeof window !== 'undefined') {
+    window.scrollTo(0, 0)
   }
 })
 </script>
@@ -641,11 +642,11 @@ onMounted(() => {
 
 @media (max-width: 600px) {
   .gutter {
-    display: none; /* Hide line numbers on mobile screens to maximize typing space */
+    display: none;
   }
 
   .input-area {
-    font-size: 16px; /* Prevents mobile Safari auto-zooming on focus */
+    font-size: 16px;
     padding: 12px 10px;
   }
 
