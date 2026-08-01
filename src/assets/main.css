@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #121518;
+  --panel: #181c21;
+  --panel-hover: #1e232a;
+  --panel-active: #222830;
+  --line: #272d34;
+  --line-soft: #1d2228;
+  --paper: #edeae4;
+  --muted: #838a95;
+  --muted-light: #a4abaf;
+  --accent: #5eead4;
+  --accent-glow: rgba(94, 234, 212, 0.15);
+  --accent-dim: rgba(94, 234, 212, 0.25);
+  --amber: #f5b971;
+  --err: #f2707a;
+  --radius: 12px;
+  --radius-sm: 6px;
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] {
+  --bg: #f3f5f8;
+  --panel: #ffffff;
+  --panel-hover: #f0f3f6;
+  --panel-active: #e4e8ec;
+  --line: #d8dee4;
+  --line-soft: #eaeef2;
+  --paper: #1c2128;
+  --muted: #57606a;
+  --muted-light: #6e7781;
+  --accent: #0d9488;
+  --accent-glow: rgba(13, 148, 136, 0.15);
+  --accent-dim: rgba(13, 148, 136, 0.25);
+  --amber: #d97706;
+  --err: #cf222e;
+  --shadow-lg: 0 16px 36px -8px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 700px at 20% -10%, #1e242b 0%, transparent 70%),
+    radial-gradient(800px 500px at 85% 100%, #182027 0%, transparent 60%),
+    var(--bg);
+  color: var(--paper);
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(1200px 700px at 20% -10%, #eaeff5 0%, transparent 70%),
+    radial-gradient(800px 500px at 85% 100%, #e2e8f0 0%, transparent 60%),
+    var(--bg);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(125, 135, 145, 0.25);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 135, 145, 0.45);
+}
+
+/* Typography Helpers */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Base button reset */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 768px) {
+  .header-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .nav-pills {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-nav {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .workspace {
+    padding: 12px;
+    gap: 14px;
+    flex-direction: column;
+  }
+
+  .sidebar-column {
+    width: 100% !important;
+  }
+
+  .results {
+    width: 140px !important;
+  }
+}
