@@ -55,6 +55,19 @@
           </label>
         </div>
 
+        <!-- Obvious Clear Cloud Sync & Sign In Button -->
+        <button
+          class="btn-cloud-pill"
+          :class="{ 'user-active': user }"
+          @click="$emit('open-auth')"
+          :title="user ? `Cloud Sync Active (${user.email})` : 'Sign in to sync tabs across devices'"
+        >
+          <Cloud class="icon-sm" />
+          <span v-if="user" class="cloud-text">Sync Active</span>
+          <span v-else class="cloud-text">Cloud Sync / Sign In</span>
+          <span v-if="user" class="sync-dot"></span>
+        </button>
+
         <!-- Light / Dark Theme Toggle -->
         <button
           class="btn-icon"
@@ -127,14 +140,15 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon } from '@lucide/vue'
+import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud } from '@lucide/vue'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
   activeTabId: { type: String, required: true },
   currentView: { type: String, default: 'notepad' }, // 'notepad' | 'library' | 'guide'
   showDecimals: { type: Boolean, default: true },
-  theme: { type: String, default: 'dark' }
+  theme: { type: String, default: 'dark' },
+  user: { type: Object, default: null }
 })
 
 const emit = defineEmits([
@@ -145,7 +159,8 @@ const emit = defineEmits([
   'switch-view',
   'toggle-show-decimals',
   'toggle-theme',
-  'open-settings'
+  'open-settings',
+  'open-auth'
 ])
 
 const editingTabId = ref(null)
@@ -331,6 +346,44 @@ function cancelRename() {
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(16px);
   background-color: var(--bg);
+}
+
+/* Obvious Cloud Sync Button */
+.btn-cloud-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--paper);
+  border: 1px solid var(--line);
+  background: var(--line-soft);
+  padding: 5px 12px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-cloud-pill:hover {
+  background: var(--panel-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.btn-cloud-pill.user-active {
+  color: var(--accent);
+  border-color: rgba(94, 234, 212, 0.35);
+  background: rgba(94, 234, 212, 0.1);
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--accent);
 }
 
 .btn-icon {

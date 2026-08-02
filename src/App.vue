@@ -7,6 +7,7 @@
       :current-view="currentView"
       :show-decimals="userProfile.showDecimals"
       :theme="userProfile.theme"
+      :user="currentUser"
       @select-tab="selectTab"
       @create-tab="createTab"
       @close-tab="closeTab"
@@ -16,6 +17,7 @@
       @toggle-show-decimals="toggleShowDecimals"
       @toggle-theme="toggleTheme"
       @open-settings="isSettingsOpen = true"
+      @open-auth="isAuthModalOpen = true"
     />
 
     <!-- View Mode 1: Main Notepad Workspace -->
@@ -114,6 +116,15 @@
       @import-tabs="importTabs"
       @reset-local-data="resetLocalData"
     />
+
+    <!-- Optional Supabase Auth Modal -->
+    <AuthModal
+      :is-open="isAuthModalOpen"
+      :user="currentUser"
+      @close="isAuthModalOpen = false"
+      @user-updated="handleUserUpdated"
+      @toast="showToast"
+    />
   </div>
 </template>
 
@@ -123,6 +134,7 @@ import Header from './components/Header.vue'
 import Notepad from './components/Notepad.vue'
 import ReferenceSidebar from './components/ReferenceSidebar.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import AuthModal from './components/AuthModal.vue'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
 import SavedTabsPage from './components/SavedTabsPage.vue'
 import { EXAMPLE_TEXT, getFormattedCopyAllText } from './services/evaluator.js'
@@ -138,6 +150,13 @@ import {
   saveLocalSettings,
   clearLocalDatabase
 } from './services/localDb.js'
+import {
+  getSessionUser,
+  subscribeToAuth,
+  syncTabsToCloud,
+  deleteCloudTab,
+  fetchCloudTabs
+} from './services/syncService.js'
 
 const defaultTabs = [
   {
@@ -162,6 +181,8 @@ const savedLibrary = ref([])
 const activeTabId = ref('tab-1')
 const currentView = ref('notepad') // 'notepad' | 'library' | 'guide'
 const isSettingsOpen = ref(false)
+const isAuthModalOpen = ref(false)
+const currentUser = ref(null)
 const userProfile = ref({ showDecimals: true, theme: 'dark' })
 const saveStatus = ref('saved') // 'saved' | 'saving' | 'error'
 const toastMessage = ref('')
@@ -169,6 +190,7 @@ const toastMessage = ref('')
 const notepadRef = ref(null)
 let saveDebounceTimer = null
 let toastTimer = null
+let authUnsubscribe = null
 
 const activeTab = computed(() => {
   if (!Array.isArray(tabs.value) || tabs.value.length === 0) {
@@ -203,6 +225,33 @@ function showToast(msg) {
   }, 2200)
 }
 
+async function handleUserUpdated(newUser) {
+  const prevUser = currentUser.value
+  currentUser.value = newUser
+
+  if (newUser) {
+    handleCloudFetch(newUser.id)
+  } else if (prevUser && !newUser) {
+    // User signed out: revert tabs to default guest state
+    tabs.value = JSON.parse(JSON.stringify(defaultTabs))
+    activeTabId.value = defaultTabs[0].id
+    await saveLocalTabs(tabs.value)
+  }
+}
+
+async function handleCloudFetch(userId) {
+  const cloudTabs = await fetchCloudTabs(userId)
+  if (cloudTabs && cloudTabs.length > 0) {
+    tabs.value = cloudTabs
+    activeTabId.value = cloudTabs[0].id
+    cloudTabs[0].isActive = true
+    await saveLocalTabs(cloudTabs)
+  } else {
+    // Upsert existing local tabs to cloud for new user
+    syncTabsToCloud(tabs.value, userId)
+  }
+}
+
 // Initialize Local DB & Library
 async function initLocalData() {
   try {
@@ -226,6 +275,13 @@ async function initLocalData() {
     }
     applyTheme(userProfile.value.theme)
     saveStatus.value = 'saved'
+
+    // Check Supabase session
+    const user = await getSessionUser()
+    currentUser.value = user
+    if (user) {
+      handleCloudFetch(user.id)
+    }
 
     // Check if opened via a Share URL
     const sharedDoc = decodeSharePayload()
@@ -292,6 +348,9 @@ function closeTab(id) {
   }
 
   deleteLocalTab(tabToDelete.id).catch(console.error)
+  if (currentUser.value) {
+    deleteCloudTab(tabToDelete.id, currentUser.value.id).catch(console.error)
+  }
   triggerSave()
 }
 
@@ -456,9 +515,12 @@ function triggerSave() {
   saveDebounceTimer = setTimeout(async () => {
     try {
       await saveLocalTabs(tabs.value)
+      if (currentUser.value) {
+        await syncTabsToCloud(tabs.value, currentUser.value.id)
+      }
       saveStatus.value = 'saved'
     } catch (err) {
-      console.error('Error auto-saving local tabs:', err)
+      console.error('Error auto-saving local/cloud tabs:', err)
       saveStatus.value = 'error'
     }
   }, 400)
@@ -511,10 +573,15 @@ async function resetLocalData() {
 onMounted(() => {
   initLocalData()
   window.addEventListener('keydown', handleGlobalShortcuts)
+
+  authUnsubscribe = subscribeToAuth((user) => {
+    handleUserUpdated(user)
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalShortcuts)
+  if (authUnsubscribe) authUnsubscribe()
 })
 </script>
 
