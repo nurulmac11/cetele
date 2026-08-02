@@ -49,6 +49,11 @@ export async function signOut() {
 
 // --- Active Tabs Cloud Sync ---
 
+let tabSyncThrottleTimer = null
+let tabSyncPending = false
+let lastTabSyncTime = 0
+const CLOUD_SYNC_MIN_INTERVAL = 2000 // Max 1 cloud sync request per 2 seconds
+
 export async function syncTabsToCloud(tabs, userId) {
   if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(tabs)) return
 
@@ -71,6 +76,27 @@ export async function syncTabsToCloud(tabs, userId) {
     }
   } catch (err) {
     console.error('Failed to sync tabs to cloud:', err)
+  }
+}
+
+export function throttledSyncTabsToCloud(tabs, userId) {
+  const now = Date.now()
+  const elapsed = now - lastTabSyncTime
+
+  if (elapsed >= CLOUD_SYNC_MIN_INTERVAL) {
+    lastTabSyncTime = now
+    tabSyncPending = false
+    clearTimeout(tabSyncThrottleTimer)
+    syncTabsToCloud(tabs, userId)
+  } else if (!tabSyncPending) {
+    tabSyncPending = true
+    const remaining = CLOUD_SYNC_MIN_INTERVAL - elapsed
+    clearTimeout(tabSyncThrottleTimer)
+    tabSyncThrottleTimer = setTimeout(() => {
+      lastTabSyncTime = Date.now()
+      tabSyncPending = false
+      syncTabsToCloud(tabs, userId)
+    }, remaining)
   }
 }
 
@@ -125,6 +151,10 @@ export async function fetchCloudTabs(userId) {
 
 // --- Saved Tabs Library Cloud Sync ---
 
+let libSyncThrottleTimer = null
+let libSyncPending = false
+let lastLibSyncTime = 0
+
 export async function syncLibraryToCloud(library, userId) {
   if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(library)) return
 
@@ -146,6 +176,27 @@ export async function syncLibraryToCloud(library, userId) {
     }
   } catch (err) {
     console.error('Failed to sync library to cloud:', err)
+  }
+}
+
+export function throttledSyncLibraryToCloud(library, userId) {
+  const now = Date.now()
+  const elapsed = now - lastLibSyncTime
+
+  if (elapsed >= CLOUD_SYNC_MIN_INTERVAL) {
+    lastLibSyncTime = now
+    libSyncPending = false
+    clearTimeout(libSyncThrottleTimer)
+    syncLibraryToCloud(library, userId)
+  } else if (!libSyncPending) {
+    libSyncPending = true
+    const remaining = CLOUD_SYNC_MIN_INTERVAL - elapsed
+    clearTimeout(libSyncThrottleTimer)
+    libSyncThrottleTimer = setTimeout(() => {
+      lastLibSyncTime = Date.now()
+      libSyncPending = false
+      syncLibraryToCloud(library, userId)
+    }, remaining)
   }
 }
 

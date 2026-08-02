@@ -175,18 +175,33 @@ export async function getSavedLibraryTabs() {
 }
 
 export async function saveTabToLibrary(savedItem) {
+  // Reuse existing ID if item already exists by ID or title+content
+  let existingId = savedItem.id
+  try {
+    const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
+    const current = currentRaw ? JSON.parse(currentRaw) : []
+    const existing = current.find(i => 
+      (savedItem.id && String(i.id) === String(savedItem.id)) ||
+      (i.title === savedItem.title && i.content === savedItem.content)
+    )
+    if (existing) {
+      existingId = existing.id
+    }
+  } catch (e) {}
+
+  const finalId = existingId || ('saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4))
   const itemToSave = {
-    id: savedItem.id || ('saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)),
+    id: String(finalId),
     title: savedItem.title || 'Saved Tab',
     content: savedItem.content || '',
-    savedAt: savedItem.savedAt || new Date().toISOString(),
+    savedAt: new Date().toISOString(),
     lineCount: (savedItem.content || '').split('\n').length
   }
 
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const idx = current.findIndex(i => i.id === itemToSave.id || (i.title === itemToSave.title && i.content === itemToSave.content))
+    const idx = current.findIndex(i => String(i.id) === String(itemToSave.id))
     if (idx >= 0) {
       current[idx] = itemToSave
     } else {
