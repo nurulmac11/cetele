@@ -47,7 +47,8 @@ export async function signOut() {
   if (error) throw error
 }
 
-// Sync local tabs to Supabase table 'user_tabs'
+// --- Active Tabs Cloud Sync ---
+
 export async function syncTabsToCloud(tabs, userId) {
   if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(tabs)) return
 
@@ -73,7 +74,6 @@ export async function syncTabsToCloud(tabs, userId) {
   }
 }
 
-// Delete a single tab from Supabase cloud
 export async function deleteCloudTab(tabId, userId) {
   if (!isSupabaseConfigured || !supabase || !userId || !tabId) return
 
@@ -92,7 +92,6 @@ export async function deleteCloudTab(tabId, userId) {
   }
 }
 
-// Fetch cloud tabs for logged-in user
 export async function fetchCloudTabs(userId) {
   if (!isSupabaseConfigured || !supabase || !userId) return null
 
@@ -120,6 +119,80 @@ export async function fetchCloudTabs(userId) {
     return null
   } catch (err) {
     console.error('Failed to fetch cloud tabs:', err)
+    return null
+  }
+}
+
+// --- Saved Tabs Library Cloud Sync ---
+
+export async function syncLibraryToCloud(library, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(library)) return
+
+  try {
+    const formattedRows = library.map((item) => ({
+      id: String(item.id),
+      user_id: userId,
+      title: item.title || 'Untitled',
+      content: item.content || '',
+      saved_at: item.savedAt || new Date().toISOString()
+    }))
+
+    const { error } = await supabase
+      .from('saved_library')
+      .upsert(formattedRows, { onConflict: 'id' })
+
+    if (error) {
+      console.warn('Supabase library sync warning:', error.message)
+    }
+  } catch (err) {
+    console.error('Failed to sync library to cloud:', err)
+  }
+}
+
+export async function deleteCloudLibraryItem(itemId, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId || !itemId) return
+
+  try {
+    const { error } = await supabase
+      .from('saved_library')
+      .delete()
+      .eq('id', String(itemId))
+      .eq('user_id', userId)
+
+    if (error) {
+      console.warn('Error deleting cloud library item:', error.message)
+    }
+  } catch (err) {
+    console.error('Failed to delete cloud library item:', err)
+  }
+}
+
+export async function fetchCloudLibrary(userId) {
+  if (!isSupabaseConfigured || !supabase || !userId) return null
+
+  try {
+    const { data, error } = await supabase
+      .from('saved_library')
+      .select('*')
+      .eq('user_id', userId)
+      .order('saved_at', { ascending: false })
+
+    if (error) {
+      console.warn('Error fetching cloud library:', error.message)
+      return null
+    }
+
+    if (Array.isArray(data) && data.length > 0) {
+      return data.map(r => ({
+        id: r.id,
+        title: r.title,
+        content: r.content,
+        savedAt: r.saved_at
+      }))
+    }
+    return null
+  } catch (err) {
+    console.error('Failed to fetch cloud library:', err)
     return null
   }
 }

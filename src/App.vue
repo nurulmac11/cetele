@@ -155,7 +155,10 @@ import {
   subscribeToAuth,
   syncTabsToCloud,
   deleteCloudTab,
-  fetchCloudTabs
+  fetchCloudTabs,
+  syncLibraryToCloud,
+  deleteCloudLibraryItem,
+  fetchCloudLibrary
 } from './services/syncService.js'
 
 const defaultTabs = [
@@ -232,14 +235,16 @@ async function handleUserUpdated(newUser) {
   if (newUser) {
     handleCloudFetch(newUser.id)
   } else if (prevUser && !newUser) {
-    // User signed out: revert tabs to default guest state
+    // User signed out: revert active tabs to default guest state and reset saved tabs library
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     activeTabId.value = defaultTabs[0].id
+    savedLibrary.value = []
     await saveLocalTabs(tabs.value)
   }
 }
 
 async function handleCloudFetch(userId) {
+  // Fetch Cloud Tabs
   const cloudTabs = await fetchCloudTabs(userId)
   if (cloudTabs && cloudTabs.length > 0) {
     tabs.value = cloudTabs
@@ -249,6 +254,17 @@ async function handleCloudFetch(userId) {
   } else {
     // Upsert existing local tabs to cloud for new user
     syncTabsToCloud(tabs.value, userId)
+  }
+
+  // Fetch Cloud Saved Library
+  const cloudLibrary = await fetchCloudLibrary(userId)
+  if (cloudLibrary && cloudLibrary.length > 0) {
+    savedLibrary.value = cloudLibrary
+    for (const item of cloudLibrary) {
+      await saveTabToLibrary(item)
+    }
+  } else if (savedLibrary.value.length > 0) {
+    syncLibraryToCloud(savedLibrary.value, userId)
   }
 }
 
@@ -406,6 +422,10 @@ async function handleSaveActiveTabToLibrary() {
   })
   const updatedLibrary = await getSavedLibraryTabs()
   savedLibrary.value = updatedLibrary
+
+  if (currentUser.value) {
+    syncLibraryToCloud(updatedLibrary, currentUser.value.id)
+  }
   showToast(`"${activeTab.value.title}" saved to Library!`)
 }
 
@@ -436,6 +456,10 @@ async function handleDeleteSavedTabFromLibrary(id) {
   await deleteSavedTabFromLibrary(id)
   const updatedLibrary = await getSavedLibraryTabs()
   savedLibrary.value = updatedLibrary
+
+  if (currentUser.value) {
+    deleteCloudLibraryItem(id, currentUser.value.id)
+  }
   showToast('Saved tab deleted from Library')
 }
 
