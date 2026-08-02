@@ -60,27 +60,32 @@ function openDatabase() {
 // ----------------------------------------------------
 
 export async function getLocalTabs() {
+  let fallbackTabs = []
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
+    if (raw) fallbackTabs = JSON.parse(raw)
+  } catch (e) {}
+
   try {
     const db = await openDatabase()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_TABS, 'readonly')
       const store = tx.objectStore(STORE_TABS)
       const request = store.getAll()
 
       request.onsuccess = () => {
         const tabs = request.result || []
-        tabs.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-        resolve(tabs)
+        if (tabs.length > 0) {
+          tabs.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          resolve(tabs)
+        } else {
+          resolve(fallbackTabs)
+        }
       }
-      request.onerror = () => reject(request.error)
+      request.onerror = () => resolve(fallbackTabs)
     })
   } catch (err) {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
-      return raw ? JSON.parse(raw) : []
-    } catch (e) {
-      return []
-    }
+    return fallbackTabs
   }
 }
 
@@ -117,16 +122,25 @@ export async function saveLocalTabs(tabsArray) {
 
 export async function deleteLocalTab(tabId) {
   try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
+    if (raw) {
+      const current = JSON.parse(raw)
+      const filtered = current.filter(t => t.id !== tabId)
+      localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(filtered))
+    }
+  } catch (e) {}
+
+  try {
     const db = await openDatabase()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_TABS, 'readwrite')
       const store = tx.objectStore(STORE_TABS)
       store.delete(tabId)
       tx.oncomplete = () => resolve(true)
-      tx.onerror = () => reject(tx.error)
+      tx.onerror = () => resolve(true)
     })
   } catch (err) {
-    // ignore
+    return true
   }
 }
 
@@ -169,7 +183,6 @@ export async function saveTabToLibrary(savedItem) {
     lineCount: (savedItem.content || '').split('\n').length
   }
 
-  // Guarantee LocalStorage backup write first
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
@@ -225,25 +238,27 @@ export async function deleteSavedTabFromLibrary(id) {
 // ----------------------------------------------------
 
 export async function getLocalSettings() {
+  let fallbackData = null
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY)
+    if (raw) fallbackData = JSON.parse(raw)
+  } catch (e) {}
+
   try {
     const db = await openDatabase()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_SETTINGS, 'readonly')
       const store = tx.objectStore(STORE_SETTINGS)
       const request = store.get('user_settings')
 
       request.onsuccess = () => {
-        resolve(request.result?.value || null)
+        const idbVal = request.result?.value
+        resolve(idbVal || fallbackData)
       }
-      request.onerror = () => reject(request.error)
+      request.onerror = () => resolve(fallbackData)
     })
   } catch (err) {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY)
-      return raw ? JSON.parse(raw) : null
-    } catch (e) {
-      return null
-    }
+    return fallbackData
   }
 }
 
@@ -256,12 +271,12 @@ export async function saveLocalSettings(settingsObj) {
 
   try {
     const db = await openDatabase()
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const tx = db.transaction(STORE_SETTINGS, 'readwrite')
       const store = tx.objectStore(STORE_SETTINGS)
       store.put({ key: 'user_settings', value: settingsObj })
       tx.oncomplete = () => resolve(true)
-      tx.onerror = () => reject(tx.error)
+      tx.onerror = () => resolve(true)
     })
   } catch (err) {
     return true

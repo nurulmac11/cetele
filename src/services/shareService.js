@@ -6,8 +6,10 @@ export function encodeSharePayload(tab) {
   }
   try {
     const json = JSON.stringify(payload)
-    const encoded = btoa(encodeURIComponent(json))
-    return `${window.location.origin}${window.location.pathname}#doc=${encoded}`
+    const encoded = typeof btoa === 'function' ? btoa(encodeURIComponent(json)) : Buffer.from(encodeURIComponent(json)).toString('base64')
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://cetele.online'
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+    return `${origin}${pathname}#doc=${encoded}`
   } catch (err) {
     console.error('Error encoding share link:', err)
     return ''
