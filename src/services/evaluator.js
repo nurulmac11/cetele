@@ -291,10 +291,11 @@ function normalizeGoldAndCryptoPhrases(line) {
   return l
 }
 
-function preprocessCurrencies(line, varCurrencies = {}) {
+function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], prevCurrency = null) {
   let l = normalizeGoldAndCryptoPhrases(line)
   const matches = []
 
+  // 1. Prefix symbols ($10, ₺500, €50)
   const prefixRegex = /([$€£₺])\s*(-?\d+(?:\.\d+)?)/g
   let m
   while ((m = prefixRegex.exec(l)) !== null) {
@@ -302,6 +303,7 @@ function preprocessCurrencies(line, varCurrencies = {}) {
     if (curr) matches.push({ raw: m[0], rawSymbol: m[1], index: m.index, amount: parseFloat(m[2]), currency: curr })
   }
 
+  // 2. Suffix symbols (10$, 500₺, 50€)
   const symbolSuffixRegex = /(-?\d+(?:\.\d+)?)\s*([$€£₺])/g
   while ((m = symbolSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
@@ -311,6 +313,7 @@ function preprocessCurrencies(line, varCurrencies = {}) {
     }
   }
 
+  // 3. Suffix codes (100 USD, 500 TL, 1 GRAM_GOLD, 1 BTC, 0.5 ETH, 10 SOL)
   const codeSuffixRegex = /(-?\d+(?:\.\d+)?)\s*(USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)\b/gi
   while ((m = codeSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
@@ -320,6 +323,7 @@ function preprocessCurrencies(line, varCurrencies = {}) {
     }
   }
 
+  // 4. Variables that have an assigned currency type (e.g. `a` where varCurrencies['a'] = 'SOL')
   if (varCurrencies && typeof varCurrencies === 'object') {
     Object.keys(varCurrencies).forEach((vName) => {
       const vCurr = varCurrencies[vName]
@@ -333,6 +337,32 @@ function preprocessCurrencies(line, varCurrencies = {}) {
         }
       }
     })
+  }
+
+  // 5. Line references (#1, L1, line1) with associated currency types
+  if (Array.isArray(lineCurrencies)) {
+    const refRegex = /(?:#|L|line)(\d+)\b/gi
+    while ((m = refRegex.exec(l)) !== null) {
+      const lineIdx = parseInt(m[1], 10) - 1
+      const refCurr = lineCurrencies[lineIdx]
+      if (refCurr) {
+        const overlap = matches.some(p => m.index >= p.index && m.index < p.index + p.raw.length)
+        if (!overlap) {
+          matches.push({ raw: m[0], rawSymbol: refCurr, index: m.index, amount: null, currency: refCurr, isVar: true })
+        }
+      }
+    }
+  }
+
+  // 6. `prev` reference with associated currency type
+  if (prevCurrency) {
+    const prevRegex = /\bprev\b/gi
+    while ((m = prevRegex.exec(l)) !== null) {
+      const overlap = matches.some(p => m.index >= p.index && m.index < p.index + p.raw.length)
+      if (!overlap) {
+        matches.push({ raw: m[0], rawSymbol: prevCurrency, index: m.index, amount: null, currency: prevCurrency, isVar: true })
+      }
+    }
   }
 
   if (matches.length === 0) return { expr: l, symbol: null }
@@ -360,13 +390,11 @@ function preprocessCurrencies(line, varCurrencies = {}) {
   return { expr: resultLine, symbol: detectedSymbol }
 }
 
-export function preprocess(line, lineResults = [], varCurrencies = {}) {
+export function preprocess(line, lineResults = [], varCurrencies = {}, lineCurrencies = [], prevCurrency = null) {
   let l = line.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
   if (!l) return { expr: null, symbol: null }
 
   l = stripCommaSeparators(l)
-  l = preprocessLineReferences(l, lineResults)
-
   let varPrefix = ''
   let rhs = l
   const mVar = l.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
@@ -375,9 +403,11 @@ export function preprocess(line, lineResults = [], varCurrencies = {}) {
     rhs = mVar[2]
   }
 
-  const currRes = preprocessCurrencies(rhs, varCurrencies)
+  const currRes = preprocessCurrencies(rhs, varCurrencies, lineCurrencies, prevCurrency)
   rhs = currRes.expr
   const symbol = currRes.symbol
+
+  rhs = preprocessLineReferences(rhs, lineResults)
 
   let m = rhs.match(/^increase\s+(.+?)\s+by\s+(-?\d+(?:\.\d+)?)\s*%$/i)
   if (m) return { expr: varPrefix + `(${m[1]}) * (1 + ${m[2]}/100)`, symbol }
@@ -397,12 +427,11 @@ export function preprocess(line, lineResults = [], varCurrencies = {}) {
   return { expr: varPrefix + rhs, symbol }
 }
 
-export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varCurrencies = {}) {
+export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varCurrencies = {}, lineCurrencies = [], prevCurrency = null) {
   const l = raw.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
   if (!l) return null
 
   let cleanLine = stripCommaSeparators(l)
-  cleanLine = preprocessLineReferences(cleanLine, lineResults)
 
   let varName = null
   let rhs = cleanLine
@@ -432,15 +461,24 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
         const parsed = normalizeCurrency(currMatch[1])
         if (parsed) fromCurr = parsed
       } else {
-        Object.keys(varCurrencies).forEach((vName) => {
-          if (new RegExp(`\\b${vName}\\b`).test(lhsExpr) && varCurrencies[vName]) {
-            fromCurr = varCurrencies[vName]
-          }
-        })
+        // Check if LHS matches a line reference (#1, L1) with a currency
+        const refMatch = lhsExpr.match(/(?:#|L|line)(\d+)\b/i)
+        if (refMatch) {
+          const lIdx = parseInt(refMatch[1], 10) - 1
+          if (lineCurrencies[lIdx]) fromCurr = lineCurrencies[lIdx]
+        } else if (/\bprev\b/i.test(lhsExpr) && prevCurrency) {
+          fromCurr = prevCurrency
+        } else {
+          Object.keys(varCurrencies).forEach((vName) => {
+            if (new RegExp(`\\b${vName}\\b`).test(lhsExpr) && varCurrencies[vName]) {
+              fromCurr = varCurrencies[vName]
+            }
+          })
+        }
       }
 
       try {
-        const { expr: processedLhs } = preprocess(lhsExpr, lineResults, varCurrencies)
+        const { expr: processedLhs } = preprocess(lhsExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency)
         const valLhs = math.evaluate(processedLhs, scope)
         if (typeof valLhs === 'number') {
           const usdVal = valLhs / RATES[fromCurr]
@@ -448,7 +486,7 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
 
           let finalVal = convertedLhs
           if (tailExpr.trim()) {
-            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies)
+            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency)
             const evalStr = String(convertedLhs) + ' ' + processedTail
             finalVal = math.evaluate(evalStr, scope)
           }
@@ -483,7 +521,6 @@ export function tryDateLine(raw, scopeDates = {}) {
     rhs = mVar[2].trim()
   }
 
-  // Check if expression starts with 'today', 'now', or a date variable
   let isTimeIncluded = false
   let baseDate = null
   let restExpr = ''
@@ -496,7 +533,6 @@ export function tryDateLine(raw, scopeDates = {}) {
     isTimeIncluded = true
     restExpr = rhs.replace(/^now/i, '').trim()
   } else {
-    // Check if starts with a defined date variable
     const varMatch = rhs.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\b/)
     if (varMatch && scopeDates[varMatch[1]]) {
       const vName = varMatch[1]
@@ -511,7 +547,6 @@ export function tryDateLine(raw, scopeDates = {}) {
 
   const d = new Date(baseDate.getTime())
 
-  // Parse chained operations: (+|-)\s*(\d+)\s*(days?|weeks?|months?|years?|hours?|mins?|minutes?|seconds?)
   const tokenRegex = /([+-])\s*(\d+)\s*(days?|weeks?|months?|years?|hours?|mins?|minutes?|seconds?)/gi
   let match
   let hasValidOp = false
@@ -542,7 +577,6 @@ export function tryDateLine(raw, scopeDates = {}) {
     }
   }
 
-  // If there are leftover characters that didn't match operations, verify it wasn't invalid syntax
   if (restExpr && !hasValidOp) {
     return null
   }
@@ -607,8 +641,10 @@ export function evaluateAll(text, options = {}) {
   const lines = text.split('\n')
   const scope = { pi: Math.PI, e: Math.E }
   const varCurrencies = {}
+  const lineCurrencies = []
   const scopeDates = {}
   let prev = null
+  let prevCurrency = null
   let sum = 0
   const rendered = []
   const lineResults = []
@@ -618,6 +654,7 @@ export function evaluateAll(text, options = {}) {
     if (trimmedRaw === '' || trimmedRaw.startsWith('//')) {
       rendered.push({ cls: 'empty', text: '' })
       lineResults.push(null)
+      lineCurrencies.push(null)
       return
     }
 
@@ -634,11 +671,12 @@ export function evaluateAll(text, options = {}) {
       }
       rendered.push({ cls: 'date', text: dateHit.text })
       lineResults.push(null)
+      lineCurrencies.push(null)
       return
     }
 
     // 2. Try Currency & Gold Line
-    const currencyHit = tryCurrencyLine(cleanRaw, scope, options, lineResults, varCurrencies)
+    const currencyHit = tryCurrencyLine(cleanRaw, scope, options, lineResults, varCurrencies, lineCurrencies, prevCurrency)
     if (currencyHit) {
       if (currencyHit.varName) {
         scope[currencyHit.varName] = currencyHit.numericValue
@@ -647,16 +685,19 @@ export function evaluateAll(text, options = {}) {
         }
       }
       prev = currencyHit.numericValue
+      prevCurrency = currencyHit.targetCurrency
       sum += currencyHit.numericValue
       rendered.push({ cls: 'num', text: currencyHit.text })
       lineResults.push(currencyHit.numericValue)
+      lineCurrencies.push(currencyHit.targetCurrency)
       return
     }
 
-    const { expr, symbol } = preprocess(cleanRaw, lineResults, varCurrencies)
+    const { expr, symbol } = preprocess(cleanRaw, lineResults, varCurrencies, lineCurrencies, prevCurrency)
     if (expr === null) {
       rendered.push({ cls: 'empty', text: '' })
       lineResults.push(null)
+      lineCurrencies.push(null)
       return
     }
 
@@ -680,8 +721,13 @@ export function evaluateAll(text, options = {}) {
 
       lineResults.push(numVal)
 
-      if (assignedVarName && symbol) {
-        varCurrencies[assignedVarName] = normalizeCurrency(symbol) || symbol
+      const detectedCurr = symbol ? (normalizeCurrency(symbol) || symbol) : null
+      lineCurrencies.push(detectedCurr)
+      if (detectedCurr) {
+        prevCurrency = detectedCurr
+        if (assignedVarName) {
+          varCurrencies[assignedVarName] = detectedCurr
+        }
       }
 
       if (value === undefined) {
@@ -693,10 +739,11 @@ export function evaluateAll(text, options = {}) {
     } catch (err) {
       rendered.push({ cls: 'err', text: '—' })
       lineResults.push(null)
+      lineCurrencies.push(null)
     }
   })
 
-  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults, varCurrencies, scopeDates }
+  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults, lineCurrencies, varCurrencies, scopeDates }
 }
 
 export function getFormattedCopyAllText(text, options = {}) {

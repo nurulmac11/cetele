@@ -28,6 +28,21 @@ a to usd`
     expect(rendered[2].text).toContain('USD')
   })
 
+  it('preserves currency types for line references (#1, L1) and prev keyword', () => {
+    const input = `100 sol
+#1 + 10$
+prev to usd
+1 gram altin
+prev to tl`
+
+    const { rendered } = evaluateAll(input)
+    expect(rendered[0].text).toContain('SOL')
+    expect(rendered[1].text).toContain('SOL')
+    expect(rendered[2].text).toContain('USD')
+    expect(rendered[3].text).toContain('gram gold')
+    expect(rendered[4].text).toContain('TL')
+  })
+
   it('handles gold and precious metals math', () => {
     const input = `1 gram altin to tl
 5 gram altin + 100$
