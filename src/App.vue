@@ -145,6 +145,7 @@ import {
   deleteLocalTab,
   getSavedLibraryTabs,
   saveTabToLibrary,
+  saveAllSavedLibrary,
   deleteSavedTabFromLibrary,
   getLocalSettings,
   saveLocalSettings,
@@ -240,6 +241,7 @@ async function handleUserUpdated(newUser) {
     activeTabId.value = defaultTabs[0].id
     savedLibrary.value = []
     await saveLocalTabs(tabs.value)
+    await saveAllSavedLibrary([])
   }
 }
 
@@ -260,9 +262,7 @@ async function handleCloudFetch(userId) {
   const cloudLibrary = await fetchCloudLibrary(userId)
   if (cloudLibrary && cloudLibrary.length > 0) {
     savedLibrary.value = cloudLibrary
-    for (const item of cloudLibrary) {
-      await saveTabToLibrary(item)
-    }
+    await saveAllSavedLibrary(cloudLibrary)
   } else if (savedLibrary.value.length > 0) {
     syncLibraryToCloud(savedLibrary.value, userId)
   }

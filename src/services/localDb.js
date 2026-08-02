@@ -176,17 +176,17 @@ export async function getSavedLibraryTabs() {
 
 export async function saveTabToLibrary(savedItem) {
   const itemToSave = {
-    id: 'saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+    id: savedItem.id || ('saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)),
     title: savedItem.title || 'Saved Tab',
     content: savedItem.content || '',
-    savedAt: new Date().toISOString(),
+    savedAt: savedItem.savedAt || new Date().toISOString(),
     lineCount: (savedItem.content || '').split('\n').length
   }
 
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const idx = current.findIndex(i => i.title === itemToSave.title && i.content === itemToSave.content)
+    const idx = current.findIndex(i => i.id === itemToSave.id || (i.title === itemToSave.title && i.content === itemToSave.content))
     if (idx >= 0) {
       current[idx] = itemToSave
     } else {
@@ -211,11 +211,32 @@ export async function saveTabToLibrary(savedItem) {
   }
 }
 
+export async function saveAllSavedLibrary(libraryArray) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_SAVED_TABS_KEY, JSON.stringify(libraryArray))
+  } catch (e) {}
+
+  try {
+    const db = await openDatabase()
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_SAVED_TABS, 'readwrite')
+      const store = tx.objectStore(STORE_SAVED_TABS)
+      store.clear().onsuccess = () => {
+        libraryArray.forEach(item => store.put(item))
+      }
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => resolve(true)
+    })
+  } catch (err) {
+    return true
+  }
+}
+
 export async function deleteSavedTabFromLibrary(id) {
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const filtered = current.filter(i => i.id !== id)
+    const filtered = current.filter(i => String(i.id) !== String(id))
     localStorage.setItem(LOCAL_STORAGE_SAVED_TABS_KEY, JSON.stringify(filtered))
   } catch (e) {}
 
@@ -224,7 +245,7 @@ export async function deleteSavedTabFromLibrary(id) {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_SAVED_TABS, 'readwrite')
       const store = tx.objectStore(STORE_SAVED_TABS)
-      store.delete(id)
+      store.delete(String(id))
       tx.oncomplete = () => resolve(true)
       tx.onerror = () => resolve(true)
     })
