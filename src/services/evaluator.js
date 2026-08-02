@@ -14,15 +14,13 @@ L2 + 500
 line3 / 2
 
 // currency, gold & crypto math
-m = 10,000$
-plus = m * 4.2
-m + plus to tl + 10000
+a = 100 sol + 50$
+a + 10$
+a to usd
 
 10$ + 500 tl
 1 gram gold to tl
 1 btc to usd
-0.5 eth to tl
-100 sol + 50$
 
 // unit conversion
 5 miles to km
@@ -32,9 +30,9 @@ m + plus to tl + 10000
 20% off 89.99
 increase 1,200 by 7%
 
-// dates
-today
-today + 30 days
+// date arithmetic & variable assignment
+start = today
+deadline = start + 2 weeks - 1 day + 2 months
 
 // reference the previous answer
 prev / 2
@@ -280,12 +278,10 @@ function preprocessLineReferences(line, lineResults) {
 
 function normalizeGoldAndCryptoPhrases(line) {
   let l = line
-  // Gold phrases
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:grams?|g)?\s*(?:of\s*)?(?:gold|alt[ıi]n)\b/gi, '$1 GRAM_GOLD')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:oz|ounces?)\s*(?:of\s*)?gold\b/gi, '$1 XAU')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:[çc]eyrek(?:\s*alt[ıi]n)?)\b/gi, '$1 CEYREK_GOLD')
 
-  // Crypto phrases
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*bitcoins?\b/gi, '$1 BTC')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*ethereums?\b/gi, '$1 ETH')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*solanas?\b/gi, '$1 SOL')
@@ -295,11 +291,10 @@ function normalizeGoldAndCryptoPhrases(line) {
   return l
 }
 
-function preprocessCurrencies(line) {
+function preprocessCurrencies(line, varCurrencies = {}) {
   let l = normalizeGoldAndCryptoPhrases(line)
   const matches = []
 
-  // 1. Prefix symbols ($10, ₺500, €50)
   const prefixRegex = /([$€£₺])\s*(-?\d+(?:\.\d+)?)/g
   let m
   while ((m = prefixRegex.exec(l)) !== null) {
@@ -307,7 +302,6 @@ function preprocessCurrencies(line) {
     if (curr) matches.push({ raw: m[0], rawSymbol: m[1], index: m.index, amount: parseFloat(m[2]), currency: curr })
   }
 
-  // 2. Suffix symbols (10$, 500₺, 50€)
   const symbolSuffixRegex = /(-?\d+(?:\.\d+)?)\s*([$€£₺])/g
   while ((m = symbolSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
@@ -317,7 +311,6 @@ function preprocessCurrencies(line) {
     }
   }
 
-  // 3. Suffix codes (100 USD, 500 TL, 1 GRAM_GOLD, 1 BTC, 0.5 ETH, 10 SOL)
   const codeSuffixRegex = /(-?\d+(?:\.\d+)?)\s*(USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)\b/gi
   while ((m = codeSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
@@ -325,6 +318,21 @@ function preprocessCurrencies(line) {
       const overlap = matches.some(p => m.index >= p.index && m.index < p.index + p.raw.length)
       if (!overlap) matches.push({ raw: m[0], rawSymbol: m[2].toUpperCase(), index: m.index, amount: parseFloat(m[1]), currency: curr })
     }
+  }
+
+  if (varCurrencies && typeof varCurrencies === 'object') {
+    Object.keys(varCurrencies).forEach((vName) => {
+      const vCurr = varCurrencies[vName]
+      if (vCurr) {
+        const vRegex = new RegExp(`\\b(${vName})\\b`, 'g')
+        while ((m = vRegex.exec(l)) !== null) {
+          const overlap = matches.some(p => m.index >= p.index && m.index < p.index + p.raw.length)
+          if (!overlap) {
+            matches.push({ raw: m[0], rawSymbol: vCurr, index: m.index, amount: null, currency: vCurr, isVar: true })
+          }
+        }
+      }
+    })
   }
 
   if (matches.length === 0) return { expr: l, symbol: null }
@@ -337,6 +345,8 @@ function preprocessCurrencies(line) {
   let resultLine = l
   for (let i = matches.length - 1; i >= 0; i--) {
     const item = matches[i]
+    if (item.isVar) continue
+
     let convertedAmount = item.amount
     if (item.currency !== targetCurrency && RATES[item.currency] && RATES[targetCurrency]) {
       const amountInUSD = item.amount / RATES[item.currency]
@@ -350,7 +360,7 @@ function preprocessCurrencies(line) {
   return { expr: resultLine, symbol: detectedSymbol }
 }
 
-export function preprocess(line, lineResults = []) {
+export function preprocess(line, lineResults = [], varCurrencies = {}) {
   let l = line.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
   if (!l) return { expr: null, symbol: null }
 
@@ -365,7 +375,7 @@ export function preprocess(line, lineResults = []) {
     rhs = mVar[2]
   }
 
-  const currRes = preprocessCurrencies(rhs)
+  const currRes = preprocessCurrencies(rhs, varCurrencies)
   rhs = currRes.expr
   const symbol = currRes.symbol
 
@@ -387,7 +397,7 @@ export function preprocess(line, lineResults = []) {
   return { expr: varPrefix + rhs, symbol }
 }
 
-export function tryCurrencyLine(raw, scope, options = {}, lineResults = []) {
+export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varCurrencies = {}) {
   const l = raw.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
   if (!l) return null
 
@@ -416,14 +426,21 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = []) {
 
     if (toCurr && RATES[toCurr]) {
       let fromCurr = 'USD'
+
       const currMatch = lhsExpr.match(/([$€£₺]|USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)/i)
       if (currMatch) {
         const parsed = normalizeCurrency(currMatch[1])
         if (parsed) fromCurr = parsed
+      } else {
+        Object.keys(varCurrencies).forEach((vName) => {
+          if (new RegExp(`\\b${vName}\\b`).test(lhsExpr) && varCurrencies[vName]) {
+            fromCurr = varCurrencies[vName]
+          }
+        })
       }
 
       try {
-        const { expr: processedLhs } = preprocess(lhsExpr, lineResults)
+        const { expr: processedLhs } = preprocess(lhsExpr, lineResults, varCurrencies)
         const valLhs = math.evaluate(processedLhs, scope)
         if (typeof valLhs === 'number') {
           const usdVal = valLhs / RATES[fromCurr]
@@ -431,7 +448,7 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = []) {
 
           let finalVal = convertedLhs
           if (tailExpr.trim()) {
-            const { expr: processedTail } = preprocess(tailExpr, lineResults)
+            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies)
             const evalStr = String(convertedLhs) + ' ' + processedTail
             finalVal = math.evaluate(evalStr, scope)
           }
@@ -440,6 +457,7 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = []) {
           return {
             type: 'currency',
             varName,
+            targetCurrency: toCurr,
             numericValue: finalVal,
             text: formatted
           }
@@ -453,30 +471,91 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = []) {
   return null
 }
 
-export function tryDateLine(raw) {
+export function tryDateLine(raw, scopeDates = {}) {
   const l = raw.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
-  if (/^now$/i.test(l)) return { type: 'date', text: fmtDateTime(new Date()) }
-  if (/^today$/i.test(l)) return { type: 'date', text: fmtDate(new Date()) }
+  if (!l) return null
 
-  let m = l.match(/^today\s*([+-])\s*(\d+)\s*days?$/i)
-  if (m) {
-    const d = new Date()
-    d.setDate(d.getDate() + (m[1] === '+' ? 1 : -1) * parseInt(m[2], 10))
-    return { type: 'date', text: fmtDate(d) }
+  let varName = null
+  let rhs = l
+  const mVar = l.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
+  if (mVar) {
+    varName = mVar[1]
+    rhs = mVar[2].trim()
   }
-  m = l.match(/^today\s*([+-])\s*(\d+)\s*weeks?$/i)
-  if (m) {
-    const d = new Date()
-    d.setDate(d.getDate() + (m[1] === '+' ? 1 : -1) * parseInt(m[2], 10) * 7)
-    return { type: 'date', text: fmtDate(d) }
+
+  // Check if expression starts with 'today', 'now', or a date variable
+  let isTimeIncluded = false
+  let baseDate = null
+  let restExpr = ''
+
+  if (/^today\b/i.test(rhs)) {
+    baseDate = new Date()
+    restExpr = rhs.replace(/^today/i, '').trim()
+  } else if (/^now\b/i.test(rhs)) {
+    baseDate = new Date()
+    isTimeIncluded = true
+    restExpr = rhs.replace(/^now/i, '').trim()
+  } else {
+    // Check if starts with a defined date variable
+    const varMatch = rhs.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\b/)
+    if (varMatch && scopeDates[varMatch[1]]) {
+      const vName = varMatch[1]
+      const savedObj = scopeDates[vName]
+      baseDate = new Date(savedObj.timestamp)
+      isTimeIncluded = Boolean(savedObj.isTime)
+      restExpr = rhs.slice(vName.length).trim()
+    }
   }
-  m = l.match(/^today\s*([+-])\s*(\d+)\s*months?$/i)
-  if (m) {
-    const d = new Date()
-    d.setMonth(d.getMonth() + (m[1] === '+' ? 1 : -1) * parseInt(m[2], 10))
-    return { type: 'date', text: fmtDate(d) }
+
+  if (!baseDate) return null
+
+  const d = new Date(baseDate.getTime())
+
+  // Parse chained operations: (+|-)\s*(\d+)\s*(days?|weeks?|months?|years?|hours?|mins?|minutes?|seconds?)
+  const tokenRegex = /([+-])\s*(\d+)\s*(days?|weeks?|months?|years?|hours?|mins?|minutes?|seconds?)/gi
+  let match
+  let hasValidOp = false
+
+  while ((match = tokenRegex.exec(restExpr)) !== null) {
+    hasValidOp = true
+    const sign = match[1] === '+' ? 1 : -1
+    const amount = parseInt(match[2], 10) * sign
+    const unit = match[3].toLowerCase()
+
+    if (unit.startsWith('day')) {
+      d.setDate(d.getDate() + amount)
+    } else if (unit.startsWith('week')) {
+      d.setDate(d.getDate() + amount * 7)
+    } else if (unit.startsWith('month')) {
+      d.setMonth(d.getMonth() + amount)
+    } else if (unit.startsWith('year')) {
+      d.setFullYear(d.getFullYear() + amount)
+    } else if (unit.startsWith('hour')) {
+      d.setHours(d.getHours() + amount)
+      isTimeIncluded = true
+    } else if (unit.startsWith('min')) {
+      d.setMinutes(d.getMinutes() + amount)
+      isTimeIncluded = true
+    } else if (unit.startsWith('sec')) {
+      d.setSeconds(d.getSeconds() + amount)
+      isTimeIncluded = true
+    }
   }
-  return null
+
+  // If there are leftover characters that didn't match operations, verify it wasn't invalid syntax
+  if (restExpr && !hasValidOp) {
+    return null
+  }
+
+  const formattedText = isTimeIncluded ? fmtDateTime(d) : fmtDate(d)
+
+  return {
+    type: 'date',
+    varName,
+    timestamp: d.getTime(),
+    isTimeIncluded,
+    text: formattedText
+  }
 }
 
 function formatValueWithSymbol(val, symbol, options = {}) {
@@ -527,6 +606,8 @@ export function evaluateAll(text, options = {}) {
   if (text === null || text === undefined) text = ''
   const lines = text.split('\n')
   const scope = { pi: Math.PI, e: Math.E }
+  const varCurrencies = {}
+  const scopeDates = {}
   let prev = null
   let sum = 0
   const rendered = []
@@ -542,10 +623,28 @@ export function evaluateAll(text, options = {}) {
 
     const cleanRaw = stripCommaSeparators(trimmedRaw)
 
-    const currencyHit = tryCurrencyLine(cleanRaw, scope, options, lineResults)
+    // 1. Try Date Line & Date Variables
+    const dateHit = tryDateLine(cleanRaw, scopeDates)
+    if (dateHit) {
+      if (dateHit.varName) {
+        scopeDates[dateHit.varName] = {
+          timestamp: dateHit.timestamp,
+          isTime: dateHit.isTimeIncluded
+        }
+      }
+      rendered.push({ cls: 'date', text: dateHit.text })
+      lineResults.push(null)
+      return
+    }
+
+    // 2. Try Currency & Gold Line
+    const currencyHit = tryCurrencyLine(cleanRaw, scope, options, lineResults, varCurrencies)
     if (currencyHit) {
       if (currencyHit.varName) {
         scope[currencyHit.varName] = currencyHit.numericValue
+        if (currencyHit.targetCurrency) {
+          varCurrencies[currencyHit.varName] = currencyHit.targetCurrency
+        }
       }
       prev = currencyHit.numericValue
       sum += currencyHit.numericValue
@@ -554,19 +653,15 @@ export function evaluateAll(text, options = {}) {
       return
     }
 
-    const dateHit = tryDateLine(cleanRaw)
-    if (dateHit) {
-      rendered.push({ cls: 'date', text: dateHit.text })
-      lineResults.push(null)
-      return
-    }
-
-    const { expr, symbol } = preprocess(cleanRaw, lineResults)
+    const { expr, symbol } = preprocess(cleanRaw, lineResults, varCurrencies)
     if (expr === null) {
       rendered.push({ cls: 'empty', text: '' })
       lineResults.push(null)
       return
     }
+
+    const mVarAssign = cleanRaw.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
+    const assignedVarName = mVarAssign ? mVarAssign[1] : null
 
     try {
       scope.prev = prev === null ? 0 : prev
@@ -585,6 +680,10 @@ export function evaluateAll(text, options = {}) {
 
       lineResults.push(numVal)
 
+      if (assignedVarName && symbol) {
+        varCurrencies[assignedVarName] = normalizeCurrency(symbol) || symbol
+      }
+
       if (value === undefined) {
         rendered.push({ cls: 'empty', text: '' })
       } else {
@@ -597,7 +696,7 @@ export function evaluateAll(text, options = {}) {
     }
   })
 
-  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults }
+  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults, varCurrencies, scopeDates }
 }
 
 export function getFormattedCopyAllText(text, options = {}) {
