@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { evaluateAll, formatValue } from '../services/evaluator.js'
 import { HardDrive, Loader2, AlertCircle } from '@lucide/vue'
 
@@ -104,6 +104,12 @@ const copiedTotal = ref(false)
 let copyTimer = null
 let totalCopyTimer = null
 
+// Undo / Redo History State
+const historyStack = ref([])
+const historyIndex = ref(-1)
+let isUndoRedoAction = false
+let historyDebounceTimer = null
+
 // Autocomplete State
 const currentPrefix = ref('')
 const autocompleteIndex = ref(0)
@@ -112,8 +118,52 @@ const cursorPosition = ref(0)
 
 const tabContent = computed({
   get: () => props.tab?.content || '',
-  set: (val) => emit('update:content', val)
+  set: (val) => {
+    emit('update:content', val)
+    debouncedRecordHistory(val)
+  }
 })
+
+function recordHistoryNow(content) {
+  if (isUndoRedoAction) return
+  if (historyIndex.value < historyStack.value.length - 1) {
+    historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+  }
+  if (historyStack.value[historyIndex.value] === content) return
+
+  historyStack.value.push(content)
+  historyIndex.value = historyStack.value.length - 1
+
+  if (historyStack.value.length > 100) {
+    historyStack.value.shift()
+    historyIndex.value--
+  }
+}
+
+function debouncedRecordHistory(content) {
+  clearTimeout(historyDebounceTimer)
+  historyDebounceTimer = setTimeout(() => {
+    recordHistoryNow(content)
+  }, 300)
+}
+
+function undo() {
+  if (historyIndex.value > 0) {
+    historyIndex.value--
+    isUndoRedoAction = true
+    emit('update:content', historyStack.value[historyIndex.value])
+    setTimeout(() => { isUndoRedoAction = false }, 50)
+  }
+}
+
+function redo() {
+  if (historyIndex.value < historyStack.value.length - 1) {
+    historyIndex.value++
+    isUndoRedoAction = true
+    emit('update:content', historyStack.value[historyIndex.value])
+    setTimeout(() => { isUndoRedoAction = false }, 50)
+  }
+}
 
 // Evaluation output
 const evaluation = computed(() => {
@@ -228,6 +278,26 @@ function applyAutocomplete(varName) {
 }
 
 function handleKeyDown(e) {
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const modifier = isMac ? e.metaKey : e.ctrlKey
+
+  // Handle Ctrl+Z (Undo) and Ctrl+Y / Ctrl+Shift+Z (Redo)
+  if (modifier && (e.key === 'z' || e.key === 'Z')) {
+    e.preventDefault()
+    if (e.shiftKey) {
+      redo()
+    } else {
+      undo()
+    }
+    return
+  }
+
+  if (modifier && (e.key === 'y' || e.key === 'Y')) {
+    e.preventDefault()
+    redo()
+    return
+  }
+
   if (showAutocomplete.value && autocompleteSuggestions.value.length > 0) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -316,17 +386,19 @@ function syncScroll() {
 }
 
 function insertTextAtCursor(textToInsert) {
+  recordHistoryNow(tabContent.value)
+
   const textarea = inputRef.value
   if (!textarea) {
     const needPrefix = tabContent.value && !tabContent.value.endsWith('\n') ? '\n' : ''
     tabContent.value += `${needPrefix}${textToInsert}\n`
+    recordHistoryNow(tabContent.value)
     return
   }
 
   const start = textarea.selectionStart || 0
   const current = tabContent.value
 
-  // Ensure snippet always inserts cleanly on a new line
   let prefix = ''
   if (start > 0 && current[start - 1] !== '\n') {
     prefix = '\n'
@@ -340,6 +412,7 @@ function insertTextAtCursor(textToInsert) {
   const formattedSnippet = prefix + textToInsert + suffix
   const newText = current.substring(0, start) + formattedSnippet + current.substring(start)
   tabContent.value = newText
+  recordHistoryNow(newText)
 
   setTimeout(() => {
     textarea.focus({ preventScroll: true })
@@ -356,6 +429,15 @@ onMounted(() => {
   if (typeof window !== 'undefined') {
     window.scrollTo(0, 0)
   }
+  // Initialize initial history snapshot
+  recordHistoryNow(tabContent.value)
+})
+
+watch(() => props.tab?.id, () => {
+  // Reset history stack when active tab changes
+  historyStack.value = []
+  historyIndex.value = -1
+  recordHistoryNow(tabContent.value)
 })
 </script>
 

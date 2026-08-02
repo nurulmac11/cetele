@@ -1,101 +1,100 @@
-# çetele — Complete Syntax & Feature Guide
+# çetele Syntax & Features Guide
 
-This guide provides the definitive reference for writing mathematical expressions, currency math, precious metals math (gold), cryptocurrency math, unit conversions, percentages, date arithmetic, and direct line references in **çetele**.
-
----
-
-## 💱 1. Currency, Gold & Crypto Math
-
-### Mixed Currency Math
-When combining currencies, the currency of the **first currency item** determines the default target output currency:
-```text
-10$ + 500 tl        => 20.52 $ (converts 500 TL to USD and adds $10)
-500 tl + 10$        => 975 TL  (converts $10 to TRY and adds 500 TL)
-```
-
-### Direct Conversions (`to target_currency`)
-Convert values directly into a target currency:
-```text
-5$ to tl            => 237.50 TL
-100 EUR to USD      => 108.69 USD
-```
-
-### 🏆 Gold & Precious Metals Math
-Evaluate gold prices in Grams, Troy Ounces (XAU), and Çeyrek Altın:
-```text
-1 gram gold to tl        => 6,175.00 TL
-1 gram gold to usd       => $130.00
-5 gram altin + 100$       => $750.00
-1 oz gold to usd         => $4,043.45
-1 ceyrek to tl           => 10,806.00 TL
-```
-
-### 🚀 Cryptocurrency Math
-Evaluate live crypto prices and perform cross-asset math:
-```text
-1 btc to usd             => $65,400.00
-0.5 eth to tl            => 81,937.50 TL
-100 sol + 50$            => $18,550.00
-1 btc to gram gold       => 503 gram gold
-500 usdt to tl           => 23,750.00 TL
-```
-
-#### Supported Assets & Symbols:
-- **Fiat Currencies**: `$`, `USD`, `€`, `EUR`, `£`, `GBP`, `₺`, `TL`, `TRY`, `¥`, `JPY`, `₹`, `INR`, `CAD`, `AUD`, `CHF`, `CNY`, `SAR`, `AED`, `RUB`, `BRL`, `SEK`, `NZD`
-- **Gold & Metals**: `1 gram gold`, `1 oz gold (XAU)`, `1 ceyrek`
-- **Cryptocurrencies**: `BTC (Bitcoin)`, `ETH (Ethereum)`, `SOL (Solana)`, `USDT (Tether)`, `BNB`, `XRP`, `DOGE`, `ADA`, `AVAX`
+**çetele** is a fast, offline-first notepad calculator built for live multi-currency, gold, crypto, and date math.
 
 ---
 
-## 🔢 2. Direct Line References
+## 1. Basic Math & Line References
 
-Reference calculated line answers from anywhere in your document:
+Write plain math expressions naturally across multiple lines.
+
 ```text
-#1 + #2             => Sum of Line 1 and Line 2
-L1 * 3              => Multiplies Line 1 by 3
-line3 / 2           => Divides Line 3 answer by 2
-prev * 2            => Multiplies the line immediately above
-total               => Sum of all numeric lines above
+subtotal = 1,250.50
+tax = 8.25% of subtotal
+subtotal + tax
+
+// Line References
+#1 + #2                // Line 1 + Line 2
+L1 * 2                 // Line 1 multiplied by 2
+line2 + 500            // Line 2 + 500
+prev * 2               // Refers to the previous numeric result
+total                  // Running total of all numeric lines above
 ```
 
 ---
 
-## 💡 3. Variable Autocomplete
+## 2. Currency, Gold & Crypto Math
 
-When typing a variable name prefix of **3 characters or more** (e.g. `sub...`, `tax...`, `inc...`), an inline autocomplete popup automatically displays declared variable names and their calculated values.
-- Press **Tab** or **Enter** to insert the variable name.
-- Use **ArrowUp / ArrowDown** to navigate the dropdown menu.
+çetele automatically fetches live spot prices for fiat currencies, gold, and crypto assets.
 
----
-
-## 📐 4. Unit Conversions
-
-Output numeric conversion results for physical units:
 ```text
-5 miles to km       => 8.04672
-3 cups to ml        => 709.765
-10 lbs to kg        => 4.53592
-75 degF to degC     => 23.8889
+// Multi-currency arithmetic
+10$ + 500 tl
+100 usd to eur
+0.5 btc + 2 eth to tl
+
+// Gold & Precious Metals
+1 gram altin to tl     // Live 2026 Gram Gold rate (~6,175 TL)
+5 gram altin + 100$    // Adds $100 USD worth of gold to 5 grams
+1 ceyrek to tl         // Quarter gold rate (1.75g) in TL
+10 oz gold to usd      // Spot gold (XAU) in USD
+
+// Crypto Math (BTC, ETH, SOL, USDT, BNB, XRP, DOGE, ADA, AVAX)
+a = 100 sol + 50$      // Evaluates to SOL and tracks the SOL unit
+a + 10$                // Converts $10 USD to SOL before adding
+a to usd               // Converts total SOL to USD
 ```
 
 ---
 
-## 📊 5. Percentages
+## 3. Date Arithmetic & Date Variables
+
+Perform chained date calculations and store dates in variables:
 
 ```text
-15% of 240          => 36
-20% off 89.99       => 51.992
-increase 1200 by 7% => 1284
-decrease 1200 by 15%=> 1020
+// Base date keywords
+today                  // Sun, Aug 02, 2026
+now                    // Sun, Aug 02, 2026 09:20
+
+// Date variables & chained math
+start = today          // Assign date to variable 'start'
+deadline = start + 2 weeks - 1 day + 2 months
+event = now + 3 hours - 30 mins
 ```
 
 ---
 
-## 📅 6. Date Arithmetic
+## 4. Percentages & Unit Conversions
 
 ```text
-today               => Sun, Aug 02, 2026
-today + 14 days     => Sun, Aug 16, 2026
-today + 2 weeks     => Sun, Aug 16, 2026
-now                 => Sun, Aug 02, 2026 14:30
+// Percentages
+15% of 240             // 36
+20% off 89.99          // 71.992
+increase 1,200 by 8%   // 1,296
+
+// Units
+12 km to miles
+3 cups + 2 tbsp to ml
 ```
+
+---
+
+## 5. Keyboard Shortcuts & Features
+
+| Shortcut | Action |
+| :--- | :--- |
+| **`Ctrl + Z`** / **`Cmd + Z`** | **Undo** last typing or insertion step |
+| **`Ctrl + Shift + Z`** / **`Ctrl + Y`** | **Redo** last undone step |
+| **`Ctrl + Shift + C`** / **`Cmd + Shift + C`** | **Copy All** text with implicit calculated answers appended (`= result`) |
+| **`Ctrl + N`** / **`Cmd + N`** | Create **New Notepad Tab** |
+| **`Ctrl + D`** / **`Cmd + D`** | Toggle **Decimals** ON / OFF |
+| **`Ctrl + ,`** | Open **Settings & Local Data Management** |
+
+---
+
+## 6. Shareable Links (URL Hash Sharing)
+
+Click **Share Tab** in the sidebar to generate a live shareable link:
+`https://cetele.online/#doc=<base64_payload>`
+
+When anyone opens your shared link, **çetele** automatically decodes the payload offline and opens the document as a new tab!
