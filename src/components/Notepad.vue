@@ -318,20 +318,32 @@ function syncScroll() {
 function insertTextAtCursor(textToInsert) {
   const textarea = inputRef.value
   if (!textarea) {
-    tabContent.value += (tabContent.value ? '\n' : '') + textToInsert
+    const needPrefix = tabContent.value && !tabContent.value.endsWith('\n') ? '\n' : ''
+    tabContent.value += `${needPrefix}${textToInsert}\n`
     return
   }
 
   const start = textarea.selectionStart || 0
-  const end = textarea.selectionEnd || 0
   const current = tabContent.value
 
-  const newText = current.substring(0, start) + textToInsert + current.substring(end)
+  // Ensure snippet always inserts cleanly on a new line
+  let prefix = ''
+  if (start > 0 && current[start - 1] !== '\n') {
+    prefix = '\n'
+  }
+
+  let suffix = '\n'
+  if (start < current.length && current[start] === '\n') {
+    suffix = ''
+  }
+
+  const formattedSnippet = prefix + textToInsert + suffix
+  const newText = current.substring(0, start) + formattedSnippet + current.substring(start)
   tabContent.value = newText
 
   setTimeout(() => {
     textarea.focus({ preventScroll: true })
-    const newPos = start + textToInsert.length
+    const newPos = start + formattedSnippet.length
     textarea.selectionStart = textarea.selectionEnd = newPos
   }, 0)
 }
@@ -341,7 +353,6 @@ defineExpose({
 })
 
 onMounted(() => {
-  // Ensure page remains at top on load without scrolling down to textarea
   if (typeof window !== 'undefined') {
     window.scrollTo(0, 0)
   }
