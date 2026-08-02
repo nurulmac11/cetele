@@ -6,7 +6,7 @@
         <ArrowLeft class="icon-sm" /> Back to Notepad
       </button>
       <h1>çetele Syntax & Feature Guide</h1>
-      <p class="subtitle">Learn how to write math, currency conversions, gold/crypto calculations, date math, and line references.</p>
+      <p class="subtitle">Learn how to write math, currency conversions, gold/crypto calculations, date math, line references, and cloud sync.</p>
     </header>
 
     <!-- Guide Content Grid -->
@@ -140,12 +140,47 @@
           </div>
         </div>
       </section>
+
+      <!-- Section 7: Cloud Sync & Data Privacy (Placed Last) -->
+      <section class="card">
+        <div class="card-title">
+          <Cloud class="card-icon" />
+          <h2>Cloud Sync & Data Privacy</h2>
+        </div>
+        <p class="card-desc">Local-first browser database with optional Google Multi-Device Cloud Sync.</p>
+        <div class="sync-info-list">
+          <div class="sync-info-item">
+            <strong class="sync-title">100% Offline Local-First:</strong>
+            <span>All calculations and open tabs save instantly to your browser's local database (`IndexedDB`). No account needed!</span>
+          </div>
+          <div class="sync-info-item">
+            <strong class="sync-title">Google Cloud Sync:</strong>
+            <span>Sign in with Google to sync your active open tabs (`user_tabs`) and Saved Library (`saved_library`) across all devices.</span>
+          </div>
+          <div class="sync-info-item">
+            <strong class="sync-title">Saved Tabs Library:</strong>
+            <span>Click <strong>Save Tab to Library</strong> to store reusable templates. Deduplicates entries automatically so no copies are populated.</span>
+          </div>
+          <div class="sync-info-item">
+            <strong class="sync-title">Rate-Limited Throttling:</strong>
+            <span>Typing saves instantly locally, while cloud sync is throttled to max 1 request per 2 seconds to prevent network spam.</span>
+          </div>
+          <div class="sync-info-item">
+            <strong class="sync-title">Row Level Security (RLS):</strong>
+            <span>Guarded by PostgreSQL RLS. Nobody can ever view, read, or modify another user's notes.</span>
+          </div>
+          <div class="sync-info-item">
+            <strong class="sync-title">Clean Sign Out:</strong>
+            <span>Signing out resets active tabs back to default guest templates and clears user saved templates locally.</span>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command } from '@lucide/vue'
+import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command, Cloud } from '@lucide/vue'
 
 defineEmits(['switch-to-notepad', 'insert-snippet'])
 </script>
@@ -263,6 +298,30 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 .comment {
   color: var(--muted);
   font-style: italic;
+}
+
+.sync-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--paper);
+}
+
+.sync-title {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .shortcuts-list {

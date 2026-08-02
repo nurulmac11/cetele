@@ -98,3 +98,20 @@ Click **Share Tab** in the sidebar to generate a live shareable link:
 `https://cetele.online/#doc=<base64_payload>`
 
 When anyone opens your shared link, **çetele** automatically decodes the payload offline and opens the document as a new tab!
+
+---
+
+## 7. Cloud Sync Architecture & Data Privacy ☁️
+
+**çetele** combines offline-first local storage with optional Google OAuth Cloud Sync.
+
+| Storage Mode | Active Tabs (`user_tabs`) | Saved Library (`saved_library`) |
+| :--- | :--- | :--- |
+| **Guest (Logged Out)** | Saved 100% locally in browser `IndexedDB` | Saved 100% locally in browser `IndexedDB` |
+| **Google Cloud Sync** | ☁️ Synced to Supabase database | ☁️ Synced to Supabase database |
+
+### Key Sync Rules:
+1. **Instant Local Auto-Save**: Typing saves instantly to local `IndexedDB` with zero lag.
+2. **2-Second Rate-Limited Throttle**: Cloud sync updates are throttled to a maximum of 1 request per 2 seconds while typing to prevent API spamming.
+3. **PostgreSQL Row Level Security (RLS)**: Secured by PostgreSQL RLS (`auth.uid() = user_id`). Nobody can ever view, read, or modify another user's notes.
+4. **Clean Sign Out**: Signing out reverts active tabs back to default guest templates and resets local templates so private notes aren't left behind.

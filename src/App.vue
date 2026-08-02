@@ -66,7 +66,7 @@
         <div class="footer-disclaimer">
           <span class="disclaimer-badge">Disclaimer</span>
           <p class="disclaimer-text">
-            Exchange rates, spot gold prices, and crypto valuations are for calculation and informational purposes only. Data remains 100% private and stored locally in your browser.
+            Exchange rates, spot gold prices, and crypto valuations are for calculation and informational purposes only. Data is stored 100% locally in your browser offline, or securely isolated to your private account when Google Cloud Sync is enabled.
           </p>
         </div>
 
