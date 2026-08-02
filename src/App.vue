@@ -57,29 +57,44 @@
       @insert-snippet="handleInsertSnippet"
     />
 
-    <!-- Subtle Disclaimer & GitHub Footer -->
+    <!-- Premium Modern Footer -->
     <footer class="app-footer">
-      <div class="footer-content">
-        <p class="disclaimer-text">
-          ⚠️ <strong>Disclaimer:</strong> Exchange rates, gold spot prices, and crypto market values are provided for informational calculation purposes only and do not constitute financial advice. All notes and data are stored locally in your browser.
-        </p>
+      <div class="footer-container">
+        <!-- Disclaimer Badge & Text -->
+        <div class="footer-disclaimer">
+          <span class="disclaimer-badge">Disclaimer</span>
+          <p class="disclaimer-text">
+            Exchange rates, spot gold prices, and crypto valuations are for calculation and informational purposes only. Data remains 100% private and stored locally in your browser.
+          </p>
+        </div>
+
+        <!-- Footer Meta & Links -->
         <div class="footer-meta">
-          <span class="built-by">Built by <a href="https://nmacun.com/" target="_blank" rel="noopener noreferrer" class="author-link">nurulmac11</a></span>
-          <span class="footer-sep">•</span>
+          <span class="meta-item built-by">
+            Built by
+            <a href="https://nmacun.com/" target="_blank" rel="noopener noreferrer" class="author-link">
+              nurulmac11
+            </a>
+          </span>
+
+          <span class="dot-sep">•</span>
+
           <a
             href="https://github.com/nurulmac11/cetele"
             target="_blank"
             rel="noopener noreferrer"
-            class="github-footer-link"
+            class="meta-item github-link"
             title="Star çetele on GitHub"
           >
-            <svg class="footer-github-icon" viewBox="0 0 24 24" fill="currentColor">
+            <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
             <span>Star on GitHub</span>
           </a>
-          <span class="footer-sep">•</span>
-          <span class="copyright">cetele.online</span>
+
+          <span class="dot-sep">•</span>
+
+          <span class="meta-item domain-badge">cetele.online</span>
         </div>
       </div>
     </footer>
@@ -521,44 +536,68 @@ onUnmounted(() => {
   margin: 0 auto;
 }
 
+/* Premium Footer */
 .app-footer {
   border-top: 1px solid var(--line);
-  padding: 14px 24px;
+  padding: 16px 24px;
   background: var(--panel);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   margin-top: auto;
 }
 
-.footer-content {
+.footer-container {
   max-width: 1320px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
+}
+
+.footer-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.disclaimer-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+  color: var(--amber);
+  background: rgba(245, 185, 113, 0.12);
+  border: 1px solid rgba(245, 185, 113, 0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .disclaimer-text {
   font-size: 11.5px;
   color: var(--muted);
   margin: 0;
-  line-height: 1.4;
-}
-
-.disclaimer-text strong {
-  color: var(--paper);
+  line-height: 1.45;
 }
 
 .footer-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.built-by {
-  font-size: 11.5px;
+.meta-item {
+  font-size: 12px;
   color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .author-link {
@@ -566,43 +605,52 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--accent);
   text-decoration: none;
+  transition: all 0.15s ease;
 }
 
 .author-link:hover {
   text-decoration: underline;
+  text-shadow: 0 0 8px var(--accent-dim);
 }
 
-.github-footer-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11.5px;
-  font-weight: 600;
+.github-link {
   color: var(--paper);
   text-decoration: none;
-  transition: color 0.15s ease;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
 }
 
-.github-footer-link:hover {
+.github-link:hover {
   color: var(--accent);
-  text-decoration: underline;
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  transform: translateY(-1px);
 }
 
-.footer-github-icon {
-  width: 13px;
-  height: 13px;
+.github-icon {
+  width: 14px;
+  height: 14px;
 }
 
-.footer-sep {
-  color: var(--line);
-  font-size: 11.5px;
-}
-
-.copyright {
+.domain-badge {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--paper);
+  font-weight: 600;
+  background: var(--line-soft);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.dot-sep {
+  color: var(--line);
+  font-size: 12px;
 }
 
 .toast-banner {
@@ -627,16 +675,24 @@ onUnmounted(() => {
   to { opacity: 1; transform: translate(-50%, 0); }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 900px) {
   .workspace {
     flex-direction: column;
     padding: 16px;
   }
 
-  .footer-content {
+  .footer-container {
     flex-direction: column;
     text-align: center;
-    gap: 8px;
+    gap: 12px;
+  }
+
+  .footer-disclaimer {
+    flex-direction: column;
+  }
+
+  .disclaimer-text {
+    text-align: center;
   }
 }
 </style>
