@@ -291,7 +291,7 @@ function normalizeGoldAndCryptoPhrases(line) {
   return l
 }
 
-function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], prevCurrency = null) {
+function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], prevCurrency = null, forcedTargetCurrency = null) {
   let l = normalizeGoldAndCryptoPhrases(line)
   const matches = []
 
@@ -323,7 +323,7 @@ function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], pre
     }
   }
 
-  // 4. Variables that have an assigned currency type (e.g. `a` where varCurrencies['a'] = 'SOL')
+  // 4. Variables that have an assigned currency type
   if (varCurrencies && typeof varCurrencies === 'object') {
     Object.keys(varCurrencies).forEach((vName) => {
       const vCurr = varCurrencies[vName]
@@ -365,12 +365,12 @@ function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], pre
     }
   }
 
-  if (matches.length === 0) return { expr: l, symbol: null }
+  if (matches.length === 0) return { expr: l, symbol: forcedTargetCurrency || null }
 
   matches.sort((a, b) => a.index - b.index)
 
-  const targetCurrency = matches[0].currency
-  const detectedSymbol = matches[0].rawSymbol
+  const targetCurrency = forcedTargetCurrency || matches[0].currency
+  const detectedSymbol = forcedTargetCurrency || matches[0].rawSymbol
 
   let resultLine = l
   for (let i = matches.length - 1; i >= 0; i--) {
@@ -390,7 +390,7 @@ function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], pre
   return { expr: resultLine, symbol: detectedSymbol }
 }
 
-export function preprocess(line, lineResults = [], varCurrencies = {}, lineCurrencies = [], prevCurrency = null) {
+export function preprocess(line, lineResults = [], varCurrencies = {}, lineCurrencies = [], prevCurrency = null, forcedTargetCurrency = null) {
   let l = line.replace(/^;\s*/, '').replace(/\/\/.*$/, '').trim()
   if (!l) return { expr: null, symbol: null }
 
@@ -403,7 +403,7 @@ export function preprocess(line, lineResults = [], varCurrencies = {}, lineCurre
     rhs = mVar[2]
   }
 
-  const currRes = preprocessCurrencies(rhs, varCurrencies, lineCurrencies, prevCurrency)
+  const currRes = preprocessCurrencies(rhs, varCurrencies, lineCurrencies, prevCurrency, forcedTargetCurrency)
   rhs = currRes.expr
   const symbol = currRes.symbol
 
@@ -486,7 +486,7 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
 
           let finalVal = convertedLhs
           if (tailExpr.trim()) {
-            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency)
+            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency, toCurr)
             const evalStr = String(convertedLhs) + ' ' + processedTail
             finalVal = math.evaluate(evalStr, scope)
           }

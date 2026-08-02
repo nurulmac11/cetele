@@ -46,12 +46,17 @@ prev to tl`
   it('handles gold and precious metals math', () => {
     const input = `1 gram altin to tl
 5 gram altin + 100$
-1 ceyrek to tl`
+1 ceyrek to tl
+1 gram altin to tl + 100$`
 
     const { rendered } = evaluateAll(input)
     expect(rendered[0].text).toContain('TL')
     expect(rendered[1].text).toContain('gram gold')
     expect(rendered[2].text).toContain('TL')
+    // 1 gram gold (~6,175 TL) + 100 USD in TL (~4,750 TL) should evaluate to > 10,000 TL
+    expect(rendered[3].text).toContain('TL')
+    const val = parseFloat(rendered[3].text.replace(/[^0-9.]/g, ''))
+    expect(val).toBeGreaterThan(9000)
   })
 
   it('supports date variable assignment and chained date operations', () => {
