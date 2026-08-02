@@ -187,7 +187,8 @@ function cancelRename() {
 .app-header {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
 }

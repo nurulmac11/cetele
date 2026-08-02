@@ -1,12 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #121518;
-  --panel: #181c21;
-  --panel-hover: #1e232a;
-  --panel-active: #222830;
+  --bg: #0f1216;
+  --panel: rgba(24, 28, 33, 0.85);
+  --panel-solid: #181c21;
+  --panel-hover: rgba(30, 35, 42, 0.9);
+  --panel-active: rgba(34, 40, 48, 0.95);
   --line: #272d34;
-  --line-soft: #1d2228;
+  --line-soft: rgba(255, 255, 255, 0.06);
   --paper: #edeae4;
   --muted: #838a95;
   --muted-light: #a4abaf;
@@ -15,19 +16,20 @@
   --accent-dim: rgba(94, 234, 212, 0.25);
   --amber: #f5b971;
   --err: #f2707a;
-  --radius: 12px;
-  --radius-sm: 6px;
+  --radius: 14px;
+  --radius-sm: 8px;
   --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6);
 }
 
 /* Light Theme Overrides */
 [data-theme="light"] {
-  --bg: #f3f5f8;
-  --panel: #ffffff;
-  --panel-hover: #f0f3f6;
-  --panel-active: #e4e8ec;
+  --bg: #f8fafc;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-solid: #ffffff;
+  --panel-hover: rgba(240, 243, 246, 0.9);
+  --panel-active: rgba(228, 232, 236, 0.95);
   --line: #d8dee4;
-  --line-soft: #eaeef2;
+  --line-soft: rgba(0, 0, 0, 0.05);
   --paper: #1c2128;
   --muted: #57606a;
   --muted-light: #6e7781;
@@ -51,23 +53,25 @@ html, body {
 
 body {
   background:
-    radial-gradient(1200px 700px at 20% -10%, #1e242b 0%, transparent 70%),
-    radial-gradient(800px 500px at 85% 100%, #182027 0%, transparent 60%),
-    var(--bg);
+    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.14) 0%, transparent 65%),
+    radial-gradient(950px 750px at 85% 85%, rgba(94, 234, 212, 0.09) 0%, transparent 70%),
+    linear-gradient(180deg, #0f1216 0%, #13171e 40%, #0c0f13 100%);
+  background-attachment: fixed;
   color: var(--paper);
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 [data-theme="light"] body {
   background:
-    radial-gradient(1200px 700px at 20% -10%, #eaeff5 0%, transparent 70%),
-    radial-gradient(800px 500px at 85% 100%, #e2e8f0 0%, transparent 60%),
-    var(--bg);
+    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.12) 0%, transparent 65%),
+    radial-gradient(950px 750px at 85% 85%, rgba(20, 184, 166, 0.08) 0%, transparent 70%),
+    linear-gradient(180deg, #f8fafc 0%, #edf2f7 50%, #e2e8f0 100%);
+  background-attachment: fixed;
 }
 
 #app {
