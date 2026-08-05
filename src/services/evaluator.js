@@ -39,6 +39,19 @@ const USD_PER_GRAM_GOLD = 130.0
 const USD_PER_TROY_OZ = USD_PER_GRAM_GOLD * GRAM_PER_TROY_OZ // ~$4,043.45 USD
 const DEFAULT_XAU = 1 / USD_PER_TROY_OZ
 
+export const RESERVED_KEYWORDS = new Set([
+  'to', 'in', 'of', 'off', 'increase', 'decrease',
+  'prev', 'total', 'subtotal', 'today', 'now',
+  'pi', 'e', 'i', 'tau', 'phi',
+  'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sec', 'csc', 'cot',
+  'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh',
+  'sqrt', 'cbrt', 'abs', 'sign', 'ceil', 'floor', 'round', 'fix',
+  'exp', 'log', 'log2', 'log10', 'ln', 'pow', 'factorial', 'mod',
+  'min', 'max', 'sum', 'mean', 'median', 'mode', 'std', 'var', 'prod', 'gcd', 'lcm',
+  'deg', 'rad', 'grad',
+  'true', 'false', 'null', 'undefined', 'nan', 'infinity'
+])
+
 export const RATES = {
   USD: 1,
   EUR: 0.92,
@@ -623,7 +636,7 @@ function formatValueWithSymbol(val, symbol, options = {}) {
 export function formatValue(v, options = {}) {
   const disableFloat = typeof options === 'boolean' ? options : Boolean(options?.disableFloat)
   
-  if (v === undefined || v === null) return ''
+  if (v === undefined || v === null || typeof v === 'function' || typeof v === 'symbol') return ''
   if (typeof v === 'boolean') return String(v)
   if (typeof v === 'number') {
     if (!isFinite(v)) return 'error'
@@ -644,6 +657,7 @@ export function formatValue(v, options = {}) {
     }
   }
   if (v && v.isComplex) return formatValue(v.re, options)
+  if (typeof v === 'object') return ''
   return String(v)
 }
 
@@ -728,6 +742,12 @@ export function evaluateAll(text, options = {}) {
     // 1. Try Date Line & Date Variables
     const dateHit = tryDateLine(cleanRaw, scopeDates)
     if (dateHit) {
+      if (dateHit.varName && RESERVED_KEYWORDS.has(dateHit.varName.toLowerCase())) {
+        rendered.push({ cls: 'err', text: 'Reserved keyword' })
+        lineResults.push(null)
+        lineCurrencies.push(null)
+        return
+      }
       if (dateHit.varName) {
         scopeDates[dateHit.varName] = {
           timestamp: dateHit.timestamp,
@@ -743,6 +763,12 @@ export function evaluateAll(text, options = {}) {
     // 2. Try Currency & Gold Line
     const currencyHit = tryCurrencyLine(cleanRaw, scope, options, lineResults, varCurrencies, lineCurrencies, prevCurrency)
     if (currencyHit) {
+      if (currencyHit.varName && RESERVED_KEYWORDS.has(currencyHit.varName.toLowerCase())) {
+        rendered.push({ cls: 'err', text: 'Reserved keyword' })
+        lineResults.push(null)
+        lineCurrencies.push(null)
+        return
+      }
       if (currencyHit.varName) {
         scope[currencyHit.varName] = currencyHit.numericValue
         if (currencyHit.targetCurrency) {
@@ -772,26 +798,38 @@ export function evaluateAll(text, options = {}) {
     const mVarAssign = cleanRaw.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
     const assignedVarName = mVarAssign ? mVarAssign[1] : null
 
+    if (assignedVarName && RESERVED_KEYWORDS.has(assignedVarName.toLowerCase())) {
+      rendered.push({ cls: 'err', text: 'Reserved keyword' })
+      lineResults.push(null)
+      lineCurrencies.push(null)
+      return
+    }
+
     try {
       scope.prev = prev === null ? 0 : prev
       scope.total = sum
       if (scope.subtotal === undefined) scope.subtotal = sectionSum
       const value = math.evaluate(expr, scope)
+      const isTotalLine = /^total\s*(?:\/\/.*)?$/i.test(cleanRaw)
       let numVal = null
       if (typeof value === 'number') {
         prev = value
-        sum += value
-        sectionSum += value
-        sectionTotalSum += value
-        sectionLineCount++
         numVal = value
+        if (!isTotalLine) {
+          sum += value
+          sectionSum += value
+          sectionTotalSum += value
+          sectionLineCount++
+        }
       } else if (value && value.isUnit) {
         numVal = typeof value.toNumeric === 'function' ? value.toNumeric() : value.value
         prev = numVal
-        sum += numVal
-        sectionSum += numVal
-        sectionTotalSum += numVal
-        sectionLineCount++
+        if (!isTotalLine) {
+          sum += numVal
+          sectionSum += numVal
+          sectionTotalSum += numVal
+          sectionLineCount++
+        }
       }
 
       lineResults.push(numVal)
@@ -805,7 +843,7 @@ export function evaluateAll(text, options = {}) {
         }
       }
 
-      if (value === undefined) {
+      if (value === undefined || typeof value === 'function' || typeof value === 'symbol' || (value && typeof value === 'object' && !value.isUnit && !value.isComplex && typeof value.toNumeric !== 'function')) {
         rendered.push({ cls: 'empty', text: '' })
       } else {
         const formatted = symbol ? formatValueWithSymbol(value, symbol, options) : formatValue(value, options)

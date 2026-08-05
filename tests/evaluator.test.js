@@ -4,9 +4,9 @@ import { encodeSharePayload } from '../src/services/shareService.js'
 
 describe('Çetele Math & Evaluator Engine', () => {
   it('evaluates basic math expressions and running total', () => {
-    const input = `subtotal = 100
+    const input = `base = 100
 tax = 10
-subtotal + tax
+base + tax
 total`
 
     const { rendered, sum } = evaluateAll(input)
@@ -14,7 +14,7 @@ total`
     expect(rendered[1].text).toBe('10')
     expect(rendered[2].text).toBe('110')
     expect(rendered[3].text).toBe('220')
-    expect(sum).toBe(440)
+    expect(sum).toBe(220)
   })
 
   it('handles crypto variable assignments and typed arithmetic', () => {
@@ -241,5 +241,16 @@ total`
     expect(res.sections[0].title).toBe('Income')
     expect(res.sections[0].subtotal).toBe(6200)
     expect(res.sections[1].title).toBe('Expenses')
+    expect(res.sections[1].subtotal).toBe(1950)
+  })
+
+  it('prevents reserved keywords from being assigned and suppresses JS function output', () => {
+    expect(evaluateAll('to').rendered[0].text).toBe('')
+    expect(evaluateAll('sin').rendered[0].text).toBe('')
+    expect(evaluateAll('to = 5').rendered[0].text).toBe('Reserved keyword')
+    expect(evaluateAll('prev = 100').rendered[0].text).toBe('Reserved keyword')
+    expect(evaluateAll('in = 20').rendered[0].text).toBe('Reserved keyword')
+    expect(evaluateAll('subtotal = 300').rendered[0].text).toBe('Reserved keyword')
+    expect(evaluateAll('val = 500').rendered[0].text).toBe('500')
   })
 })
