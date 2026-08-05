@@ -8,6 +8,7 @@
       :show-decimals="userProfile.showDecimals"
       :theme="userProfile.theme"
       :user="currentUser"
+      :show-sidebar="showSidebar"
       @select-tab="selectTab"
       @create-tab="createTab"
       @close-tab="closeTab"
@@ -18,10 +19,11 @@
       @toggle-theme="toggleTheme"
       @open-settings="isSettingsOpen = true"
       @open-auth="isAuthModalOpen = true"
+      @toggle-sidebar="toggleSidebar"
     />
 
     <!-- View Mode 1: Main Notepad Workspace -->
-    <main v-if="currentView === 'notepad'" class="workspace">
+    <main v-if="currentView === 'notepad'" class="workspace" :class="{ 'sidebar-hidden': !showSidebar }">
       <!-- Active Notepad Component -->
       <Notepad
         v-if="activeTab"
@@ -30,11 +32,14 @@
         :tab="activeTab"
         :save-status="saveStatus"
         :disable-float="!userProfile.showDecimals"
+        :show-sidebar="showSidebar"
         @update:content="updateActiveTabContent"
+        @toggle-sidebar="toggleSidebar"
       />
 
       <!-- Simple Syntax Reference Sidebar -->
       <ReferenceSidebar
+        v-if="showSidebar"
         @insert="handleInsertSnippet"
         @open-guide-page="currentView = 'guide'"
         @save-tab="handleSaveActiveTabToLibrary"
@@ -186,6 +191,7 @@ const tabs = ref(JSON.parse(JSON.stringify(defaultTabs)))
 const savedLibrary = ref([])
 const activeTabId = ref('tab-1')
 const currentView = ref('notepad') // 'notepad' | 'library' | 'guide'
+const showSidebar = ref(true)
 const isSettingsOpen = ref(false)
 const isAuthModalOpen = ref(false)
 const currentUser = ref(null)
@@ -289,7 +295,8 @@ async function initLocalData() {
 
     const settings = await getLocalSettings()
     if (settings) {
-      userProfile.value = { showDecimals: true, theme: 'dark', ...settings }
+      userProfile.value = { showDecimals: true, theme: 'dark', showSidebar: true, ...settings }
+      showSidebar.value = userProfile.value.showSidebar !== false
     }
     applyTheme(userProfile.value.theme)
     saveStatus.value = 'saved'
@@ -496,6 +503,13 @@ function toggleTheme() {
   showToast(`Switched to ${next === 'dark' ? 'Dark' : 'Light'} Theme`)
 }
 
+function toggleSidebar() {
+  showSidebar.value = !showSidebar.value
+  userProfile.value.showSidebar = showSidebar.value
+  saveProfile(userProfile.value)
+  showToast(showSidebar.value ? 'Right sidebar restored' : 'Calculation area expanded (sidebar hidden)')
+}
+
 async function copyAllWithResults() {
   if (!activeTab.value) return
   const fullFormattedText = getFormattedCopyAllText(activeTab.value.content, { disableFloat: !userProfile.value.showDecimals })
@@ -532,6 +546,12 @@ function handleGlobalShortcuts(e) {
   if (modifier && (e.key === 'd' || e.key === 'D')) {
     e.preventDefault()
     toggleShowDecimals()
+    return
+  }
+
+  if (modifier && (e.key === 'b' || e.key === 'B')) {
+    e.preventDefault()
+    toggleSidebar()
     return
   }
 
@@ -635,6 +655,11 @@ onUnmounted(() => {
   max-width: 1320px;
   width: 100%;
   margin: 0 auto;
+  transition: max-width 0.25s ease;
+}
+
+.workspace.sidebar-hidden {
+  max-width: 1540px;
 }
 
 /* Premium Footer */

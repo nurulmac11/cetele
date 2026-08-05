@@ -36,9 +36,9 @@ kulba/
     ├── assets/
     │   └── index.css            # Global CSS custom properties, design system & themes
     ├── components/
-    │   ├── Notepad.vue          # Notepad text editor & real-time result column view
-    │   ├── Header.vue           # Navigation bar, tabs, theme toggle & action buttons
-    │   ├── ReferenceSidebar.vue # Quick snippet insertion panel
+    │   ├── Notepad.vue          # Notepad text editor, result column & Expand Area toggle
+    │   ├── Header.vue           # Top navigation bar, tab strip, theme toggle & Expand Workspace button
+    │   ├── ReferenceSidebar.vue # Collapsible quick syntax sheet & action card (Expandable)
     │   ├── SyntaxGuidePage.vue  # Interactive syntax documentation page
     │   ├── SavedTabsPage.vue    # Offline/Cloud library view for saved documents
     │   ├── SettingsModal.vue    # User profile, theme, and storage settings modal

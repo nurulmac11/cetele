@@ -66,6 +66,15 @@
           <span v-if="user" class="cloud-text">Sync Active</span>
           <span v-else class="cloud-text">Cloud Sync / Sign In</span>
           <span v-if="user" class="sync-dot"></span>
+        </button>        <!-- Expand Calculation Area / Toggle Sidebar Button -->
+        <button
+          class="btn-icon"
+          :class="{ active: !showSidebar }"
+          @click="$emit('toggle-sidebar')"
+          :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
+        >
+          <Maximize2 v-if="showSidebar" class="icon" />
+          <Minimize2 v-else class="icon" />
         </button>
 
         <!-- Light / Dark Theme Toggle -->
@@ -118,7 +127,6 @@
               <Edit3 class="icon-xs" />
             </button>
           </template>
-
           <button
             v-if="tabs.length > 1"
             class="btn-tab-close"
@@ -140,7 +148,7 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud } from '@lucide/vue'
+import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2 } from '@lucide/vue'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
@@ -148,7 +156,8 @@ const props = defineProps({
   currentView: { type: String, default: 'notepad' }, // 'notepad' | 'library' | 'guide'
   showDecimals: { type: Boolean, default: true },
   theme: { type: String, default: 'dark' },
-  user: { type: Object, default: null }
+  user: { type: Object, default: null },
+  showSidebar: { type: Boolean, default: true }
 })
 
 const emit = defineEmits([
@@ -160,7 +169,8 @@ const emit = defineEmits([
   'toggle-show-decimals',
   'toggle-theme',
   'open-settings',
-  'open-auth'
+  'open-auth',
+  'toggle-sidebar'
 ])
 
 const editingTabId = ref(null)

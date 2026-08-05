@@ -107,6 +107,18 @@
       </div>
 
       <div class="status-right">
+        <!-- Expand Area Toggle Button -->
+        <button
+          class="btn-expand-area"
+          :class="{ expanded: !showSidebar }"
+          @click="$emit('toggle-sidebar')"
+          :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar'"
+        >
+          <Maximize2 v-if="showSidebar" class="icon-xs" />
+          <Minimize2 v-else class="icon-xs" />
+          <span>{{ showSidebar ? 'Expand Area' : 'Show Sidebar' }}</span>
+        </button>
+
         <!-- Save Status Badge -->
         <div class="sync-badge" :class="saveStateClass">
           <HardDrive v-if="saveStatus === 'saved'" class="sync-icon" />
@@ -162,10 +174,11 @@ function getSectionCollapsedSummary(sec) {
 const props = defineProps({
   tab: { type: Object, required: true },
   saveStatus: { type: String, default: 'saved' }, // 'saved' | 'saving' | 'error'
-  disableFloat: { type: Boolean, default: false }
+  disableFloat: { type: Boolean, default: false },
+  showSidebar: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['update:content'])
+const emit = defineEmits(['update:content', 'toggle-sidebar'])
 
 const inputRef = ref(null)
 const gutterRef = ref(null)
@@ -661,10 +674,26 @@ watch(() => props.tab?.id, () => {
   border-top: 1px dashed var(--line);
 }
 
-.section-collapsed-title {
-  color: var(--amber);
-  font-weight: 600;
-  font-size: 13px;
+.btn-expand-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--line-soft);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-expand-area:hover, .btn-expand-area.expanded {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
 }
 
 .input-wrapper {
