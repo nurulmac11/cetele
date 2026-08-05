@@ -207,8 +207,18 @@ const CURRENCY_MAP = {
   'SEK': 'SEK',
   'NZD': 'NZD',
   'XAU': 'XAU',
+  'OZ_GOLD': 'XAU',
+  'OUNCE_GOLD': 'XAU',
   'GRAM_GOLD': 'GRAM_GOLD',
+  'GRAM_ALTIN': 'GRAM_GOLD',
+  'ALTIN': 'GRAM_GOLD',
+  'ALTıN': 'GRAM_GOLD',
+  'GOLD': 'GRAM_GOLD',
+  'GRAM': 'GRAM_GOLD',
   'CEYREK_GOLD': 'CEYREK_GOLD',
+  'CEYREK_ALTIN': 'CEYREK_GOLD',
+  'CEYREK': 'CEYREK_GOLD',
+  'ÇEYREK': 'CEYREK_GOLD',
   'BTC': 'BTC',
   'BITCOIN': 'BTC',
   'ETH': 'ETH',
@@ -279,14 +289,15 @@ function preprocessLineReferences(line, lineResults) {
 function normalizeGoldAndCryptoPhrases(line) {
   let l = line
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:grams?|g)?\s*(?:of\s*)?(?:gold|alt[ıi]n)\b/gi, '$1 GRAM_GOLD')
-  l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:oz|ounces?)\s*(?:of\s*)?gold\b/gi, '$1 XAU')
-  l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:[çc]eyrek(?:\s*alt[ıi]n)?)\b/gi, '$1 CEYREK_GOLD')
+  l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:troy\s*)?(?:oz|ounces?)\s*(?:of\s*)?gold\b/gi, '$1 XAU')
+  l = l.replace(/(-?\d+(?:\.\d+)?)\s*(?:[çc]eyrek(?:\s*(?:alt[ıi]n|gold))?)\b/gi, '$1 CEYREK_GOLD')
 
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*bitcoins?\b/gi, '$1 BTC')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*ethereums?\b/gi, '$1 ETH')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*solanas?\b/gi, '$1 SOL')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*dogecoins?\b/gi, '$1 DOGE')
   l = l.replace(/(-?\d+(?:\.\d+)?)\s*tethers?\b/gi, '$1 USDT')
+  l = l.replace(/(-?\d+(?:\.\d+)?)\s*cardanos?\b/gi, '$1 ADA')
 
   return l
 }
@@ -295,16 +306,16 @@ function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], pre
   let l = normalizeGoldAndCryptoPhrases(line)
   const matches = []
 
-  // 1. Prefix symbols ($10, ₺500, €50)
-  const prefixRegex = /([$€£₺])\s*(-?\d+(?:\.\d+)?)/g
+  // 1. Prefix symbols ($10, ₺500, €50, ¥1000, ₹500)
+  const prefixRegex = /([$€£₺¥₹])\s*(-?\d+(?:\.\d+)?)/g
   let m
   while ((m = prefixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[1])
     if (curr) matches.push({ raw: m[0], rawSymbol: m[1], index: m.index, amount: parseFloat(m[2]), currency: curr })
   }
 
-  // 2. Suffix symbols (10$, 500₺, 50€)
-  const symbolSuffixRegex = /(-?\d+(?:\.\d+)?)\s*([$€£₺])/g
+  // 2. Suffix symbols (10$, 500₺, 50€, 1000¥, 500₹)
+  const symbolSuffixRegex = /(-?\d+(?:\.\d+)?)\s*([$€£₺¥₹])/g
   while ((m = symbolSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
     if (curr) {
@@ -313,8 +324,8 @@ function preprocessCurrencies(line, varCurrencies = {}, lineCurrencies = [], pre
     }
   }
 
-  // 3. Suffix codes (100 USD, 500 TL, 1 GRAM_GOLD, 1 BTC, 0.5 ETH, 10 SOL)
-  const codeSuffixRegex = /(-?\d+(?:\.\d+)?)\s*(USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)\b/gi
+  // 3. Suffix codes (100 USD, 500 TL, 100 BRL, 1 GRAM_GOLD, 1 BTC, 0.5 ETH, 10 SOL)
+  const codeSuffixRegex = /(-?\d+(?:\.\d+)?)\s*(USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|RUB|BRL|SEK|NZD|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)\b/gi
   while ((m = codeSuffixRegex.exec(l)) !== null) {
     const curr = normalizeCurrency(m[2])
     if (curr) {
@@ -442,11 +453,12 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
   }
 
   rhs = normalizeGoldAndCryptoPhrases(rhs)
-  rhs = rhs.replace(/\s+to\s+gram\s*(?:of\s*)?gold\b/gi, ' to GRAM_GOLD')
-  rhs = rhs.replace(/\s+to\s+(?:oz|ounce)\s*(?:of\s*)?gold\b/gi, ' to XAU')
-  rhs = rhs.replace(/\s+to\s+(?:[çc]eyrek(?:\s*alt[ıi]n)?)\b/gi, ' to CEYREK_GOLD')
+  rhs = rhs.replace(/\s+to\s+(?:grams?\s*(?:of\s*)?)?(?:gold|alt[ıi]n)\b/gi, ' to GRAM_GOLD')
+  rhs = rhs.replace(/\s+to\s+gram\b/gi, ' to GRAM_GOLD')
+  rhs = rhs.replace(/\s+to\s+(?:troy\s*)?(?:oz|ounces?)\s*(?:of\s*)?gold\b/gi, ' to XAU')
+  rhs = rhs.replace(/\s+to\s+(?:[çc]eyrek(?:\s*(?:alt[ıi]n|gold))?)\b/gi, ' to CEYREK_GOLD')
 
-  const m = rhs.match(/^(.*?)\s+to\s+([$€£₺A-Za-z_]{1,12})(\s*[\+\-\*\/\^].+)?$/i)
+  const m = rhs.match(/^(.*?)\s+to\s+([$€£₺¥₹A-Za-z_]{1,12})(\s*[\+\-\*\/\^].+)?$/i)
   if (m) {
     const lhsExpr = m[1]
     const toStr = m[2]
@@ -454,9 +466,9 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
     const toCurr = normalizeCurrency(toStr)
 
     if (toCurr && RATES[toCurr]) {
-      let fromCurr = 'USD'
+      let fromCurr = null
 
-      const currMatch = lhsExpr.match(/([$€£₺]|USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)/i)
+      const currMatch = lhsExpr.match(/([$€£₺¥₹]|USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|RUB|BRL|SEK|NZD|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)/i)
       if (currMatch) {
         const parsed = normalizeCurrency(currMatch[1])
         if (parsed) fromCurr = parsed
@@ -476,6 +488,8 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
           })
         }
       }
+
+      if (!fromCurr) return null
 
       try {
         const { expr: processedLhs } = preprocess(lhsExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency)
@@ -593,15 +607,23 @@ export function tryDateLine(raw, scopeDates = {}) {
 }
 
 function formatValueWithSymbol(val, symbol, options = {}) {
-  const formattedVal = formatValue(val, options)
-  if (!symbol) return formattedVal
+  if (!symbol) return formatValue(val, options)
 
   const s = symbol.trim().toUpperCase()
+  const isGoldOrCrypto = [
+    'GRAM_GOLD', 'CEYREK_GOLD', 'XAU', 'GOLD', 'ALTIN', 'ALTıN', 'CEYREK', 'ÇEYREK',
+    'BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SOL', 'SOLANA', 'USDT', 'TETHER',
+    'BNB', 'XRP', 'DOGE', 'DOGECOIN', 'ADA', 'CARDANO', 'AVAX'
+  ].includes(s)
+
+  const effectiveOptions = isGoldOrCrypto ? { ...options, disableFloat: false } : options
+  const formattedVal = formatValue(val, effectiveOptions)
+
   if (['$', '€', '£', '₺', '¥', '₹'].includes(symbol.trim())) {
     return `${symbol.trim()}${formattedVal}`
   }
-  if (s === 'GRAM_GOLD' || s === 'GOLD' || s === 'GRAM ALTIN') return `${formattedVal} gram gold`
-  if (s === 'CEYREK_GOLD' || s === 'CEYREK') return `${formattedVal} çeyrek gold`
+  if (s === 'GRAM_GOLD' || s === 'GOLD' || s === 'GRAM ALTIN' || s === 'ALTIN' || s === 'GRAM') return `${formattedVal} gram gold`
+  if (s === 'CEYREK_GOLD' || s === 'CEYREK' || s === 'CEYREK ALTIN' || s === 'ÇEYREK') return `${formattedVal} çeyrek gold`
   if (s === 'XAU') return `${formattedVal} oz gold`
 
   return `${formattedVal} ${symbol.trim().toUpperCase()}`
