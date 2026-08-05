@@ -19,8 +19,8 @@
         </div>
         <p class="card-desc">Refer to previous lines by number (`#1`, `L1`, `line1`) or use `prev` and `total`.</p>
         <div class="code-box">
-          <code @click="$emit('insert-snippet', 'subtotal = 1200\ntax = 100\n#1 + #2')">
-            subtotal = 1200<br>
+          <code @click="$emit('insert-snippet', 'val = 1200\ntax = 100\n#1 + #2')">
+            val = 1200<br>
             tax = 100<br>
             #1 + #2 <span class="comment">// 1300</span>
           </code>
@@ -30,6 +30,28 @@
           </code>
           <code @click="$emit('insert-snippet', 'total')">
             total <span class="comment">// Sum of all numeric lines above</span>
+          </code>
+        </div>
+      </section>
+
+      <!-- Section 1B: Sections, Subtotals & Collapsible Blocks -->
+      <section class="card">
+        <div class="card-title">
+          <FolderTree class="card-icon" />
+          <h2>Sections, Subtotals & Collapsible Blocks 📂</h2>
+        </div>
+        <p class="card-desc">Organize long documents into styled visual sections, compute section subtotals, and collapse/expand blocks.</p>
+        <div class="code-box">
+          <code @click="$emit('insert-snippet', '=== Income & Sales ===\nsalary = 4,500\nfreelance = 1,200\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1,650\ngroceries = 450\nsubtotal\n\ntotal')">
+            === Income & Sales === <span class="comment">// Visual section header banner</span><br>
+            salary = 4,500<br>
+            freelance = 1,200<br>
+            subtotal <span class="comment">// 5,700 (Sectional sum)</span><br><br>
+            === Monthly Expenses ===<br>
+            rent = 1,650<br>
+            groceries = 450<br>
+            subtotal <span class="comment">// 2,100 (Sectional sum)</span><br><br>
+            total <span class="comment">// 7,800 (Grand total of all sections)</span>
           </code>
         </div>
       </section>
@@ -180,7 +202,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command, Cloud } from '@lucide/vue'
+import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command, Cloud, FolderTree } from '@lucide/vue'
 
 defineEmits(['switch-to-notepad', 'insert-snippet'])
 </script>

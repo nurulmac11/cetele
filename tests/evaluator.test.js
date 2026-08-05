@@ -212,4 +212,34 @@ salary to eur`
 
     expect(totalTested).toBe(2401)
   })
+
+  it('supports Section Headers, subtotal keyword, and section metadata tracking', () => {
+    const input = `// === Income ===
+salary = 5000
+freelance = 1200
+subtotal
+
+// === Expenses ===
+rent = 1500
+groceries = 450
+subtotal
+
+total`
+
+    const res = evaluateAll(input)
+    expect(res.rendered[0].isSection).toBe(true)
+    expect(res.rendered[0].title).toBe('Income')
+    expect(res.rendered[3].isSubtotal).toBe(true)
+    expect(res.rendered[3].text).toBe('6,200')
+    expect(res.rendered[5].isSection).toBe(true)
+    expect(res.rendered[5].title).toBe('Expenses')
+    expect(res.rendered[8].isSubtotal).toBe(true)
+    expect(res.rendered[8].text).toBe('1,950')
+    expect(res.rendered[10].text).toBe('8,150')
+
+    expect(res.sections.length).toBe(2)
+    expect(res.sections[0].title).toBe('Income')
+    expect(res.sections[0].subtotal).toBe(6200)
+    expect(res.sections[1].title).toBe('Expenses')
+  })
 })

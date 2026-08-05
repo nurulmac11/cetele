@@ -3,7 +3,29 @@
     <div class="rows">
       <!-- Line number gutter (hidden on small mobile screens) -->
       <div ref="gutterRef" class="gutter">
-        <div v-for="n in lineCount" :key="n" class="g-num">{{ n }}</div>
+        <div
+          v-for="(item, k) in visibleLines"
+          :key="k"
+          class="g-num"
+          :class="{
+            'is-section': item.isSection,
+            'highlighted-line': hoveredLineIndex === item.origIdx
+          }"
+          @click="item.isSection && toggleSectionCollapse(item.origIdx)"
+          @mouseenter="hoveredLineIndex = item.origIdx"
+          @mouseleave="hoveredLineIndex = null"
+        >
+          <button
+            v-if="item.isSection"
+            class="btn-fold"
+            @click.stop="toggleSectionCollapse(item.origIdx)"
+            :title="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
+          >
+            <ChevronRight v-if="collapsedSections[item.origIdx]" class="icon-fold" />
+            <ChevronDown v-else class="icon-fold" />
+          </button>
+          <span class="num-text">{{ item.origIdx + 1 }}</span>
+        </div>
       </div>
 
       <!-- Textarea input container -->
@@ -44,15 +66,29 @@
       <!-- Evaluated results column -->
       <div ref="resultsRef" class="results">
         <div
-          v-for="(res, idx) in evaluation.rendered"
-          :key="idx"
+          v-for="(item, k) in visibleLines"
+          :key="k"
           class="r"
-          :class="[res.cls, { copied: copiedIndex === idx }]"
-          :title="res.text ? 'Click to copy ' + res.text : ''"
-          @click="copyResult(res, idx)"
+          :class="[
+            evaluation.rendered[item.origIdx]?.cls,
+            {
+              copied: copiedIndex === item.origIdx,
+              'highlighted-line': hoveredLineIndex === item.origIdx
+            }
+          ]"
+          :title="evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : ''"
+          @click="copyResult(evaluation.rendered[item.origIdx], item.origIdx)"
+          @mouseenter="hoveredLineIndex = item.origIdx"
+          @mouseleave="hoveredLineIndex = null"
         >
-          <span v-if="copiedIndex === idx" class="copied-badge">Copied!</span>
-          <span v-else>{{ res.text || '&nbsp;' }}</span>
+          <span v-if="copiedIndex === item.origIdx" class="copied-badge">Copied!</span>
+          <template v-else-if="item.isSection">
+            <span v-if="item.isCollapsed" class="section-collapsed-title">
+              {{ getSectionCollapsedSummary(item.sec) }}
+            </span>
+            <span v-else class="section-title-text">{{ evaluation.rendered[item.origIdx]?.text }}</span>
+          </template>
+          <span v-else>{{ evaluation.rendered[item.origIdx]?.text || '&nbsp;' }}</span>
         </div>
       </div>
     </div>
@@ -86,7 +122,42 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { evaluateAll, formatValue } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle } from '@lucide/vue'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight } from '@lucide/vue'
+
+const collapsedSections = ref({})
+const hoveredLineIndex = ref(null)
+
+const sectionHeadersMap = computed(() => {
+  const map = new Map()
+  const secs = evaluation.value.sections || []
+  secs.forEach(sec => {
+    map.set(sec.headerIdx, sec)
+  })
+  return map
+})
+
+const collapsedLineIndices = computed(() => {
+  const set = new Set()
+  const secs = evaluation.value.sections || []
+  secs.forEach(sec => {
+    if (collapsedSections.value[sec.headerIdx]) {
+      for (let i = sec.headerIdx + 1; i <= sec.endIdx; i++) {
+        set.add(i)
+      }
+    }
+  })
+  return set
+})
+
+function toggleSectionCollapse(headerIdx) {
+  collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
+}
+
+function getSectionCollapsedSummary(sec) {
+  if (!sec) return ''
+  const formattedSub = formatValue(sec.subtotal, { disableFloat: props.disableFloat })
+  return `▶ ${sec.title} — Subtotal: ${formattedSub} (${sec.count} lines hidden)`
+}
 
 const props = defineProps({
   tab: { type: Object, required: true },
@@ -116,9 +187,53 @@ const autocompleteIndex = ref(0)
 const showAutocomplete = ref(false)
 const cursorPosition = ref(0)
 
+const visibleLines = computed(() => {
+  const raw = props.tab?.content || ''
+  const lines = raw.split('\n')
+  const secs = evaluation.value.sections || []
+  const result = []
+  let skipUntil = -1
+
+  lines.forEach((lineText, origIdx) => {
+    if (origIdx <= skipUntil) return
+
+    const sec = secs.find(s => s.headerIdx === origIdx)
+    if (sec && collapsedSections.value[origIdx]) {
+      const hiddenCount = sec.endIdx - sec.headerIdx
+      const formattedSub = formatValue(sec.subtotal, { disableFloat: props.disableFloat })
+      result.push({
+        origIdx,
+        lineText: `${lineText} // [▶ ${hiddenCount} lines folded | Subtotal: ${formattedSub}]`,
+        isSection: true,
+        isCollapsed: true,
+        sec
+      })
+      skipUntil = sec.endIdx
+    } else {
+      result.push({
+        origIdx,
+        lineText,
+        isSection: Boolean(sec),
+        isCollapsed: false,
+        sec
+      })
+    }
+  })
+
+  return result
+})
+
 const tabContent = computed({
-  get: () => props.tab?.content || '',
+  get: () => {
+    if (!visibleLines.value || !Array.isArray(visibleLines.value)) {
+      return props.tab?.content || ''
+    }
+    return visibleLines.value.map(item => item.lineText).join('\n')
+  },
   set: (val) => {
+    if (Object.values(collapsedSections.value).some(Boolean)) {
+      collapsedSections.value = {}
+    }
     emit('update:content', val)
     debouncedRecordHistory(val)
   }
@@ -167,7 +282,7 @@ function redo() {
 
 // Evaluation output
 const evaluation = computed(() => {
-  return evaluateAll(tabContent.value, { disableFloat: props.disableFloat })
+  return evaluateAll(props.tab?.content || '', { disableFloat: props.disableFloat })
 })
 
 const lineCount = computed(() => {
@@ -479,6 +594,77 @@ watch(() => props.tab?.id, () => {
 
 .g-num {
   height: 26px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding-right: 4px;
+}
+
+.g-num.is-section {
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px 0 0 4px;
+}
+
+.g-num.is-section:hover {
+  color: var(--paper);
+  background: rgba(45, 212, 191, 0.16);
+}
+
+.btn-fold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  padding: 0;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.btn-fold:hover {
+  color: var(--paper);
+  transform: scale(1.2);
+}
+
+.icon-fold {
+  width: 13px;
+  height: 13px;
+}
+
+.hidden-row {
+  display: none !important;
+}
+
+.highlighted-line {
+  background: rgba(45, 212, 191, 0.12) !important;
+}
+
+.r.section-header {
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.18), rgba(45, 212, 191, 0.04)) !important;
+  color: var(--accent) !important;
+  font-weight: 700;
+  border-left: 3px solid var(--accent);
+  text-align: left !important;
+  padding-left: 8px !important;
+}
+
+.r.subtotal-line {
+  font-weight: 700;
+  color: var(--paper);
+  border-top: 1px dashed var(--line);
+}
+
+.section-collapsed-title {
+  color: var(--amber);
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .input-wrapper {

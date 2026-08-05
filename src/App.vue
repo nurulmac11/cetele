@@ -175,7 +175,7 @@ const defaultTabs = [
   {
     id: 'tab-2',
     title: 'Monthly Budget',
-    content: `// Monthly Budget Overview\nincome = 4500\n\nrent = 1650\ngroceries = 450\nutilities = 180\nsubscriptions = 45\n\ntotal_expenses = rent + groceries + utilities + subscriptions\nsavings = 20% of income\n\nnet_remaining = income - total_expenses - savings`,
+    content: `=== Monthly Income ===\nsalary = 4,500\nfreelance = 1,200\nsubtotal\n\n=== Fixed & Living Expenses ===\nrent = 1,650\ngroceries = 450\nutilities = 180\nsubscriptions = 45\nsubtotal\n\n=== Budget Summary ===\ntotal_expenses = L9\nsavings = 20% of L4\nnet_remaining = L4 - total_expenses - savings`,
     position: 1,
     isActive: false
   }

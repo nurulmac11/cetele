@@ -4,40 +4,31 @@ import * as math from 'mathjs'
 export const EXAMPLE_TEXT = `// welcome — this is a notepad calculator
 // write math, it evaluates as you type
 
-subtotal = 1,250.50
-tax = 8.25% of subtotal
-subtotal + tax
+=== Income & Sales ===
+salary = 4,500
+freelance = 1,200
+subtotal
 
-// direct line references (#1, L1, line1)
-#1 * 2
-L2 + 500
-line3 / 2
+=== Monthly Expenses ===
+rent = 1,650
+groceries = 450
+utilities = 180
+subtotal
 
-// currency, gold & crypto math
-a = 100 sol + 50$
-a + 10$
-a to usd
-
+=== Currency, Gold & Crypto ===
 10$ + 500 tl
 1 gram gold to tl
 1 btc to usd
 
-// unit conversion
+=== Units & Percentages ===
 5 miles to km
-3 cups to ml
-
-// percentages
 20% off 89.99
-increase 1,200 by 7%
 
-// date arithmetic & variable assignment
+=== Date Math ===
 start = today
-deadline = start + 2 weeks - 1 day + 2 months
+deadline = start + 2 weeks - 1 day
 
-// reference the previous answer
-prev / 2
-
-// running total of every numeric line above
+=== Grand Summary ===
 total`
 
 const CACHED_RATES_KEY = 'cetele_cached_exchange_rates'
@@ -670,10 +661,51 @@ export function evaluateAll(text, options = {}) {
   let sum = 0
   const rendered = []
   const lineResults = []
+  let currentSectionTitle = null
+  let currentSectionHeaderIdx = null
+  let sectionSum = 0
+  let sectionTotalSum = 0
+  let sectionLineCount = 0
+  const sections = []
 
-  lines.forEach((raw) => {
+  lines.forEach((raw, lineIdx) => {
     let trimmedRaw = raw.replace(/^;\s*/, '').trim()
-    if (trimmedRaw === '' || trimmedRaw.startsWith('//')) {
+    if (trimmedRaw === '') {
+      rendered.push({ cls: 'empty', text: '' })
+      lineResults.push(null)
+      lineCurrencies.push(null)
+      return
+    }
+
+    // Check for Section Header (e.g. === Income ===, --- Expenses ---, # Income, // === Notes ===)
+    const isAssign = /^[a-zA-Z_][a-zA-Z0-9_]*\s*=/.test(trimmedRaw)
+    const mSection = !isAssign ? trimmedRaw.match(/^(?:\/\/\s*)?(?:={3,}|-{3,}|#{1,3}\s+)\s*(.+?)(?:\s*(?:={3,}|-{3,}|#{1,3}))?$/) : null
+    if (mSection) {
+      const sectionTitle = mSection[1].replace(/^#+\s*/, '').trim()
+      if (sectionTitle && !/^\d+$/.test(sectionTitle)) {
+        if (currentSectionHeaderIdx !== null) {
+          sections.push({
+            headerIdx: currentSectionHeaderIdx,
+            title: currentSectionTitle,
+            subtotal: sectionTotalSum,
+            count: sectionLineCount,
+            endIdx: lineIdx - 1
+          })
+        }
+        currentSectionHeaderIdx = lineIdx
+        currentSectionTitle = sectionTitle
+        sectionSum = 0
+        sectionTotalSum = 0
+        sectionLineCount = 0
+
+        rendered.push({ cls: 'section-header', isSection: true, title: sectionTitle, text: `=== ${sectionTitle} ===` })
+        lineResults.push(null)
+        lineCurrencies.push(null)
+        return
+      }
+    }
+
+    if (trimmedRaw.startsWith('//')) {
       rendered.push({ cls: 'empty', text: '' })
       lineResults.push(null)
       lineCurrencies.push(null)
@@ -681,6 +713,17 @@ export function evaluateAll(text, options = {}) {
     }
 
     const cleanRaw = stripCommaSeparators(trimmedRaw)
+
+    // Check for standalone subtotal keyword line (e.g. subtotal or subtotal // comment)
+    if (/^subtotal\s*(?:\/\/.*)?$/i.test(cleanRaw)) {
+      const formatted = formatValue(sectionSum, options)
+      rendered.push({ cls: 'num subtotal-line', isSubtotal: true, text: formatted })
+      lineResults.push(sectionSum)
+      lineCurrencies.push(null)
+      prev = sectionSum
+      sectionSum = 0
+      return
+    }
 
     // 1. Try Date Line & Date Variables
     const dateHit = tryDateLine(cleanRaw, scopeDates)
@@ -709,6 +752,9 @@ export function evaluateAll(text, options = {}) {
       prev = currencyHit.numericValue
       prevCurrency = currencyHit.targetCurrency
       sum += currencyHit.numericValue
+      sectionSum += currencyHit.numericValue
+      sectionTotalSum += currencyHit.numericValue
+      sectionLineCount++
       rendered.push({ cls: 'num', text: currencyHit.text })
       lineResults.push(currencyHit.numericValue)
       lineCurrencies.push(currencyHit.targetCurrency)
@@ -729,16 +775,23 @@ export function evaluateAll(text, options = {}) {
     try {
       scope.prev = prev === null ? 0 : prev
       scope.total = sum
+      if (scope.subtotal === undefined) scope.subtotal = sectionSum
       const value = math.evaluate(expr, scope)
       let numVal = null
       if (typeof value === 'number') {
         prev = value
         sum += value
+        sectionSum += value
+        sectionTotalSum += value
+        sectionLineCount++
         numVal = value
       } else if (value && value.isUnit) {
         numVal = typeof value.toNumeric === 'function' ? value.toNumeric() : value.value
         prev = numVal
         sum += numVal
+        sectionSum += numVal
+        sectionTotalSum += numVal
+        sectionLineCount++
       }
 
       lineResults.push(numVal)
@@ -765,7 +818,17 @@ export function evaluateAll(text, options = {}) {
     }
   })
 
-  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults, lineCurrencies, varCurrencies, scopeDates }
+  if (currentSectionHeaderIdx !== null) {
+    sections.push({
+      headerIdx: currentSectionHeaderIdx,
+      title: currentSectionTitle,
+      subtotal: sectionTotalSum,
+      count: sectionLineCount,
+      endIdx: lines.length - 1
+    })
+  }
+
+  return { rendered, sum, count: lines.filter((l) => l.trim() !== '').length, lineResults, lineCurrencies, varCurrencies, scopeDates, sections }
 }
 
 export function getFormattedCopyAllText(text, options = {}) {

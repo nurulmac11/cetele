@@ -30,6 +30,17 @@
       </div>
 
       <div class="grp">
+        <h3>Sections & Subtotals 📂</h3>
+        <code @click="$emit('insert', '=== Income & Sales ===\nsalary = 4500\nsubtotal')">
+          === Section Title ===<br>
+          subtotal
+        </code>
+        <code @click="$emit('insert', '--- Monthly Expenses ---\nrent = 1650\nsubtotal')">
+          --- Expenses ---
+        </code>
+      </div>
+
+      <div class="grp">
         <h3>Line References</h3>
         <code @click="$emit('insert', '#1 + #2')">#1 + #2 (Line 1 + Line 2)</code>
         <code @click="$emit('insert', 'L1 * 2')">L1 * 2</code>

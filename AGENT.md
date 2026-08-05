@@ -58,8 +58,11 @@ kulba/
 The evaluator engine parses plain multi-line text input into formatted, calculated line results.
 
 ### Pipeline Execution Order (`evaluateAll(text, options)`)
-For every non-empty, non-comment (`//`) line:
-1. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
+1. **Section Headers & Subtotals**:
+   - Lines starting with `// === Title ===`, `// --- Title ---`, `=== Title ===`, or `# Title` render as styled visual section header banners (`cls: 'section-header'`).
+   - The `subtotal` keyword calculates the sum of numeric lines within that section without double-counting in running `total`.
+   - Section metadata (`sections` array) is returned by `evaluateAll`.
+2. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
 2. **Date Arithmetic (`tryDateLine`)**: Handles `today`, `now`, and date offsets (`+ 2 weeks - 1 day`).
 3. **Currency & Commodity Conversions (`tryCurrencyLine`)**:
    - Matches syntax like `<expr> to <target>` (e.g. `100$ to TL`, `100 USD to gram gold`, `1 gram altin to usd`).
