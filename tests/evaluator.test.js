@@ -253,4 +253,13 @@ total`
     expect(evaluateAll('subtotal = 300').rendered[0].text).toBe('Reserved keyword')
     expect(evaluateAll('val = 500').rendered[0].text).toBe('500')
   })
+
+  it('correctly evaluates parenthesized currency conversion expressions and arbitrary recursive nesting', () => {
+    expect(evaluateAll('(1 $ to tl) + 5').rendered[0].text).toBe('52.5 TL')
+    expect(evaluateAll('((1$ to tl) + 5) + 1').rendered[0].text).toBe('53.5 TL')
+    expect(evaluateAll('(1$ to tl) + 5 to usd').rendered[0].text).toContain('USD')
+    expect(evaluateAll('(((10$ to tl) + 5) * 2) + 10').rendered[0].text).toBe('970 TL')
+    expect(evaluateAll('5 + (1 $ to tl)').rendered[0].text).toBe('52.5 TL')
+    expect(evaluateAll('(100 $ to eur) * 2').rendered[0].text).toBe('184 EUR')
+  })
 })

@@ -34,9 +34,11 @@
           ref="inputRef"
           v-model="tabContent"
           class="input-area"
+          :readonly="hasCollapsedSections"
           spellcheck="false"
           autocomplete="off"
-          placeholder="// Type math expressions, unit conversions, or date math here..."
+          :placeholder="hasCollapsedSections ? 'Expand folded sections to edit...' : '// Type math expressions, unit conversions, or date math here...'"
+          :title="hasCollapsedSections ? 'Expand folded sections before editing to keep their hidden lines intact.' : ''"
           @scroll="syncScroll"
           @keydown="handleKeyDown"
           @keyup="updateCursorState"
@@ -161,6 +163,8 @@ const collapsedLineIndices = computed(() => {
   return set
 })
 
+const hasCollapsedSections = computed(() => Object.values(collapsedSections.value).some(Boolean))
+
 function toggleSectionCollapse(headerIdx) {
   collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
 }
@@ -244,9 +248,9 @@ const tabContent = computed({
     return visibleLines.value.map(item => item.lineText).join('\n')
   },
   set: (val) => {
-    if (Object.values(collapsedSections.value).some(Boolean)) {
-      collapsedSections.value = {}
-    }
+    // The folded view is a shortened display projection, not the document itself.
+    // Editing it would otherwise save that projection and drop the hidden lines.
+    if (hasCollapsedSections.value) return
     emit('update:content', val)
     debouncedRecordHistory(val)
   }

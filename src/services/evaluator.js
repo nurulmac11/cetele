@@ -462,66 +462,130 @@ export function tryCurrencyLine(raw, scope, options = {}, lineResults = [], varC
   rhs = rhs.replace(/\s+to\s+(?:troy\s*)?(?:oz|ounces?)\s*(?:of\s*)?gold\b/gi, ' to XAU')
   rhs = rhs.replace(/\s+to\s+(?:[çc]eyrek(?:\s*(?:alt[ıi]n|gold))?)\b/gi, ' to CEYREK_GOLD')
 
-  const m = rhs.match(/^(.*?)\s+to\s+([$€£₺¥₹A-Za-z_]{1,12})(\s*[\+\-\*\/\^].+)?$/i)
-  if (m) {
-    const lhsExpr = m[1]
-    const toStr = m[2]
-    const tailExpr = m[3] || ''
-    const toCurr = normalizeCurrency(toStr)
+  if (!/\bto\b/i.test(rhs)) return null
 
-    if (toCurr && RATES[toCurr]) {
+  const currTokens = '[$€£₺¥₹]|USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|RUB|BRL|SEK|NZD|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX'
+  const regexLiteral = new RegExp(`(?:([$€£₺¥₹])\\s*)?(\\d+(?:\\.\\d+)?)\\s*(${currTokens})?\\s+to\\s+([$€£₺¥₹A-Za-z_]{1,12})`, 'i')
+  const regexRef = new RegExp(`((?:#|L|line)\\d+|\\bprev\\b|[a-zA-Z_][a-zA-Z0-9_]*)\\s+to\\s+([$€£₺¥₹A-Za-z_]{1,12})`, 'i')
+
+  let currentExpr = rhs
+  let detectedTarget = null
+  let rawTargetStr = null
+  let loopCount = 0
+
+  while (loopCount < 10 && /\bto\b/i.test(currentExpr)) {
+    loopCount++
+    let replacedInLoop = false
+
+    // 1. Literal currency conversion (e.g. 100$, 100 USD, $100) -> to EUR
+    const mLit = currentExpr.match(regexLiteral)
+    if (mLit && (mLit[1] || mLit[3])) {
+      const fullMatch = mLit[0]
+      const prefixSym = mLit[1]
+      const numStr = mLit[2]
+      const suffixSym = mLit[3]
+      const targetStr = mLit[4]
+
+      const amount = parseFloat(numStr)
+      const rawCurr = prefixSym || suffixSym
+      const fromCurr = normalizeCurrency(rawCurr)
+      const toCurr = normalizeCurrency(targetStr)
+
+      if (fromCurr && toCurr && RATES[fromCurr] && RATES[toCurr]) {
+        const usdVal = amount / RATES[fromCurr]
+        const converted = usdVal * RATES[toCurr]
+        detectedTarget = toCurr
+        rawTargetStr = targetStr
+        currentExpr = currentExpr.replace(fullMatch, String(converted))
+        replacedInLoop = true
+        continue
+      }
+    }
+
+    // 2. Line reference or variable conversion (e.g. #1 to EUR, L1 to USD, prev to TRY, salary to EUR)
+    const mRef = currentExpr.match(regexRef)
+    if (mRef) {
+      const fullMatch = mRef[0]
+      const refToken = mRef[1]
+      const targetStr = mRef[2]
       let fromCurr = null
+      let val = null
 
-      const currMatch = lhsExpr.match(/([$€£₺¥₹]|USD|EUR|GBP|TRY|TL|CAD|AUD|JPY|INR|CHF|CNY|RMB|SAR|AED|RUB|BRL|SEK|NZD|GRAM_GOLD|CEYREK_GOLD|XAU|BTC|ETH|SOL|USDT|BNB|XRP|DOGE|ADA|AVAX)/i)
-      if (currMatch) {
-        const parsed = normalizeCurrency(currMatch[1])
-        if (parsed) fromCurr = parsed
-      } else {
-        // Check if LHS matches a line reference (#1, L1) with a currency
-        const refMatch = lhsExpr.match(/(?:#|L|line)(\d+)\b/i)
-        if (refMatch) {
-          const lIdx = parseInt(refMatch[1], 10) - 1
-          if (lineCurrencies[lIdx]) fromCurr = lineCurrencies[lIdx]
-        } else if (/\bprev\b/i.test(lhsExpr) && prevCurrency) {
-          fromCurr = prevCurrency
-        } else {
-          Object.keys(varCurrencies).forEach((vName) => {
-            if (new RegExp(`\\b${vName}\\b`).test(lhsExpr) && varCurrencies[vName]) {
-              fromCurr = varCurrencies[vName]
-            }
-          })
+      const refLineMatch = refToken.match(/(?:#|L|line)(\d+)/i)
+      if (refLineMatch) {
+        const lIdx = parseInt(refLineMatch[1], 10) - 1
+        if (lineResults[lIdx] !== undefined && lineResults[lIdx] !== null) {
+          val = lineResults[lIdx]
+          fromCurr = lineCurrencies[lIdx]
         }
+      } else if (/^prev$/i.test(refToken)) {
+        val = scope.prev !== undefined ? scope.prev : 0
+        fromCurr = prevCurrency
+      } else if (varCurrencies[refToken]) {
+        val = scope[refToken]
+        fromCurr = varCurrencies[refToken]
       }
 
-      if (!fromCurr) return null
+      const toCurr = normalizeCurrency(targetStr)
+      if (val !== null && val !== undefined && fromCurr && toCurr && RATES[fromCurr] && RATES[toCurr]) {
+        const usdVal = val / RATES[fromCurr]
+        const converted = usdVal * RATES[toCurr]
+        detectedTarget = toCurr
+        rawTargetStr = targetStr
+        currentExpr = currentExpr.replace(fullMatch, String(converted))
+        replacedInLoop = true
+        continue
+      }
+    }
 
+    if (!replacedInLoop) break
+  }
+
+  if (!detectedTarget && !/\bto\s+[$€£₺¥₹A-Za-z_]{1,12}$/i.test(currentExpr)) return null
+
+  // Check outer trailing 'to currency' expression (e.g. (1$ to tl) + 5 to usd)
+  const mOuter = currentExpr.match(/^(.*?)\s+to\s+([$€£₺¥₹A-Za-z_]{1,12})$/i)
+  if (mOuter) {
+    const outerLhs = mOuter[1]
+    const outerTargetStr = mOuter[2]
+    const outerToCurr = normalizeCurrency(outerTargetStr)
+
+    if (outerToCurr && RATES[outerToCurr]) {
+      const sourceCurr = detectedTarget || 'USD'
       try {
-        const { expr: processedLhs } = preprocess(lhsExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency)
-        const valLhs = math.evaluate(processedLhs, scope)
-        if (typeof valLhs === 'number') {
-          const usdVal = valLhs / RATES[fromCurr]
-          const convertedLhs = usdVal * RATES[toCurr]
-
-          let finalVal = convertedLhs
-          if (tailExpr.trim()) {
-            const { expr: processedTail } = preprocess(tailExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency, toCurr)
-            const evalStr = String(convertedLhs) + ' ' + processedTail
-            finalVal = math.evaluate(evalStr, scope)
-          }
-
-          const formatted = formatValueWithSymbol(finalVal, toStr, options)
+        const { expr: processedLhs } = preprocess(outerLhs, lineResults, varCurrencies, lineCurrencies, prevCurrency, sourceCurr)
+        const lhsVal = math.evaluate(processedLhs, scope)
+        if (typeof lhsVal === 'number') {
+          const usdVal = lhsVal / RATES[sourceCurr]
+          const finalVal = usdVal * RATES[outerToCurr]
+          const formatted = formatValueWithSymbol(finalVal, outerTargetStr, options)
           return {
             type: 'currency',
             varName,
-            targetCurrency: toCurr,
+            targetCurrency: outerToCurr,
             numericValue: finalVal,
             text: formatted
           }
         }
-      } catch (e) {
-        return null
+      } catch (e) {}
+    }
+  }
+
+  try {
+    const { expr: processedRhs } = preprocess(currentExpr, lineResults, varCurrencies, lineCurrencies, prevCurrency, detectedTarget)
+    const finalVal = math.evaluate(processedRhs, scope)
+    if (typeof finalVal === 'number') {
+      const formatted = formatValueWithSymbol(finalVal, rawTargetStr || detectedTarget, options)
+      return {
+        type: 'currency',
+        varName,
+        targetCurrency: detectedTarget,
+        numericValue: finalVal,
+        text: formatted
       }
     }
+  } catch (e) {
+    return null
   }
 
   return null
