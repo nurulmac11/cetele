@@ -89,12 +89,15 @@ export class Lexer {
       // Single line comments // or #
       if ((ch === '/' && this.peek(1) === '/') || (ch === '#' && !isDigit(this.peek(1)))) {
         const commentText = this.input.slice(this.pos)
-        tokens.push({ type: 'COMMENT', value: commentText })
+        // If this comment is standalone on line, emit COMMENT token
+        if (tokens.length === 0) {
+          tokens.push({ type: 'COMMENT', value: commentText })
+        }
         this.pos = this.length
         break
       }
 
-      // Multi-line comment openers /* or """ or '''
+      // Multi-line / Block comment openers /* or """ or '''
       if (
         (ch === '/' && this.peek(1) === '*') ||
         (ch === '"' && this.peek(1) === '"' && this.peek(2) === '"') ||
@@ -107,12 +110,20 @@ export class Lexer {
         if (closeIdx !== -1) {
           const commentContent = this.input.slice(this.pos, closeIdx)
           this.pos = closeIdx + delim.length
-          tokens.push({ type: 'COMMENT', value: commentContent })
+          const restOfLine = this.input.slice(this.pos).trim()
+          
+          // Emit COMMENT token ONLY if it is a standalone comment line (no preceding or trailing code)
+          if (tokens.length === 0 && restOfLine === '') {
+            tokens.push({ type: 'COMMENT', value: commentContent })
+          }
+          // Inline comment inside expression: skip comment and continue tokenizing rest of expression
           continue
         } else {
           const commentContent = this.input.slice(this.pos)
           this.pos = this.length
-          tokens.push({ type: 'COMMENT', value: commentContent })
+          if (tokens.length === 0) {
+            tokens.push({ type: 'COMMENT', value: commentContent })
+          }
           break
         }
       }

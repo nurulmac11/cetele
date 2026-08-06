@@ -12,6 +12,9 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     case 'CurrencyNumber':
       return { value: node.amount, currency: node.currency }
 
+    case 'UnitNumber':
+      return { value: `${node.amount} ${node.unit}`, isUnit: true, amount: node.amount, unit: node.unit }
+
     case 'PercentNumber':
       return { value: node.amount / 100, currency: null }
 
@@ -85,9 +88,22 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       const baseTarget = getBaseCurrencyCode(rawTarget) || rawTarget
       const baseSub = getBaseCurrencyCode(sub.currency) || sub.currency
       let val = sub.value
+
+      // Try currency conversion first
       if (typeof val === 'number' && baseSub && baseTarget && RATES[baseSub] && RATES[baseTarget]) {
         val = (val / RATES[baseSub]) * RATES[baseTarget]
+        return { value: val, currency: rawTarget }
       }
+
+      // Try Math.js unit conversion (e.g. 5 miles to km)
+      try {
+        const unitExpr = sub.isUnit ? sub.value : `${val} ${sub.currency || ''}`.trim()
+        const converted = math.evaluate(`${unitExpr} to ${rawTarget}`)
+        if (converted && converted.isUnit) {
+          return { value: converted, isUnit: true }
+        }
+      } catch (e) {}
+
       return { value: val, currency: rawTarget }
     }
 
@@ -102,7 +118,8 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
 
       if ((node.op === '+' || node.op === '-') && node.right && node.right.type === 'PercentNumber') {
         const percentRatio = node.right.amount / 100
-        const lVal = left.value || 0
+        const lVal = left.value ?? 0
+        if (typeof lVal === 'number' && isNaN(lVal)) return { value: NaN, currency: left.currency }
         const delta = lVal * percentRatio
         const resVal = node.op === '+' ? lVal + delta : lVal - delta
         return { value: resVal, currency: left.currency }
@@ -111,8 +128,12 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       const right = evaluateAST(node.right, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
       let currency = left.currency || right.currency || null
 
-      let lVal = left.value || 0
-      let rVal = right.value || 0
+      let lVal = left.value ?? 0
+      let rVal = right.value ?? 0
+
+      if ((typeof lVal === 'number' && isNaN(lVal)) || (typeof rVal === 'number' && isNaN(rVal))) {
+        return { value: NaN, currency }
+      }
 
       const baseLeft = getBaseCurrencyCode(left.currency)
       const baseRight = getBaseCurrencyCode(right.currency)
@@ -128,7 +149,7 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
         case '+': resVal = lVal + rVal; break
         case '-': resVal = lVal - rVal; break
         case '*': resVal = lVal * rVal; break
-        case '/': resVal = rVal !== 0 ? lVal / rVal : 0; break
+        case '/': resVal = rVal !== 0 ? lVal / rVal : NaN; break
         case '^': resVal = Math.pow(lVal, rVal); break
         case '%': resVal = lVal % rVal; break
       }

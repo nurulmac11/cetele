@@ -29,6 +29,7 @@ export class Parser {
     if (tok.type === 'EOF') return null
     if (tok.type === 'COMMENT') return { type: 'Comment', value: tok.value }
     if (tok.type === 'SECTION_HEADER') return { type: 'SectionHeader', title: tok.value }
+
     // Check for Variable Assignment: identifier = expr (or keyword/date/subtotal/total = expr)
     if (['IDENT', 'KEYWORD', 'DATE_KEYWORD', 'SUBTOTAL', 'TOTAL'].includes(tok.type) && this.tokens[this.pos + 1]?.type === 'OPERATOR' && this.tokens[this.pos + 1]?.value === '=') {
       const varName = this.consume().value
@@ -135,7 +136,7 @@ export class Parser {
       return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(sym) || sym }
     }
 
-    // Number (with optional Currency Suffix like 100 USD or 500 tl or 10%)
+    // Number (with optional Currency Suffix like 100 USD, Unit Suffix like 5 miles, or 10%)
     if (tok.type === 'NUMBER') {
       const amount = this.consume().value
       const nextTok = this.peek()
@@ -147,6 +148,14 @@ export class Parser {
       if (nextTok.type === 'OPERATOR' && nextTok.value === '%') {
         this.consume() // '%'
         return { type: 'PercentNumber', amount }
+      }
+      // Unit identifier suffix (e.g. 5 miles)
+      if (nextTok.type === 'IDENT') {
+        const lookahead2 = this.tokens[this.pos + 1]
+        if (lookahead2 && lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in')) {
+          const unit = this.consume().value
+          return { type: 'UnitNumber', amount, unit }
+        }
       }
       return { type: 'Number', value: amount }
     }

@@ -294,10 +294,25 @@ salary - rent`
 C style block comment
 */
 val = 500 /* inline comment */
-val * 2`
+val * 2
+1 + /* mid-expr comment */ 2
+/* same line comment */ 100 + 200`
 
     const resC = evaluateAll(inputC)
     expect(resC.rendered[3].text).toBe('500')
     expect(resC.rendered[4].text).toBe('1,000')
+    expect(resC.rendered[5].text).toBe('3')
+    expect(resC.rendered[6].text).toBe('300')
+  })
+
+  it('handles physical unit conversions (5 miles to km)', () => {
+    const res = evaluateAll('5 miles to km')
+    expect(res.rendered[0].text).toContain('km')
+  })
+
+  it('preserves NaN without coercing to 0', () => {
+    const res = evaluateAll('0 / 0')
+    expect(res.lineResults[0]).toBeNaN()
+    expect(res.rendered[0].text).toBe('—')
   })
 })

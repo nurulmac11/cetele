@@ -57,7 +57,8 @@ export function evaluateAll(text, options = {}) {
   let activeCommentDelimiter = null
 
   lines.forEach((raw, lineIdx) => {
-    const trimmedRaw = raw.trim()
+    let lineToProcess = raw
+    let trimmedRaw = raw.trim()
 
     // 1. Active multi-line comment block continuation
     if (inMultiLineComment) {
@@ -101,6 +102,9 @@ export function evaluateAll(text, options = {}) {
           lineResults.push(null)
           lineCurrencies.push(null)
           return
+        } else {
+          // Comment closes on same line with trailing code: advance lineToProcess to afterComment
+          lineToProcess = afterComment
         }
       } else {
         inMultiLineComment = true
@@ -115,7 +119,7 @@ export function evaluateAll(text, options = {}) {
 
     // Native Lexer & Parser execution
     try {
-      const lexer = new Lexer(raw)
+      const lexer = new Lexer(lineToProcess)
       const tokens = lexer.tokenizeLine()
       const parser = new Parser(tokens)
       const ast = parser.parseLine()

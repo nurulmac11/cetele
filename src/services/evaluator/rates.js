@@ -49,6 +49,21 @@ export function updateDerivedRates() {
 
 updateDerivedRates()
 
+// Prototype pollution-safe rate assignment helper
+function safeAssignRates(target, source) {
+  if (!source || typeof source !== 'object') return
+  const forbidden = new Set(['__proto__', 'constructor', 'prototype'])
+  for (const key of Object.keys(source)) {
+    if (forbidden.has(key)) continue
+    if (Object.prototype.hasOwnProperty.call(target, key) || Object.prototype.hasOwnProperty.call(CURRENCY_MAP, key)) {
+      const val = source[key]
+      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+        target[key] = val
+      }
+    }
+  }
+}
+
 export function initCachedRates() {
   if (typeof window === 'undefined') return
   try {
@@ -56,7 +71,7 @@ export function initCachedRates() {
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed && typeof parsed === 'object') {
-        Object.assign(RATES, parsed)
+        safeAssignRates(RATES, parsed)
         updateDerivedRates()
       }
     }
@@ -71,7 +86,7 @@ export async function fetchLiveExchangeRates() {
     if (res.ok) {
       const data = await res.json()
       if (data && data.rates) {
-        Object.assign(RATES, data.rates)
+        safeAssignRates(RATES, data.rates)
         updateDerivedRates()
       }
     }
@@ -81,7 +96,7 @@ export async function fetchLiveExchangeRates() {
       if (resGold.ok) {
         const goldData = await resGold.json()
         const usdPerOz = goldData?.xau?.usd || goldData?.xau?.bmd
-        if (usdPerOz && usdPerOz > 0) {
+        if (usdPerOz && usdPerOz > 0 && Number.isFinite(usdPerOz)) {
           RATES.XAU = 1 / usdPerOz
           updateDerivedRates()
         }
@@ -92,19 +107,19 @@ export async function fetchLiveExchangeRates() {
       const resBtc = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/btc.json')
       if (resBtc.ok) {
         const btcData = await resBtc.json()
-        if (btcData?.btc?.usd) RATES.BTC = 1 / btcData.btc.usd
+        if (btcData?.btc?.usd && Number.isFinite(btcData.btc.usd)) RATES.BTC = 1 / btcData.btc.usd
       }
 
       const resEth = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eth.json')
       if (resEth.ok) {
         const ethData = await resEth.json()
-        if (ethData?.eth?.usd) RATES.ETH = 1 / ethData.eth.usd
+        if (ethData?.eth?.usd && Number.isFinite(ethData.eth.usd)) RATES.ETH = 1 / ethData.eth.usd
       }
 
       const resSol = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/sol.json')
       if (resSol.ok) {
         const solData = await resSol.json()
-        if (solData?.sol?.usd) RATES.SOL = 1 / solData.sol.usd
+        if (solData?.sol?.usd && Number.isFinite(solData.sol.usd)) RATES.SOL = 1 / solData.sol.usd
       }
     } catch (cErr) {}
 
@@ -119,7 +134,8 @@ export async function fetchLiveExchangeRates() {
   }
 }
 
-if (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test') {
+// Gate background fetching on browser window environment and non-test mode
+if (typeof window !== 'undefined' && (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test')) {
   fetchLiveExchangeRates()
 }
 
