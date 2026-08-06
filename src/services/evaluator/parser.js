@@ -1,0 +1,188 @@
+import { normalizeCurrency } from './rates.js'
+
+export class Parser {
+  constructor(tokens) {
+    this.tokens = tokens
+    this.pos = 0
+  }
+
+  peek() {
+    return this.tokens[this.pos] || { type: 'EOF', value: '' }
+  }
+
+  consume() {
+    const token = this.peek()
+    if (token.type !== 'EOF') this.pos++
+    return token
+  }
+
+  match(type, value = null) {
+    const tok = this.peek()
+    if (tok.type === type && (value === null || tok.value === value)) {
+      return this.consume()
+    }
+    return null
+  }
+
+  parseLine() {
+    const tok = this.peek()
+    if (tok.type === 'EOF') return null
+    if (tok.type === 'COMMENT') return { type: 'Comment', value: tok.value }
+
+    // Check for Variable Assignment: identifier = expr (or keyword = expr)
+    if ((tok.type === 'IDENT' || tok.type === 'KEYWORD') && this.tokens[this.pos + 1]?.type === 'OPERATOR' && this.tokens[this.pos + 1]?.value === '=') {
+      const varName = this.consume().value
+      this.consume() // '='
+      const expr = this.parseExpression()
+      return { type: 'Assignment', varName, expr }
+    }
+
+    return this.parseExpression()
+  }
+
+  parseExpression() {
+    const kw = this.peek()
+    if (kw.type === 'KEYWORD' && (kw.value === 'increase' || kw.value === 'decrease')) {
+      const verb = this.consume().value
+      const baseExpr = this.parseAdditive()
+      if (this.match('KEYWORD', 'by')) {
+        const percentExpr = this.parseAdditive()
+        return { type: 'PercentChange', verb, baseExpr, percentExpr }
+      }
+    }
+
+    return this.parseAdditive()
+  }
+
+  parseAdditive() {
+    let left = this.parseMultiplicative()
+
+    while (true) {
+      const tok = this.peek()
+      if (tok.type === 'OPERATOR' && (tok.value === '+' || tok.value === '-')) {
+        const op = this.consume().value
+        const right = this.parseMultiplicative()
+        left = { type: 'Binary', op, left, right }
+      } else if (tok.type === 'KEYWORD' && (tok.value === 'to' || tok.value === 'in')) {
+        this.consume()
+        const targetTok = this.peek()
+        let targetUnit = ''
+        if (targetTok.type === 'CURRENCY_CODE' || targetTok.type === 'CURRENCY_SYMBOL' || targetTok.type === 'IDENT') {
+          targetUnit = this.consume().value
+        }
+        left = { type: 'Conversion', expr: left, targetUnit }
+      } else if (tok.type === 'KEYWORD' && (tok.value === 'of' || tok.value === 'off')) {
+        const kind = this.consume().value
+        const baseExpr = this.parseAdditive()
+        left = { type: 'PercentageOf', percentExpr: left, baseExpr, kind }
+      } else {
+        break
+      }
+    }
+
+    return left
+  }
+
+  parseMultiplicative() {
+    let left = this.parsePower()
+
+    while (true) {
+      const tok = this.peek()
+      if (tok.type === 'OPERATOR' && (tok.value === '*' || tok.value === '/' || tok.value === '%')) {
+        const op = this.consume().value
+        const right = this.parsePower()
+        left = { type: 'Binary', op, left, right }
+      } else {
+        break
+      }
+    }
+
+    return left
+  }
+
+  parsePower() {
+    let left = this.parseUnary()
+
+    if (this.peek().type === 'OPERATOR' && this.peek().value === '^') {
+      const op = this.consume().value
+      const right = this.parsePower()
+      left = { type: 'Binary', op, left, right }
+    }
+
+    return left
+  }
+
+  parseUnary() {
+    const tok = this.peek()
+    if (tok.type === 'OPERATOR' && (tok.value === '+' || tok.value === '-')) {
+      const op = this.consume().value
+      const expr = this.parseUnary()
+      return { type: 'Unary', op, expr }
+    }
+    return this.parsePrimary()
+  }
+
+  parsePrimary() {
+    const tok = this.peek()
+
+    // Currency Prefix Symbol ($10, ₺500, €50)
+    if (tok.type === 'CURRENCY_SYMBOL') {
+      const sym = this.consume().value
+      const numTok = this.match('NUMBER')
+      const amount = numTok ? numTok.value : 0
+      return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(sym) || sym }
+    }
+
+    // Number (with optional Currency Suffix like 100 USD or 500 tl or 10%)
+    if (tok.type === 'NUMBER') {
+      const amount = this.consume().value
+      const nextTok = this.peek()
+
+      if (nextTok.type === 'CURRENCY_SYMBOL' || nextTok.type === 'CURRENCY_CODE') {
+        const curr = this.consume().value
+        return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(curr) || curr }
+      }
+      if (nextTok.type === 'OPERATOR' && nextTok.value === '%') {
+        this.consume() // '%'
+        return { type: 'PercentNumber', amount }
+      }
+      return { type: 'Number', value: amount }
+    }
+
+    // Line References (#1, L1, line1)
+    if (tok.type === 'LINE_REF') {
+      const refIdx = this.consume().value
+      return { type: 'LineRef', refIdx }
+    }
+
+    // Parenthesized Expression ( expr )
+    if (tok.type === 'OPERATOR' && tok.value === '(') {
+      this.consume()
+      const expr = this.parseExpression()
+      this.match('OPERATOR', ')')
+      return { type: 'Paren', expr }
+    }
+
+    // Identifiers (Variables, Keywords, Dates, Functions)
+    if (tok.type === 'IDENT') {
+      const name = this.consume().value
+      const nextTok = this.peek()
+      if (nextTok.type === 'OPERATOR' && nextTok.value === '(') {
+        this.consume()
+        const args = []
+        if (this.peek().type !== 'OPERATOR' || this.peek().value !== ')') {
+          args.push(this.parseExpression())
+          while (this.match('OPERATOR', ',')) {
+            args.push(this.parseExpression())
+          }
+        }
+        this.match('OPERATOR', ')')
+        return { type: 'FunctionCall', name, args }
+      }
+      return { type: 'Identifier', name }
+    }
+
+    this.consume()
+    return null
+  }
+}
