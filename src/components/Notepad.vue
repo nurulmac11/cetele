@@ -207,17 +207,17 @@ const formattedEditorLines = computed(() => {
       }
     }
 
-    if (trimmed.startsWith('//') || (trimmed.startsWith('#') && !/^(?:#\d+|L\d+|line\d+)/i.test(trimmed))) {
+    if (trimmed.startsWith('//')) {
       result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
       return
     }
 
-    if (/^(?:={3,}|-{3,}|#{1,3}\s+)/.test(trimmed)) {
+    if (/^(?:={3,}|-{3,})/.test(trimmed)) {
       result.push({ tokens: [{ cls: 'tok-header', text: line }] })
       return
     }
 
-    const commentMatch = line.match(/(\/\*[\s\S]*?\*\/|\/\/.*|#.*|"""[\s\S]*?"""|'''[\s\S]*?''')/)
+    const commentMatch = line.match(/(\/\*[\s\S]*?\*\/|\/\/.*|"""[\s\S]*?"""|'''[\s\S]*?''')/)
     if (commentMatch) {
       const commentIdx = commentMatch.index
       const codePart = line.slice(0, commentIdx)

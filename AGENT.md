@@ -21,6 +21,9 @@ Welcome to **Çetele**! This guide provides a comprehensive technical overview o
 
 ```
 kulba/
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # GitHub Actions CI workflow (PR & push test/build runner)
 ├── index.html                   # HTML template entry point
 ├── package.json                 # Project dependencies & scripts
 ├── vite.config.js               # Vite bundler & Vitest test config
@@ -30,7 +33,13 @@ kulba/
 ├── supabase/
 │   └── schema.sql               # PostgreSQL schema & RLS policies for user_tabs
 ├── tests/
-│   └── evaluator.test.js        # Vitest suite for math, currency, gold & date evaluation
+│   ├── evaluator.test.js        # Vitest suite entrypoint re-exporting all sub-suites
+│   ├── services.test.js         # Tests for share payload encoding & copy all text helper
+│   └── evaluator/               # Modular test suites by domain
+│       ├── math.test.js         # Basic math, line references, percentage arithmetic, parens, NaN
+│       ├── currency.test.js     # Fiat, gold/precious metals, crypto & 2,401 conversion pair matrix
+│       ├── date_units.test.js   # Date arithmetic (today + 2 weeks) and physical unit conversions
+│       └── sections_comments.test.js # Section headers, subtotals, multi-line & block comments
 └── src/
     ├── main.js                  # App bootstrap & Vercel analytics initialization
     ├── App.vue                  # Main application component, layout & shortcut manager
@@ -45,7 +54,15 @@ kulba/
     │   ├── SettingsModal.vue    # User profile, theme, and storage settings modal
     │   └── AuthModal.vue        # Supabase Google OAuth & guest login modal
     └── services/
-        ├── evaluator.js         # Core evaluation engine (math, rates, gold/crypto, line refs)
+        ├── evaluator.js         # Re-export bridge pointing to ./evaluator/index.js
+        ├── evaluator/           # Modular evaluator engine sub-package
+        │   ├── index.js         # Entrypoint & main evaluateAll pipeline
+        │   ├── lexer.js         # Lexer class tokenizing math, keywords, line refs & comments
+        │   ├── parser.js        # Recursive-Descent Parser building AST
+        │   ├── astEvaluator.js  # AST Evaluation engine
+        │   ├── rates.js         # Exchange rates (RATES), version & live API fetcher
+        │   ├── constants.js     # EXAMPLE_TEXT & RESERVED_KEYWORDS
+        │   └── formatters.js    # Number & Currency formatting utilities (formatValue, fmtDate)
         ├── localDb.js           # Offline IndexedDB storage with localStorage fallback
         ├── shareService.js      # URL hash compression & payload encoder/decoder
         ├── supabaseClient.js    # Supabase client initializer
@@ -58,33 +75,31 @@ kulba/
 
 The evaluator engine parses plain multi-line text input into formatted, calculated line results.
 
-### Pipeline Execution Order (`evaluateAll(text, options)`)
-1. **Multi-line & Block Comments**:
-   - Supports Python-style triple quotes (`"""` ... `"""` and `'''` ... `'''`), C-style block comments (`/*` ... `*/`), and single line comments (`//`, `#`).
-   - Editor Syntax Highlighting: Comment lines render in vivid emerald/mint italicized typography (`.tok-comment` / `#34d399`) via a synced `.editor-backdrop` layer.
-   - Result Column Badges: Comment lines render stylized dashed pill badges (`.comment-badge`) in the right-hand math column.
-   - Inline block comments are stripped before expression evaluation.
-2. **Section Headers & Subtotals**:
-   - Lines starting with `// === Title ===`, `// --- Title ---`, `=== Title ===`, or `# Title` render as styled visual section header banners (`cls: 'section-header'`).
-   - The `subtotal` keyword calculates the sum of numeric lines within that section without double-counting in running `total`.
-   - Section metadata (`sections` array) is returned by `evaluateAll`.
-3. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
-3. **Date Arithmetic (`tryDateLine`)**: Handles `today`, `now`, and date offsets (`+ 2 weeks - 1 day`).
-4. **Currency & Commodity Conversions (`tryCurrencyLine`)**:
-   - Matches syntax like `<expr> to <target>` (e.g. `100$ to TL`, `100 USD to gram gold`, `1 gram altin to usd`).
-   - Normalizes fiat currencies (`USD`, `EUR`, `TRY`/`TL`, `GBP`, `CAD`, `AUD`, `JPY`, etc.), gold/precious metals (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`), and crypto (`BTC`, `ETH`, `SOL`, `USDT`, `BNB`, `XRP`, `DOGE`, `ADA`, `AVAX`).
-   - Converts monetary values through `RATES` relative to USD base.
-5. **Gold & Crypto Phrase Normalization (`normalizeGoldAndCryptoPhrases`)**:
-   - Maps natural phrases like `1 gram altin`, `5 gram gold`, `1 ceyrek`, `0.5 btc` to standard code representations.
-6. **Line Reference & Variable Preprocessing (`preprocess`)**:
-   - Resolves `#1`, `#2`, `L1`, `L2`, `line1`, `line2`, `prev` (preceding line value), and `total` (running sum).
-   - Preserves currency types for referenced lines and variables across calculations.
-   - Preprocesses percentage operations (`20% off 100`, `increase 1000 by 10%`, `10% of 500`).
-7. **Math Evaluation (`math.evaluate`)**:
-   - Evaluates parsed expressions using Math.js context scope.
-8. **Value Formatting (`formatValue` / `formatValueWithSymbol`)**:
-   - Formats final output numbers with appropriate locale grouping.
-   - **Decimal Preservation Rule**: Gold and crypto assets (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`, `BTC`, `ETH`, etc.) **always** preserve floating-point decimals even when integer rounding (`disableFloat: true`) is toggled on for general fiat currency calculations.
+### Architecture & Execution Pipeline (`src/services/evaluator.js`)
+
+1. **Lexer (Tokenizer - `class Lexer`)**:
+   - Scans line input and emits structured tokens: `NUMBER`, `CURRENCY_SYMBOL`, `CURRENCY_CODE`, `IDENT`, `LINE_REF`, `KEYWORD` (`to`, `in`, `of`, `off`, `increase`, `decrease`, `by`), `OPERATOR` (`+`, `-`, `*`, `/`, `^`, `%`, `=`, `(`, `)`), `COMMENT`, and `EOF`.
+
+2. **Recursive-Descent Parser (`class Parser`)**:
+   - Top-down recursive descent parser implementing precedence rules:
+     - `parseLine()` $\rightarrow$ `Assignment` | `Expression` | `Comment`
+     - `parseExpression()` $\rightarrow$ `PercentChange` (`increase A by B%`) | `parseAdditive()`
+     - `parseAdditive()` $\rightarrow$ Binary `+`/`-`, `Conversion` (`expr to target`), `PercentageOf` (`A% of B` / `A% off B`)
+     - `parseMultiplicative()` $\rightarrow$ Binary `*`/`/`/`%`
+     - `parsePower()` $\rightarrow$ Binary `^`
+     - `parseUnary()` $\rightarrow$ Unary `-`/`+`
+     - `parsePrimary()` $\rightarrow$ `CurrencyNumber`, `Number`, `PercentNumber`, `LineRef` (`#1`, `L1`, `line1`), `Paren`, `FunctionCall`, `Identifier` (`prev`, `total`, variable name)
+
+3. **AST Evaluator (`evaluateAST`)**:
+   - Evaluates AST nodes recursively line-by-line while maintaining:
+     - `scope` (variable values and dates)
+     - `varCurrencies` & `lineCurrencies` (preserves currency symbols across expressions, variables, line references, and `prev`)
+     - Mixed currency conversion via `RATES` relative to USD base.
+     - Section subtotals and running `total` sum (excluding `total` keyword lines from self-accumulation).
+
+4. **Value Formatting (`formatValue` / `formatValueWithSymbol`)**:
+   - Formats final output numbers with locale grouping.
+   - **Decimal Preservation Rule**: Gold and crypto assets (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`, `BTC`, `ETH`, etc.) **always** preserve floating-point decimals even when integer rounding (`disableFloat: true`) is toggled for fiat currency calculations.
 
 ### Live Exchange & Gold Rate Pipeline
 - Initial rates are defined synchronously as defaults in `RATES`.
