@@ -23,7 +23,7 @@ export {
 function cleanCommentText(text) {
   if (!text) return ''
   let s = text.trim()
-  while (s.startsWith(';') || s.startsWith('/') || s.startsWith('#') || s.startsWith('"') || s.startsWith("'")) {
+  while (s.startsWith(';') || s.startsWith('/') || s.startsWith('"') || s.startsWith("'")) {
     s = s.slice(1).trim()
   }
   while (s.endsWith('*') || s.endsWith('/') || s.endsWith('"') || s.endsWith("'")) {

@@ -63,15 +63,15 @@ export class Lexer {
   tokenizeLine() {
     const tokens = []
 
-    // Check for Section Header (=== Title ===, --- Title ---, # Title, // === Title ===)
+    // Check for Section Header (=== Title ===, --- Title ---, // === Title ===)
     let sLine = this.input.trim()
     if (sLine.startsWith('//')) sLine = sLine.slice(2).trim()
 
     const isAssignAttempt = (sLine.includes('=') && !sLine.startsWith('==='))
-    if (!isAssignAttempt && (sLine.startsWith('===') || sLine.startsWith('---') || (sLine.startsWith('#') && !isDigit(sLine[1])))) {
+    if (!isAssignAttempt && (sLine.startsWith('===') || sLine.startsWith('---'))) {
       let title = sLine
-      while (title.startsWith('=') || title.startsWith('-') || title.startsWith('#') || title.startsWith(' ')) title = title.slice(1)
-      while (title.endsWith('=') || title.endsWith('-') || title.endsWith('#') || title.endsWith(' ')) title = title.slice(0, -1)
+      while (title.startsWith('=') || title.startsWith('-') || title.startsWith(' ')) title = title.slice(1)
+      while (title.endsWith('=') || title.endsWith('-') || title.endsWith(' ')) title = title.slice(0, -1)
 
       if (title && !isDigit(title[0])) {
         return [{ type: 'SECTION_HEADER', value: title, raw: this.input.trim() }, { type: 'EOF', value: '' }]
@@ -86,8 +86,8 @@ export class Lexer {
         continue
       }
 
-      // Single line comments // or #
-      if ((ch === '/' && this.peek(1) === '/') || (ch === '#' && !isDigit(this.peek(1)))) {
+      // Single line comments //
+      if (ch === '/' && this.peek(1) === '/') {
         const commentText = this.input.slice(this.pos)
         // If this comment is standalone on line, emit COMMENT token
         if (tokens.length === 0) {
@@ -128,7 +128,7 @@ export class Lexer {
         }
       }
 
-      // Line References #1, #2
+      // Line References #1, #2, #10
       if (ch === '#' && isDigit(this.peek(1))) {
         this.consume() // '#'
         let numStr = ''

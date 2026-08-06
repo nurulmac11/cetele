@@ -74,4 +74,68 @@ val * 2
     expect(resC.rendered[5].text).toBe('3')
     expect(resC.rendered[6].text).toBe('300')
   })
+
+  it('evaluates complex multi-line documents with line references, cross-currency calculations, and running totals', () => {
+    const doc = `=== Revenue ===
+salary = 5000 usd
+bonus = 1000 eur to usd
+income = salary + bonus
+subtotal
+
+=== Expenses ===
+rent = 1500 usd
+groceries = 400 usd
+subtotal
+
+total
+net_usd = income - (rent + groceries)
+net_tl = net_usd to tl
+net_gold = net_usd to gram gold
+#4 - #8
+prev to tl`
+
+    const res = evaluateAll(doc)
+    expect(res.rendered[0].isSection).toBe(true)
+    expect(res.rendered[1].text).toBe('5,000 USD')
+    expect(res.rendered[2].text).toBe('1,086.9565 USD')
+    expect(res.rendered[3].text).toBe('6,086.9565 USD')
+    expect(res.rendered[4].isSubtotal).toBe(true)
+
+    expect(res.rendered[6].isSection).toBe(true)
+    expect(res.rendered[7].text).toBe('1,500 USD')
+    expect(res.rendered[8].text).toBe('400 USD')
+    expect(res.rendered[9].isSubtotal).toBe(true)
+    expect(res.rendered[9].text).toBe('1,900')
+
+    expect(res.rendered[12].text).toBe('4,186.9565 USD')
+    expect(res.rendered[13].text).toContain('TL')
+    expect(res.rendered[14].text).toContain('gram gold')
+    expect(res.rendered[15].text).toBe('4,586.9565 USD')
+    expect(res.rendered[16].text).toContain('TL')
+  })
+
+  it('evaluates complex multi-line document with mixed Python/C comments, dates, line references, and prev', () => {
+    const doc = `"""
+Project Alpha Roadmap & Budget
+Author: Dev Team
+"""
+start_date = today
+milestone1 = start_date + 2 weeks - 1 day
+/* Allocated Funds */
+initial_sol = 50 sol to usd
+gold_reserve = 5 gram altin to usd
+allocated_total = initial_sol + gold_reserve
+#8 + #9
+prev to eur`
+
+    const res = evaluateAll(doc)
+    expect(res.rendered[1].text).toBe('Project Alpha Roadmap & Budget')
+    expect(res.rendered[4].cls).toBe('date')
+    expect(res.rendered[5].cls).toBe('date')
+    expect(res.rendered[7].text).toBe('9,250 USD')
+    expect(res.rendered[8].text).toBe('650 USD')
+    expect(res.rendered[9].text).toBe('9,900 USD')
+    expect(res.rendered[10].text).toBe('9,900 USD')
+    expect(res.rendered[11].text).toBe('9,108 EUR')
+  })
 })

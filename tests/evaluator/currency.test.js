@@ -145,4 +145,43 @@ salary to eur`
 
     expect(totalTested).toBe(2401)
   })
+
+  it('correctly evaluates complex multi-level parenthesized expressions with currency, gold, and crypto', () => {
+    // 1. Dual commodity conversion addition: (1 gram altin to tl) + (1 ceyrek gold to tl)
+    const res1 = evaluateAll('(1 gram altin to tl) + (1 ceyrek gold to tl)')
+    expect(res1.rendered[0].text).toContain('TL')
+    expect(res1.lineResults[0]).toBeGreaterThan(9500)
+
+    // 2. Multi-stage currency conversion with percentage: ((100$ + 20%) to eur)
+    const res2 = evaluateAll('((100$ + 20%) to eur)')
+    expect(res2.rendered[0].text).toBe('110.4 EUR')
+
+    // 3. Crypto + Gold conversion: ((1 btc to usd) * 0.5) + (10 gram gold to usd)
+    const res3 = evaluateAll('((1 btc to usd) * 0.5) + (10 gram gold to usd)')
+    expect(res3.rendered[0].text).toBe('34,000 USD')
+
+    // 4. Nested fiat division + TL addition: (((100$ + 50 eur) to tl) / 2) + 1000 TL
+    const res4 = evaluateAll('(((100$ + 50 eur) to tl) / 2) + 1000 TL')
+    expect(res4.rendered[0].text).toContain('TL')
+    expect(res4.lineResults[0]).toBeGreaterThan(4500)
+
+    // 5. Ceyrek gold multiplier to USD: ((1 ceyrek gold to tl) * 4) to usd
+    const res5 = evaluateAll('((1 ceyrek gold to tl) * 4) to usd')
+    expect(res5.rendered[0].text).toContain('USD')
+    expect(res5.lineResults[0]).toBeGreaterThan(290)
+
+    // 6. Crypto cross conversion addition: (1 btc to eth) + 10 eth
+    const res6 = evaluateAll('(1 btc to eth) + 10 eth')
+    expect(res6.rendered[0].text).toContain('ETH')
+    expect(res6.lineResults[0]).toBeGreaterThan(28)
+
+    // 7. Multi-level conversion to commodity: (((1000 tl to usd) + 100$) * 2) to gram gold
+    const res7 = evaluateAll('(((1000 tl to usd) + 100$) * 2) to gram gold')
+    expect(res7.rendered[0].text).toContain('gram gold')
+    expect(res7.lineResults[0]).toBeGreaterThan(1.8)
+
+    // 8. Solana addition to USD: (10 sol + 5 sol) to usd
+    const res8 = evaluateAll('(10 sol + 5 sol) to usd')
+    expect(res8.rendered[0].text).toBe('2,775 USD')
+  })
 })
