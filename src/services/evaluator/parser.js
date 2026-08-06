@@ -28,14 +28,16 @@ export class Parser {
     const tok = this.peek()
     if (tok.type === 'EOF') return null
     if (tok.type === 'COMMENT') return { type: 'Comment', value: tok.value }
-
-    // Check for Variable Assignment: identifier = expr (or keyword = expr)
-    if ((tok.type === 'IDENT' || tok.type === 'KEYWORD') && this.tokens[this.pos + 1]?.type === 'OPERATOR' && this.tokens[this.pos + 1]?.value === '=') {
+    if (tok.type === 'SECTION_HEADER') return { type: 'SectionHeader', title: tok.value }
+    // Check for Variable Assignment: identifier = expr (or keyword/date/subtotal/total = expr)
+    if (['IDENT', 'KEYWORD', 'DATE_KEYWORD', 'SUBTOTAL', 'TOTAL'].includes(tok.type) && this.tokens[this.pos + 1]?.type === 'OPERATOR' && this.tokens[this.pos + 1]?.value === '=') {
       const varName = this.consume().value
       this.consume() // '='
       const expr = this.parseExpression()
       return { type: 'Assignment', varName, expr }
     }
+
+    if (tok.type === 'SUBTOTAL') return { type: 'Subtotal' }
 
     return this.parseExpression()
   }
@@ -149,10 +151,38 @@ export class Parser {
       return { type: 'Number', value: amount }
     }
 
+    // Date Keyword (today, now)
+    if (tok.type === 'DATE_KEYWORD') {
+      const baseName = this.consume().value
+      const offsets = []
+      while (true) {
+        const opTok = this.peek()
+        if (opTok.type === 'OPERATOR' && (opTok.value === '+' || opTok.value === '-')) {
+          const op = this.consume().value
+          const numTok = this.match('NUMBER')
+          const unitTok = this.match('DATE_UNIT')
+          if (numTok && unitTok) {
+            offsets.push({ op, amount: numTok.value, unit: unitTok.value })
+          } else {
+            break
+          }
+        } else {
+          break
+        }
+      }
+      return { type: 'DateExpression', baseName, offsets }
+    }
+
     // Line References (#1, L1, line1)
     if (tok.type === 'LINE_REF') {
       const refIdx = this.consume().value
       return { type: 'LineRef', refIdx }
+    }
+
+    // Total Keyword
+    if (tok.type === 'TOTAL') {
+      this.consume()
+      return { type: 'Identifier', name: 'total' }
     }
 
     // Parenthesized Expression ( expr )
@@ -163,7 +193,7 @@ export class Parser {
       return { type: 'Paren', expr }
     }
 
-    // Identifiers (Variables, Keywords, Dates, Functions)
+    // Identifiers (Variables, Keywords, Functions)
     if (tok.type === 'IDENT') {
       const name = this.consume().value
       const nextTok = this.peek()
