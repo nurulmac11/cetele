@@ -6,6 +6,9 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
   if (!node) return { value: null, currency: null }
 
   switch (node.type) {
+    case 'Error':
+      return { error: node.message || 'Syntax error' }
+
     case 'Number':
       return { value: node.value, currency: null }
 
@@ -184,11 +187,9 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       const name = node.name.toLowerCase()
       const evaluatedArgs = node.args.map(a => evaluateAST(a, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options).value)
       try {
-        const fn = math[name]
-        if (typeof fn === 'function') {
-          const res = fn(...evaluatedArgs)
-          return { value: typeof res === 'number' ? res : 0, currency: null }
-        }
+        const res = math.evaluate(`${name}(${evaluatedArgs.join(', ')})`)
+        const numVal = typeof res === 'number' ? res : (res && typeof res.toNumber === 'function' ? res.toNumber() : Number(res))
+        if (!isNaN(numVal)) return { value: numVal, currency: null }
       } catch (e) {}
       return { value: 0, currency: null }
     }

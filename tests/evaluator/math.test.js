@@ -64,4 +64,24 @@ increase 1000 by 10%`
     expect(res.lineResults[0]).toBeNaN()
     expect(res.rendered[0].text).toBe('—')
   })
+
+  it('correctly evaluates function call comma arguments (min(1,2))', () => {
+    const res = evaluateAll('min(1, 2)')
+    expect(res.rendered[0].text).toBe('1')
+  })
+
+  it('distinguishes postfix percentage from binary modulo operator (10 % 3)', () => {
+    const res = evaluateAll('10 % 3')
+    expect(res.rendered[0].text).toBe('1')
+  })
+
+  it('evaluates unary minus and power precedence (-2^2 = -4)', () => {
+    const res = evaluateAll('-2^2')
+    expect(res.rendered[0].text).toBe('-4')
+  })
+
+  it('rejects unconsumed trailing tokens (1 2)', () => {
+    const res = evaluateAll('1 2')
+    expect(res.rendered[0].text).toBe('—')
+  })
 })

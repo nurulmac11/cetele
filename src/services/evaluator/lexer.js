@@ -167,14 +167,12 @@ export class Lexer {
         while (isDigit(this.peek()) || this.peek() === '.' || this.peek() === ',') {
           const cur = this.peek()
           if (cur === ',') {
-            if (isDigit(this.peek(1)) && isDigit(this.peek(2)) && isDigit(this.peek(3))) {
+            // Only consume comma as thousands separator if followed by exactly 3 digits not followed by a 4th digit
+            if (isDigit(this.peek(1)) && isDigit(this.peek(2)) && isDigit(this.peek(3)) && !isDigit(this.peek(4))) {
               this.consume() // skip thousands comma separator
               continue
-            } else if (isDigit(this.peek(1))) {
-              this.consume() // skip comma
-              continue
             } else {
-              break
+              break // leave comma as separator for functions like min(1,2)
             }
           }
           numStr += this.consume()
@@ -214,7 +212,13 @@ export class Lexer {
         } else if (['today', 'now'].includes(lowerWord)) {
           tokens.push({ type: 'DATE_KEYWORD', value: lowerWord })
         } else if (['days', 'day', 'weeks', 'week', 'months', 'month', 'years', 'year', 'hours', 'hour', 'mins', 'min', 'minutes', 'minute'].includes(lowerWord)) {
-          tokens.push({ type: 'DATE_UNIT', value: lowerWord })
+          let peekIdx = 0
+          while (isWhitespace(this.peek(peekIdx))) peekIdx++
+          if (this.peek(peekIdx) === '(') {
+            tokens.push({ type: 'IDENT', value: word })
+          } else {
+            tokens.push({ type: 'DATE_UNIT', value: lowerWord })
+          }
         } else if (lowerWord === 'subtotal') {
           tokens.push({ type: 'SUBTOTAL', value: 'subtotal' })
         } else if (lowerWord === 'total') {

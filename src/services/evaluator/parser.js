@@ -35,12 +35,25 @@ export class Parser {
       const varName = this.consume().value
       this.consume() // '='
       const expr = this.parseExpression()
+      if (this.peek().type !== 'EOF') {
+        return { type: 'Error', message: 'Unexpected token' }
+      }
       return { type: 'Assignment', varName, expr }
     }
 
-    if (tok.type === 'SUBTOTAL') return { type: 'Subtotal' }
+    if (tok.type === 'SUBTOTAL') {
+      this.consume()
+      if (this.peek().type !== 'EOF') {
+        return { type: 'Error', message: 'Unexpected token' }
+      }
+      return { type: 'Subtotal' }
+    }
 
-    return this.parseExpression()
+    const expr = this.parseExpression()
+    if (expr && this.peek().type !== 'EOF') {
+      return { type: 'Error', message: 'Unexpected token' }
+    }
+    return expr
   }
 
   parseExpression() {
@@ -87,29 +100,17 @@ export class Parser {
   }
 
   parseMultiplicative() {
-    let left = this.parsePower()
+    let left = this.parseUnary()
 
     while (true) {
       const tok = this.peek()
       if (tok.type === 'OPERATOR' && (tok.value === '*' || tok.value === '/' || tok.value === '%')) {
         const op = this.consume().value
-        const right = this.parsePower()
+        const right = this.parseUnary()
         left = { type: 'Binary', op, left, right }
       } else {
         break
       }
-    }
-
-    return left
-  }
-
-  parsePower() {
-    let left = this.parseUnary()
-
-    if (this.peek().type === 'OPERATOR' && this.peek().value === '^') {
-      const op = this.consume().value
-      const right = this.parsePower()
-      left = { type: 'Binary', op, left, right }
     }
 
     return left
@@ -122,7 +123,19 @@ export class Parser {
       const expr = this.parseUnary()
       return { type: 'Unary', op, expr }
     }
-    return this.parsePrimary()
+    return this.parsePower()
+  }
+
+  parsePower() {
+    let left = this.parsePrimary()
+
+    if (this.peek().type === 'OPERATOR' && this.peek().value === '^') {
+      const op = this.consume().value
+      const right = this.parsePower()
+      left = { type: 'Binary', op, left, right }
+    }
+
+    return left
   }
 
   parsePrimary() {
@@ -146,8 +159,20 @@ export class Parser {
         return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(curr) || curr }
       }
       if (nextTok.type === 'OPERATOR' && nextTok.value === '%') {
-        this.consume() // '%'
-        return { type: 'PercentNumber', amount }
+        // Distinguish postfix percentage (10%) from binary modulo operator (10 % 3)
+        const afterPercent = this.tokens[this.pos + 1]
+        const isBinaryModuloFollowup = afterPercent && (
+          afterPercent.type === 'NUMBER' ||
+          afterPercent.type === 'IDENT' ||
+          afterPercent.type === 'LINE_REF' ||
+          afterPercent.type === 'CURRENCY_SYMBOL' ||
+          afterPercent.type === 'CURRENCY_CODE' ||
+          (afterPercent.type === 'OPERATOR' && (afterPercent.value === '(' || afterPercent.value === '+' || afterPercent.value === '-'))
+        )
+        if (!isBinaryModuloFollowup) {
+          this.consume() // '%'
+          return { type: 'PercentNumber', amount }
+        }
       }
       // Unit identifier suffix (e.g. 5 miles)
       if (nextTok.type === 'IDENT') {

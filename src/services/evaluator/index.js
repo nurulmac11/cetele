@@ -182,7 +182,7 @@ export function evaluateAll(text, options = {}) {
       const evalRes = evaluateAST(ast, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
 
       if (evalRes.error) {
-        rendered.push({ cls: 'err', text: evalRes.error })
+        rendered.push({ cls: 'err', text: '—' })
         lineResults.push(null)
         lineCurrencies.push(null)
         return
