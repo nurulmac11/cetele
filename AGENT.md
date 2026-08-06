@@ -1,6 +1,6 @@
 # Çetele (Kulba) — Developer & AI Agent Guide (`AGENT.md`)
 
-Welcome to **Çetele**! This guide provides a comprehensive technical overview of the codebase architecture, evaluation engine, component hierarchy, data persistence layer, live exchange rate pipeline, testing setup, and guidelines for AI agents and developers.
+Welcome to **Çetele**! This guide provides a comprehensive technical overview of the codebase architecture, evaluation engine, component hierarchy, data persistence layer, online sync behavior, tab management, testing setup, and guidelines for AI agents and developers.
 
 ---
 
@@ -26,13 +26,14 @@ kulba/
 ├── vite.config.js               # Vite bundler & Vitest test config
 ├── vercel.json                  # Vercel deployment & rewrite rules
 ├── SYNTAX_GUIDE.md              # User-facing syntax reference
+├── AGENT.md                     # AI Agent & Developer guide
 ├── supabase/
 │   └── schema.sql               # PostgreSQL schema & RLS policies for user_tabs
 ├── tests/
 │   └── evaluator.test.js        # Vitest suite for math, currency, gold & date evaluation
 └── src/
     ├── main.js                  # App bootstrap & Vercel analytics initialization
-    ├── App.vue                  # Main application component & layout manager
+    ├── App.vue                  # Main application component, layout & shortcut manager
     ├── assets/
     │   └── index.css            # Global CSS custom properties, design system & themes
     ├── components/
@@ -63,20 +64,20 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - The `subtotal` keyword calculates the sum of numeric lines within that section without double-counting in running `total`.
    - Section metadata (`sections` array) is returned by `evaluateAll`.
 2. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
-2. **Date Arithmetic (`tryDateLine`)**: Handles `today`, `now`, and date offsets (`+ 2 weeks - 1 day`).
-3. **Currency & Commodity Conversions (`tryCurrencyLine`)**:
+3. **Date Arithmetic (`tryDateLine`)**: Handles `today`, `now`, and date offsets (`+ 2 weeks - 1 day`).
+4. **Currency & Commodity Conversions (`tryCurrencyLine`)**:
    - Matches syntax like `<expr> to <target>` (e.g. `100$ to TL`, `100 USD to gram gold`, `1 gram altin to usd`).
    - Normalizes fiat currencies (`USD`, `EUR`, `TRY`/`TL`, `GBP`, `CAD`, `AUD`, `JPY`, etc.), gold/precious metals (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`), and crypto (`BTC`, `ETH`, `SOL`, `USDT`, `BNB`, `XRP`, `DOGE`, `ADA`, `AVAX`).
    - Converts monetary values through `RATES` relative to USD base.
-4. **Gold & Crypto Phrase Normalization (`normalizeGoldAndCryptoPhrases`)**:
+5. **Gold & Crypto Phrase Normalization (`normalizeGoldAndCryptoPhrases`)**:
    - Maps natural phrases like `1 gram altin`, `5 gram gold`, `1 ceyrek`, `0.5 btc` to standard code representations.
-5. **Line Reference & Variable Preprocessing (`preprocess`)**:
+6. **Line Reference & Variable Preprocessing (`preprocess`)**:
    - Resolves `#1`, `#2`, `L1`, `L2`, `line1`, `line2`, `prev` (preceding line value), and `total` (running sum).
    - Preserves currency types for referenced lines and variables across calculations.
    - Preprocesses percentage operations (`20% off 100`, `increase 1000 by 10%`, `10% of 500`).
-6. **Math Evaluation (`math.evaluate`)**:
+7. **Math Evaluation (`math.evaluate`)**:
    - Evaluates parsed expressions using Math.js context scope.
-7. **Value Formatting (`formatValue` / `formatValueWithSymbol`)**:
+8. **Value Formatting (`formatValue` / `formatValueWithSymbol`)**:
    - Formats final output numbers with appropriate locale grouping.
    - **Decimal Preservation Rule**: Gold and crypto assets (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`, `BTC`, `ETH`, etc.) **always** preserve floating-point decimals even when integer rounding (`disableFloat: true`) is toggled on for general fiat currency calculations.
 
@@ -107,9 +108,34 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - Implements throttled background updates (`throttledSyncTabsToCloud`) limited to a maximum rate of 1 write request per 2 seconds.
    - Row-Level Security (RLS) policies enforce isolated user access (`auth.uid() = user_id`).
 
-3. **Shareable Links (`src/services/shareService.js`)**:
+3. **Window Focus & Active Tab Preservation**:
+   - `subscribeToAuth` emits `(user, session, event)` on auth state changes.
+   - `handleUserUpdated` filters events so background window-focus / token refresh events (`TOKEN_REFRESHED`) do **not** refetch cloud tabs or reset user focus.
+   - `handleCloudFetch` checks if `activeTabId.value` exists in incoming `cloudTabs` and preserves active tab selection instead of resetting to tab 0.
+
+4. **Shareable Links (`src/services/shareService.js`)**:
    - Serializes document title and content into a URL hash fragment (`#doc=<base64_encoded_payload>`).
    - Enables instant tab sharing without backend server calls.
+
+---
+
+## 📑 Tab Management & Closed Tab Stack (`App.vue`)
+
+- **Active Tabs State**: `tabs` reactive array and `activeTabId` string ref.
+- **Closed Tab Stack**: `closedTabsStack` array preserves deleted tab objects (`{ ...tab, closedIndex }`).
+- **Reopen Functionality**: `reopenLastClosedTab()` pops from `closedTabsStack` and restores the tab to its original position in `tabs`.
+
+### Global Keyboard Shortcuts (`handleGlobalShortcuts`)
+
+| Shortcut | Action | Scope / Condition |
+| :--- | :--- | :--- |
+| `Ctrl + N` / `Cmd + N` | Create new tab | Global |
+| `Ctrl + Z` / `Cmd + Z` | Reopen last closed tab | Outside text input/textarea |
+| `Ctrl + Shift + T` / `Cmd + Shift + T` | Reopen last closed tab | Global |
+| `Ctrl + Shift + C` / `Cmd + Shift + C` | Copy all lines with evaluated results (`= result`) | Global |
+| `Ctrl + D` / `Cmd + D` | Toggle decimal formatting | Global |
+| `Ctrl + B` / `Cmd + B` | Toggle reference sidebar | Global |
+| `Ctrl + ,` / `Cmd + ,` | Open Settings modal | Global |
 
 ---
 
@@ -147,7 +173,10 @@ npm run preview
    - Maintain decimal precision logic for gold and crypto assets in `formatValueWithSymbol`. Gold/crypto units must never be truncated to zero decimals.
 2. **Offline-First Principle**:
    - All feature additions must function offline using fallback rates and IndexedDB / `localStorage`. Cloud sync with Supabase should enhance, never block, core notepad calculations.
-3. **No Unhandled Errors in UI**:
+3. **Tab & State Preservation**:
+   - When fetching or updating tabs via `handleCloudFetch`, always preserve the active tab selection (`activeTabId`) if present.
+   - Keep `closedTabsStack` functional so users can restore accidentally closed tabs using `Ctrl + Z` or `Ctrl + Shift + T`.
+4. **No Unhandled Errors in UI**:
    - Syntax or math errors in the notepad editor should gracefully render an error symbol (`—`) in the result gutter rather than throwing unhandled exceptions.
-4. **Verification Requirement**:
+5. **Verification Requirement**:
    - After making code modifications, always run `npm test` and `npm run build` to confirm test passing and build clean execution.

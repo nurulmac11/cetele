@@ -189,6 +189,7 @@ const defaultTabs = [
 // App State
 const tabs = ref(JSON.parse(JSON.stringify(defaultTabs)))
 const savedLibrary = ref([])
+const closedTabsStack = ref([])
 const activeTabId = ref('tab-1')
 const currentView = ref('notepad') // 'notepad' | 'library' | 'guide'
 const showSidebar = ref(true)
@@ -254,6 +255,7 @@ async function handleUserUpdated(newUser, session, event) {
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     activeTabId.value = defaultTabs[0].id
     savedLibrary.value = []
+    closedTabsStack.value = []
     await saveLocalTabs(tabs.value)
     await saveAllSavedLibrary([])
   }
@@ -376,7 +378,14 @@ function closeTab(id) {
   if (tabs.value.length <= 1) return
 
   const index = tabs.value.findIndex((t) => t.id === id)
+  if (index === -1) return
+
   const tabToDelete = tabs.value[index]
+  closedTabsStack.value.push({
+    ...JSON.parse(JSON.stringify(tabToDelete)),
+    closedIndex: index
+  })
+
   tabs.value = tabs.value.filter((t) => t.id !== id)
 
   if (activeTabId.value === id) {
@@ -390,6 +399,29 @@ function closeTab(id) {
     deleteCloudTab(tabToDelete.id, currentUser.value.id).catch(console.error)
   }
   triggerSave()
+}
+
+function reopenLastClosedTab() {
+  if (closedTabsStack.value.length === 0) return false
+
+  const restoredTab = closedTabsStack.value.pop()
+  const insertIndex = Math.min(
+    typeof restoredTab.closedIndex === 'number' ? restoredTab.closedIndex : tabs.value.length,
+    tabs.value.length
+  )
+
+  if (tabs.value.some((t) => t.id === restoredTab.id)) {
+    restoredTab.id = 'tab-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)
+  }
+
+  restoredTab.isActive = true
+  tabs.value.forEach((t) => (t.isActive = false))
+  tabs.value.splice(insertIndex, 0, restoredTab)
+  activeTabId.value = restoredTab.id
+
+  triggerSave()
+  showToast(`Reopened closed tab "${restoredTab.title}"`)
+  return true
 }
 
 function renameTab({ id, title }) {
@@ -543,6 +575,25 @@ async function copyAllWithResults() {
 function handleGlobalShortcuts(e) {
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
   const modifier = isMac ? e.metaKey : e.ctrlKey
+
+  const targetTag = e.target ? e.target.tagName.toUpperCase() : ''
+  const isInput = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || e.target?.isContentEditable
+
+  // Ctrl+Shift+T / Cmd+Shift+T: Always reopen last closed tab
+  if (modifier && e.shiftKey && (e.key === 'T' || e.key === 't')) {
+    e.preventDefault()
+    reopenLastClosedTab()
+    return
+  }
+
+  // Ctrl+Z / Cmd+Z: Reopen closed tab when focus is outside text input/textarea
+  if (modifier && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+    if (!isInput && closedTabsStack.value.length > 0) {
+      e.preventDefault()
+      reopenLastClosedTab()
+      return
+    }
+  }
 
   if (modifier && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
     e.preventDefault()
