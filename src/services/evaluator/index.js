@@ -240,7 +240,7 @@ export function evaluateAll(text, options = {}) {
         sectionLineCount++
       }
     } catch (err) {
-      rendered.push({ cls: 'empty', text: '' })
+      rendered.push({ cls: 'err', text: '—' })
       lineResults.push(null)
       lineCurrencies.push(null)
     }

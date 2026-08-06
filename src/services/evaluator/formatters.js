@@ -37,8 +37,13 @@ export function formatValue(v, options = {}) {
     })
   }
   if (typeof v === 'object' && v.isUnit) {
-    const val = v.value
     const unitStr = v.formatUnits ? v.formatUnits() : String(v.fixPrefix ? v.fixPrefix() : v)
+    let val = v.value
+    if (typeof v.toNumber === 'function') {
+      try {
+        val = v.toNumber(unitStr)
+      } catch (e) {}
+    }
     return `${formatValue(val, options)} ${unitStr}`
   }
   if (typeof v === 'object' && v.value !== undefined) {

@@ -26,4 +26,20 @@ deadline = start + 2 weeks - 1 day`
     const res = evaluateAll('5 miles to km')
     expect(res.rendered[0].text).toContain('km')
   })
+
+  it('formats converted units using the displayed unit value', () => {
+    expect(evaluateAll('5 km to miles').rendered[0].text).toBe('3.1069 miles')
+    expect(evaluateAll('3 cups to ml').rendered[0].text).toBe('709.7647 ml')
+    expect(evaluateAll('5 kg to g').rendered[0].text).toBe('5,000 g')
+  })
+
+  it('supports unit arithmetic before conversion', () => {
+    expect(evaluateAll('3 cups + 2 tbsp to ml').rendered[0].text).toBe('739.7647 ml')
+    expect(evaluateAll('5 km + 3 miles to km').rendered[0].text).toBe('9.828 km')
+    expect(evaluateAll('1 hour to minutes').rendered[0].text).toBe('60 minutes')
+  })
+
+  it('rejects undefined date variables instead of defaulting to now', () => {
+    expect(evaluateAll('start + 1 day').rendered[0].text).toBe('—')
+  })
 })

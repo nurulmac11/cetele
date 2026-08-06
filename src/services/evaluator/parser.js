@@ -65,6 +65,7 @@ export class Parser {
         const percentExpr = this.parseAdditive()
         return { type: 'PercentChange', verb, baseExpr, percentExpr }
       }
+      return { type: 'Error', message: 'Expected by' }
     }
 
     return this.parseAdditive()
@@ -83,7 +84,7 @@ export class Parser {
         this.consume()
         const targetTok = this.peek()
         let targetUnit = ''
-        if (targetTok.type === 'CURRENCY_CODE' || targetTok.type === 'CURRENCY_SYMBOL' || targetTok.type === 'IDENT') {
+        if (targetTok.type === 'CURRENCY_CODE' || targetTok.type === 'CURRENCY_SYMBOL' || targetTok.type === 'IDENT' || targetTok.type === 'DATE_UNIT') {
           targetUnit = this.consume().value
         }
         left = { type: 'Conversion', expr: left, targetUnit }
@@ -175,9 +176,14 @@ export class Parser {
         }
       }
       // Unit identifier suffix (e.g. 5 miles)
-      if (nextTok.type === 'IDENT') {
+      if (nextTok.type === 'IDENT' || nextTok.type === 'DATE_UNIT') {
         const lookahead2 = this.tokens[this.pos + 1]
-        if (lookahead2 && lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in')) {
+        if (
+          !lookahead2 ||
+          lookahead2.type === 'EOF' ||
+          (lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in')) ||
+          (lookahead2.type === 'OPERATOR' && ['+', '-', '*', '/', '^', ')'].includes(lookahead2.value))
+        ) {
           const unit = this.consume().value
           return { type: 'UnitNumber', amount, unit }
         }
@@ -233,7 +239,9 @@ export class Parser {
     if (tok.type === 'OPERATOR' && tok.value === '(') {
       this.consume()
       const expr = this.parseExpression()
-      this.match('OPERATOR', ')')
+      if (!this.match('OPERATOR', ')')) {
+        return { type: 'Error', message: 'Expected closing parenthesis' }
+      }
       return { type: 'Paren', expr }
     }
 
@@ -250,7 +258,9 @@ export class Parser {
             args.push(this.parseExpression())
           }
         }
-        this.match('OPERATOR', ')')
+        if (!this.match('OPERATOR', ')')) {
+          return { type: 'Error', message: 'Expected closing parenthesis' }
+        }
         return { type: 'FunctionCall', name, args }
       }
       return { type: 'Identifier', name }

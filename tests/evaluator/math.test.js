@@ -84,4 +84,15 @@ increase 1000 by 10%`
     const res = evaluateAll('1 2')
     expect(res.rendered[0].text).toBe('—')
   })
+
+  it('rejects missing closing parentheses in groups and function calls', () => {
+    expect(evaluateAll('(1+2').rendered[0].text).toBe('—')
+    expect(evaluateAll('min(1, 2').rendered[0].text).toBe('—')
+  })
+
+  it('rejects undefined identifiers and invalid line references instead of coercing them to zero', () => {
+    expect(evaluateAll('unknown + 1').rendered[0].text).toBe('—')
+    expect(evaluateAll('10 / unknown').rendered[0].text).toBe('—')
+    expect(evaluateAll('#99 + 1').rendered[0].text).toBe('—')
+  })
 })
