@@ -5,7 +5,7 @@ export function subscribeToAuth(callback) {
   if (!isSupabaseConfigured || !supabase) return () => {}
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    callback(session?.user || null, session)
+    callback(session?.user || null, session, event)
   })
 
   return () => {

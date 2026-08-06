@@ -237,12 +237,18 @@ function showToast(msg) {
   }, 2200)
 }
 
-async function handleUserUpdated(newUser) {
+async function handleUserUpdated(newUser, session, event) {
   const prevUser = currentUser.value
   currentUser.value = newUser
 
   if (newUser) {
-    handleCloudFetch(newUser.id)
+    // Only refetch cloud tabs if the user actually changed (e.g. initial login, new account)
+    // or on explicit SIGNED_IN event. Avoid refetching/resetting active tab on background
+    // TOKEN_REFRESHED / window focus events when user is already logged in.
+    const isNewUserSession = !prevUser || prevUser.id !== newUser.id || event === 'SIGNED_IN'
+    if (isNewUserSession) {
+      handleCloudFetch(newUser.id)
+    }
   } else if (prevUser && !newUser) {
     // User signed out: revert active tabs to default guest state and reset saved tabs library
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
@@ -257,9 +263,16 @@ async function handleCloudFetch(userId) {
   // Fetch Cloud Tabs
   const cloudTabs = await fetchCloudTabs(userId)
   if (cloudTabs && cloudTabs.length > 0) {
+    // Preserve current activeTabId if it exists in fetched cloudTabs
+    const currentActiveId = activeTabId.value
+    const matchingTab = cloudTabs.find((t) => t.id === currentActiveId)
+    const targetActiveId = matchingTab ? currentActiveId : cloudTabs[0].id
+
+    cloudTabs.forEach((t) => {
+      t.isActive = t.id === targetActiveId
+    })
     tabs.value = cloudTabs
-    activeTabId.value = cloudTabs[0].id
-    cloudTabs[0].isActive = true
+    activeTabId.value = targetActiveId
     await saveLocalTabs(cloudTabs)
   } else {
     // Upsert existing local tabs to cloud for new user
@@ -628,8 +641,8 @@ onMounted(() => {
   initLocalData()
   window.addEventListener('keydown', handleGlobalShortcuts)
 
-  authUnsubscribe = subscribeToAuth((user) => {
-    handleUserUpdated(user)
+  authUnsubscribe = subscribeToAuth((user, session, event) => {
+    handleUserUpdated(user, session, event)
   })
 })
 
