@@ -30,7 +30,13 @@ kulba/
 ├── supabase/
 │   └── schema.sql               # PostgreSQL schema & RLS policies for user_tabs
 ├── tests/
-│   └── evaluator.test.js        # Vitest suite for math, currency, gold & date evaluation
+│   ├── evaluator.test.js        # Vitest suite entrypoint re-exporting all sub-suites
+│   ├── services.test.js         # Tests for share payload encoding & copy all text helper
+│   └── evaluator/               # Modular test suites by domain
+│       ├── math.test.js         # Basic math, line references, percentage arithmetic, parens, NaN
+│       ├── currency.test.js     # Fiat, gold/precious metals, crypto & 2,401 conversion pair matrix
+│       ├── date_units.test.js   # Date arithmetic (today + 2 weeks) and physical unit conversions
+│       └── sections_comments.test.js # Section headers, subtotals, multi-line & block comments
 └── src/
     ├── main.js                  # App bootstrap & Vercel analytics initialization
     ├── App.vue                  # Main application component, layout & shortcut manager
