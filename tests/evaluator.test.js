@@ -262,4 +262,42 @@ total`
     expect(evaluateAll('5 + (1 $ to tl)').rendered[0].text).toBe('52.5 TL')
     expect(evaluateAll('(100 $ to eur) * 2').rendered[0].text).toBe('184 EUR')
   })
+
+  it('supports Python multi-line comments (""" and \'\'\') and C-style block comments (/* */)', () => {
+    const inputPython = `"""
+This is a python multi line comment
+Line 2 of comment
+"""
+salary = 5000
+'''
+Triple single quotes comment
+Line B
+'''
+rent = 1200
+salary - rent`
+
+    const resPy = evaluateAll(inputPython)
+    expect(resPy.rendered[0].text).toBe('')
+    expect(resPy.rendered[1].text).toBe('This is a python multi line comment')
+    expect(resPy.rendered[2].text).toBe('Line 2 of comment')
+    expect(resPy.rendered[3].text).toBe('')
+    expect(resPy.rendered[4].text).toBe('5,000')
+    expect(resPy.rendered[5].text).toBe('')
+    expect(resPy.rendered[6].text).toBe('Triple single quotes comment')
+    expect(resPy.rendered[7].text).toBe('Line B')
+    expect(resPy.rendered[8].text).toBe('')
+    expect(resPy.rendered[9].text).toBe('1,200')
+    expect(resPy.rendered[10].text).toBe('3,800')
+    expect(resPy.sum).toBe(10000)
+
+    const inputC = `/*
+C style block comment
+*/
+val = 500 /* inline comment */
+val * 2`
+
+    const resC = evaluateAll(inputC)
+    expect(resC.rendered[3].text).toBe('500')
+    expect(resC.rendered[4].text).toBe('1,000')
+  })
 })

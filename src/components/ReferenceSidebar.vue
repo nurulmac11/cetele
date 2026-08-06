@@ -89,6 +89,8 @@
         <h3>Dates & Comments</h3>
         <code @click="$emit('insert', 'today + 14 days')">today + 14 days</code>
         <code @click="$emit('insert', '// inline comment')">// comment</code>
+        <code @click="$emit('insert', '/* multi-line comment */')">/* block comment */</code>
+        <code @click="$emit('insert', '&quot;&quot;&quot;\nPython multi-line comment\n&quot;&quot;&quot;')">&quot;&quot;&quot; Python multi-line &quot;&quot;&quot;</code>
       </div>
     </aside>
   </div>

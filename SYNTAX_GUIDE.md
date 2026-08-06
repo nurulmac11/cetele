@@ -13,6 +13,21 @@ subtotal = 1,250.50
 tax = 8.25% of subtotal
 subtotal + tax
 
+// Single-line comments
+// This is a single line comment
+
+// Python & C Multi-line Block Comments
+"""
+Python triple double-quote multi-line comment block
+line 2 of comment
+"""
+
+'''
+Python triple single-quote multi-line comment block
+'''
+
+/* C-style multi-line block comment */
+
 // Line References
 #1 + #2                // Line 1 + Line 2
 L1 * 2                 // Line 1 multiplied by 2

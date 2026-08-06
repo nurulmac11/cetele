@@ -30,6 +30,20 @@
 
       <!-- Textarea input container -->
       <div class="input-wrapper">
+        <!-- Editor Syntax Highlighting Backdrop Layer -->
+        <div ref="backdropRef" class="editor-backdrop" aria-hidden="true">
+          <div
+            v-for="(line, idx) in formattedEditorLines"
+            :key="idx"
+            class="backdrop-line"
+          >
+            <template v-for="(token, tIdx) in line.tokens" :key="tIdx">
+              <span :class="token.cls">{{ token.text }}</span>
+            </template>
+            <span v-if="line.tokens.length === 0 || !line.tokens[0].text">&nbsp;</span>
+          </div>
+        </div>
+
         <textarea
           ref="inputRef"
           v-model="tabContent"
@@ -90,6 +104,17 @@
             </span>
             <span v-else class="section-title-text">{{ evaluation.rendered[item.origIdx]?.text }}</span>
           </template>
+          <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'comment'">
+            <div
+              v-if="evaluation.rendered[item.origIdx]?.text"
+              class="comment-badge"
+              :title="evaluation.rendered[item.origIdx].text"
+            >
+              <span class="comment-badge-prefix">//</span>
+              <span class="comment-badge-text">{{ evaluation.rendered[item.origIdx].text }}</span>
+            </div>
+            <span v-else class="comment-empty-space">&nbsp;</span>
+          </template>
           <span v-else>{{ evaluation.rendered[item.origIdx]?.text || '&nbsp;' }}</span>
         </div>
       </div>
@@ -140,6 +165,77 @@ import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight } from '@luc
 
 const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
+const backdropRef = ref(null)
+
+const formattedEditorLines = computed(() => {
+  const text = tabContent.value || ''
+  const lines = text.split('\n')
+  const result = []
+
+  let inComment = false
+  let delim = null
+
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+
+    if (inComment) {
+      const closingStr = delim === '/*' ? '*/' : delim
+      if (line.includes(closingStr)) {
+        inComment = false
+        delim = null
+      }
+      result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
+      return
+    }
+
+    let open = null
+    if (trimmed.startsWith('"""')) open = '"""'
+    else if (trimmed.startsWith("'''")) open = "'''"
+    else if (trimmed.startsWith('/*')) open = '/*'
+
+    if (open) {
+      const rest = trimmed.slice(open.length)
+      const closeStr = open === '/*' ? '*/' : open
+      if (rest.includes(closeStr)) {
+        result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
+        return
+      } else {
+        inComment = true
+        delim = open
+        result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
+        return
+      }
+    }
+
+    if (trimmed.startsWith('//') || (trimmed.startsWith('#') && !/^(?:#\d+|L\d+|line\d+)/i.test(trimmed))) {
+      result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
+      return
+    }
+
+    if (/^(?:={3,}|-{3,}|#{1,3}\s+)/.test(trimmed)) {
+      result.push({ tokens: [{ cls: 'tok-header', text: line }] })
+      return
+    }
+
+    const commentMatch = line.match(/(\/\*[\s\S]*?\*\/|\/\/.*|#.*|"""[\s\S]*?"""|'''[\s\S]*?''')/)
+    if (commentMatch) {
+      const commentIdx = commentMatch.index
+      const codePart = line.slice(0, commentIdx)
+      const commentPart = line.slice(commentIdx)
+      result.push({
+        tokens: [
+          { cls: 'tok-code', text: codePart },
+          { cls: 'tok-comment', text: commentPart }
+        ]
+      })
+      return
+    }
+
+    result.push({ tokens: [{ cls: 'tok-code', text: line }] })
+  })
+
+  return result
+})
 
 const sectionHeadersMap = computed(() => {
   const map = new Map()
@@ -468,7 +564,7 @@ function handleKeyDown(e) {
 }
 
 async function copyResult(res, idx) {
-  if (!res.text || res.cls === 'empty' || res.cls === 'err') return
+  if (!res.text || res.cls === 'empty' || res.cls === 'comment' || res.cls === 'err') return
 
   try {
     await navigator.clipboard.writeText(res.text)
@@ -513,6 +609,11 @@ async function copyTotal() {
 function syncScroll() {
   if (!inputRef.value) return
   const scrollTop = inputRef.value.scrollTop
+  const scrollLeft = inputRef.value.scrollLeft
+  if (backdropRef.value) {
+    backdropRef.value.scrollTop = scrollTop
+    backdropRef.value.scrollLeft = scrollLeft
+  }
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   if (resultsRef.value) resultsRef.value.scrollTop = scrollTop
 }
@@ -707,21 +808,67 @@ watch(() => props.tab?.id, () => {
   min-width: 0;
 }
 
-.input-area {
-  flex: 1;
-  resize: none;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--paper);
+.editor-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px 14px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 14.5px;
   line-height: 26px;
-  padding: 16px 16px;
-  white-space: pre;
-  overflow-y: auto;
-  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--paper);
+  user-select: none;
+  z-index: 0;
+}
+
+.backdrop-line {
+  min-height: 26px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.tok-comment {
+  color: #34d399;
+  font-style: italic;
+  font-weight: 500;
+}
+
+[data-theme='light'] .tok-comment {
+  color: #059669;
+}
+
+.tok-header {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tok-code {
+  color: var(--paper);
+}
+
+.input-area {
+  position: relative;
   width: 100%;
+  height: 100%;
+  padding: 16px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14.5px;
+  line-height: 26px;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--paper);
+  border: none;
+  outline: none;
+  resize: none;
+  white-space: pre-wrap;
+  word-break: break-all;
+  z-index: 1;
 }
 
 .input-area::placeholder {
@@ -805,11 +952,11 @@ watch(() => props.tab?.id, () => {
   padding: 0 6px;
 }
 
-.r:not(.empty):not(.err) {
+.r:not(.empty):not(.comment):not(.err) {
   cursor: pointer;
 }
 
-.r:not(.empty):not(.err):hover {
+.r:not(.empty):not(.comment):not(.err):hover {
   background: rgba(94, 234, 212, 0.12);
   color: var(--accent);
 }
@@ -844,6 +991,58 @@ watch(() => props.tab?.id, () => {
 
 .r.empty {
   color: transparent;
+}
+
+.r.comment {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: transparent;
+  cursor: default;
+}
+
+.comment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  background: rgba(52, 211, 153, 0.09);
+  border: 1px dashed rgba(52, 211, 153, 0.35);
+  border-radius: 12px;
+  font-size: 11.5px;
+  color: #34d399;
+  font-style: italic;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+[data-theme='light'] .comment-badge {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.35);
+  color: #059669;
+}
+
+.comment-badge:hover {
+  background: rgba(52, 211, 153, 0.18);
+  border-color: rgba(52, 211, 153, 0.6);
+  transform: translateY(-1px);
+}
+
+.comment-badge-prefix {
+  font-weight: 700;
+  font-style: normal;
+  opacity: 0.8;
+  font-size: 11px;
+}
+
+.comment-badge-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-bar {

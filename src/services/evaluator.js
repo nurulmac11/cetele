@@ -725,6 +725,22 @@ export function formatValue(v, options = {}) {
   return String(v)
 }
 
+function cleanCommentText(text) {
+  if (!text) return ''
+  let s = text
+    .replace(/^;\s*/, '')
+    .replace(/^"""/, '')
+    .replace(/"""$/, '')
+    .replace(/^'''/, '')
+    .replace(/'''$/, '')
+    .replace(/^\/\*/, '')
+    .replace(/\*\/$/, '')
+    .replace(/^\/\//, '')
+    .replace(/^#/, '')
+    .trim()
+  return s
+}
+
 export function evaluateAll(text, options = {}) {
   const _v = ratesVersion.value
 
@@ -746,10 +762,78 @@ export function evaluateAll(text, options = {}) {
   let sectionLineCount = 0
   const sections = []
 
+  let inMultiLineComment = false
+  let activeCommentDelimiter = null
+
   lines.forEach((raw, lineIdx) => {
     let trimmedRaw = raw.replace(/^;\s*/, '').trim()
+
+    // 1. Active multi-line comment block continuation
+    if (inMultiLineComment) {
+      const cText = cleanCommentText(trimmedRaw)
+      if (
+        (activeCommentDelimiter === '"""' && trimmedRaw.includes('"""')) ||
+        (activeCommentDelimiter === "'''" && trimmedRaw.includes("'''")) ||
+        (activeCommentDelimiter === '/*' && trimmedRaw.includes('*/'))
+      ) {
+        inMultiLineComment = false
+        activeCommentDelimiter = null
+      }
+      rendered.push({ cls: 'comment', text: cText })
+      lineResults.push(null)
+      lineCurrencies.push(null)
+      return
+    }
+
     if (trimmedRaw === '') {
       rendered.push({ cls: 'empty', text: '' })
+      lineResults.push(null)
+      lineCurrencies.push(null)
+      return
+    }
+
+    // 2. Opening multi-line comment block (Python triple quotes or C block comments)
+    let openingDelimiter = null
+    if (trimmedRaw.startsWith('"""')) openingDelimiter = '"""'
+    else if (trimmedRaw.startsWith("'''")) openingDelimiter = "'''"
+    else if (trimmedRaw.startsWith('/*')) openingDelimiter = '/*'
+
+    if (openingDelimiter) {
+      const rest = trimmedRaw.slice(openingDelimiter.length)
+      const closingDelimiter = openingDelimiter === '/*' ? '*/' : openingDelimiter
+      if (rest.includes(closingDelimiter)) {
+        const afterCloseIdx = rest.indexOf(closingDelimiter) + closingDelimiter.length
+        const afterComment = rest.slice(afterCloseIdx).trim()
+        if (!afterComment) {
+          const cText = cleanCommentText(trimmedRaw)
+          rendered.push({ cls: 'comment', text: cText })
+          lineResults.push(null)
+          lineCurrencies.push(null)
+          return
+        } else {
+          trimmedRaw = afterComment
+        }
+      } else {
+        inMultiLineComment = true
+        activeCommentDelimiter = openingDelimiter
+        const cText = cleanCommentText(trimmedRaw)
+        rendered.push({ cls: 'comment', text: cText })
+        lineResults.push(null)
+        lineCurrencies.push(null)
+        return
+      }
+    }
+
+    // 3. Strip inline block comments from calculation lines
+    trimmedRaw = trimmedRaw
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/"""[\s\S]*?"""/g, '')
+      .replace(/'''[\s\S]*?'''/g, '')
+      .trim()
+
+    if (trimmedRaw === '') {
+      const cText = cleanCommentText(raw)
+      rendered.push({ cls: 'comment', text: cText })
       lineResults.push(null)
       lineCurrencies.push(null)
       return
@@ -783,8 +867,10 @@ export function evaluateAll(text, options = {}) {
       }
     }
 
-    if (trimmedRaw.startsWith('//')) {
-      rendered.push({ cls: 'empty', text: '' })
+    // Single-line comment (starts with // or # when not a section header or line reference)
+    if (trimmedRaw.startsWith('//') || (trimmedRaw.startsWith('#') && !/^(?:#\d+|L\d+|line\d+)/i.test(trimmedRaw))) {
+      const cText = cleanCommentText(trimmedRaw)
+      rendered.push({ cls: 'comment', text: cText })
       lineResults.push(null)
       lineCurrencies.push(null)
       return

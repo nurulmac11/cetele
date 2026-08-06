@@ -59,11 +59,16 @@ kulba/
 The evaluator engine parses plain multi-line text input into formatted, calculated line results.
 
 ### Pipeline Execution Order (`evaluateAll(text, options)`)
-1. **Section Headers & Subtotals**:
+1. **Multi-line & Block Comments**:
+   - Supports Python-style triple quotes (`"""` ... `"""` and `'''` ... `'''`), C-style block comments (`/*` ... `*/`), and single line comments (`//`, `#`).
+   - Editor Syntax Highlighting: Comment lines render in vivid emerald/mint italicized typography (`.tok-comment` / `#34d399`) via a synced `.editor-backdrop` layer.
+   - Result Column Badges: Comment lines render stylized dashed pill badges (`.comment-badge`) in the right-hand math column.
+   - Inline block comments are stripped before expression evaluation.
+2. **Section Headers & Subtotals**:
    - Lines starting with `// === Title ===`, `// --- Title ---`, `=== Title ===`, or `# Title` render as styled visual section header banners (`cls: 'section-header'`).
    - The `subtotal` keyword calculates the sum of numeric lines within that section without double-counting in running `total`.
    - Section metadata (`sections` array) is returned by `evaluateAll`.
-2. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
+3. **Sanitization**: Strips comma separators (`1,250.50` $\rightarrow$ `1250.50`).
 3. **Date Arithmetic (`tryDateLine`)**: Handles `today`, `now`, and date offsets (`+ 2 weeks - 1 day`).
 4. **Currency & Commodity Conversions (`tryCurrencyLine`)**:
    - Matches syntax like `<expr> to <target>` (e.g. `100$ to TL`, `100 USD to gram gold`, `1 gram altin to usd`).
