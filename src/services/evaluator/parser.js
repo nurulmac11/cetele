@@ -160,26 +160,36 @@ export class Parser {
       return { type: 'Number', value: amount }
     }
 
-    // Date Keyword (today, now)
-    if (tok.type === 'DATE_KEYWORD') {
-      const baseName = this.consume().value
-      const offsets = []
-      while (true) {
-        const opTok = this.peek()
-        if (opTok.type === 'OPERATOR' && (opTok.value === '+' || opTok.value === '-')) {
-          const op = this.consume().value
-          const numTok = this.match('NUMBER')
-          const unitTok = this.match('DATE_UNIT')
-          if (numTok && unitTok) {
-            offsets.push({ op, amount: numTok.value, unit: unitTok.value })
-          } else {
-            break
+    // Date Expression (e.g. today + 2 weeks, now - 1 hour, start + 2 weeks - 1 day)
+    if (tok.type === 'DATE_KEYWORD' || tok.type === 'IDENT') {
+      const lookaheadOp = this.tokens[this.pos + 1]
+      const lookaheadNum = this.tokens[this.pos + 2]
+      const lookaheadUnit = this.tokens[this.pos + 3]
+
+      const isDateOffsetFollowup = lookaheadOp && (lookaheadOp.value === '+' || lookaheadOp.value === '-') &&
+                                   lookaheadNum && lookaheadNum.type === 'NUMBER' &&
+                                   lookaheadUnit && lookaheadUnit.type === 'DATE_UNIT'
+
+      if (tok.type === 'DATE_KEYWORD' || isDateOffsetFollowup) {
+        const baseName = this.consume().value
+        const offsets = []
+        while (true) {
+          const opTok = this.peek()
+          if (opTok.type === 'OPERATOR' && (opTok.value === '+' || opTok.value === '-')) {
+            const lookAheadN = this.tokens[this.pos + 1]
+            const lookAheadU = this.tokens[this.pos + 2]
+            if (lookAheadN && lookAheadN.type === 'NUMBER' && lookAheadU && lookAheadU.type === 'DATE_UNIT') {
+              const op = this.consume().value
+              const numTok = this.consume()
+              const unitTok = this.consume()
+              offsets.push({ op, amount: numTok.value, unit: unitTok.value })
+              continue
+            }
           }
-        } else {
           break
         }
+        return { type: 'DateExpression', baseName, offsets }
       }
-      return { type: 'DateExpression', baseName, offsets }
     }
 
     // Line References (#1, L1, line1)
