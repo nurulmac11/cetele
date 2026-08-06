@@ -21,6 +21,9 @@ Welcome to **Çetele**! This guide provides a comprehensive technical overview o
 
 ```
 kulba/
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # GitHub Actions CI workflow (PR & push test/build runner)
 ├── index.html                   # HTML template entry point
 ├── package.json                 # Project dependencies & scripts
 ├── vite.config.js               # Vite bundler & Vitest test config
