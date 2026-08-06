@@ -13,6 +13,7 @@
       @create-tab="createTab"
       @close-tab="closeTab"
       @rename-tab="renameTab"
+      @reorder-tabs="reorderTabs"
       @clear-active-tab="clearActiveTab"
       @switch-view="view => currentView = view"
       @toggle-show-decimals="toggleShowDecimals"
@@ -430,6 +431,15 @@ function renameTab({ id, title }) {
     target.title = title
     triggerSave()
   }
+}
+
+function reorderTabs(newTabsList) {
+  if (!Array.isArray(newTabsList)) return
+  newTabsList.forEach((tab, idx) => {
+    tab.position = idx
+  })
+  tabs.value = newTabsList
+  triggerSave()
 }
 
 function updateActiveTabContent(newContent) {

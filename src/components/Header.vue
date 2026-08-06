@@ -97,10 +97,21 @@
     <div v-if="currentView === 'notepad'" class="tabs-strip">
       <div class="tabs-list">
         <div
-          v-for="tab in tabs"
+          v-for="(tab, index) in tabs"
           :key="tab.id"
           class="tab-item"
-          :class="{ active: tab.id === activeTabId }"
+          :class="{
+            active: tab.id === activeTabId,
+            'is-dragging': draggedIndex === index,
+            'drag-over': dragOverIndex === index
+          }"
+          draggable="true"
+          @dragstart="onDragStart($event, index)"
+          @dragover.prevent="onDragOver($event, index)"
+          @dragenter.prevent
+          @dragleave="onDragLeave(index)"
+          @drop.prevent="onDrop($event, index)"
+          @dragend="onDragEnd"
           @click="$emit('select-tab', tab.id)"
         >
           <!-- Editing tab title inline -->
@@ -165,6 +176,7 @@ const emit = defineEmits([
   'create-tab',
   'close-tab',
   'rename-tab',
+  'reorder-tabs',
   'switch-view',
   'toggle-show-decimals',
   'toggle-theme',
@@ -205,6 +217,45 @@ function saveRename(tabId) {
 
 function cancelRename() {
   editingTabId.value = null
+}
+
+// Drag and Drop Tab Reordering
+const draggedIndex = ref(null)
+const dragOverIndex = ref(null)
+
+function onDragStart(e, index) {
+  draggedIndex.value = index
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+  }
+}
+
+function onDragOver(e, index) {
+  if (draggedIndex.value !== null && draggedIndex.value !== index) {
+    dragOverIndex.value = index
+  }
+}
+
+function onDragLeave(index) {
+  if (dragOverIndex.value === index) {
+    dragOverIndex.value = null
+  }
+}
+
+function onDrop(e, index) {
+  if (draggedIndex.value !== null && draggedIndex.value !== index) {
+    const updatedTabs = [...props.tabs]
+    const [movedTab] = updatedTabs.splice(draggedIndex.value, 1)
+    updatedTabs.splice(index, 0, movedTab)
+    emit('reorder-tabs', updatedTabs)
+  }
+  onDragEnd()
+}
+
+function onDragEnd() {
+  draggedIndex.value = null
+  dragOverIndex.value = null
 }
 </script>
 
@@ -472,6 +523,23 @@ function cancelRename() {
   border-color: var(--line);
   border-top: 2px solid var(--accent);
   font-weight: 500;
+}
+
+.tab-item[draggable="true"] {
+  cursor: grab;
+}
+
+.tab-item.is-dragging {
+  opacity: 0.35;
+  border-style: dashed;
+  border-color: var(--accent);
+  cursor: grabbing;
+}
+
+.tab-item.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  transform: translateY(-2px);
 }
 
 .tab-title {

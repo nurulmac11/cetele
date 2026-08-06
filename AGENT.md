@@ -124,6 +124,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 - **Active Tabs State**: `tabs` reactive array and `activeTabId` string ref.
 - **Closed Tab Stack**: `closedTabsStack` array preserves deleted tab objects (`{ ...tab, closedIndex }`).
 - **Reopen Functionality**: `reopenLastClosedTab()` pops from `closedTabsStack` and restores the tab to its original position in `tabs`.
+- **Drag & Drop Tab Reordering**: Tabs in `Header.vue` are draggable (`draggable="true"`). Reordering updates each tab's `position` property, which is saved locally to IndexedDB/localStorage and synced to Supabase `user_tabs`.
 
 ### Global Keyboard Shortcuts (`handleGlobalShortcuts`)
 
