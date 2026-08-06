@@ -31,13 +31,19 @@ prev / 2`
     expect(rendered[4].text).toBe('300')
   })
 
-  it('handles percentage arithmetic', () => {
+  it('handles percentage arithmetic including percentages above 100%', () => {
     const input = `20% off 100
-increase 1000 by 10%`
+increase 1000 by 10%
+200% of 100
+increase 1000 by 200%
+150% of 200`
 
     const { rendered } = evaluateAll(input)
     expect(rendered[0].text).toBe('80')
     expect(rendered[1].text).toBe('1,100')
+    expect(rendered[2].text).toBe('200')
+    expect(rendered[3].text).toBe('3,000')
+    expect(rendered[4].text).toBe('300')
   })
 
   it('prevents reserved keywords from being assigned and suppresses JS function output', () => {

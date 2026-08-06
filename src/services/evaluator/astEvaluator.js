@@ -47,7 +47,7 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     }
 
     case 'PercentNumber':
-      return { value: node.amount / 100, currency: null }
+      return { value: node.amount / 100, isPercent: true, currency: null }
 
     case 'DateExpression': {
       let baseTime = Date.now()
@@ -229,7 +229,7 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       const b = evaluateAST(node.baseExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
       if (isError(p)) return p
       if (isError(b)) return b
-      const percentRatio = p.value / (p.value > 1 ? 100 : 1)
+      const percentRatio = p.isPercent ? p.value : p.value / 100
       let resVal = 0
       if (node.kind === 'off') {
         resVal = b.value * (1 - percentRatio)
@@ -244,7 +244,7 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       const p = evaluateAST(node.percentExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
       if (isError(b)) return b
       if (isError(p)) return p
-      const percentRatio = p.value / (p.value > 1 ? 100 : 1)
+      const percentRatio = p.isPercent ? p.value : p.value / 100
       const factor = node.verb === 'increase' ? (1 + percentRatio) : (1 - percentRatio)
       return { value: b.value * factor, currency: b.currency }
     }
