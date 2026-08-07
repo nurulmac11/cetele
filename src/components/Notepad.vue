@@ -120,6 +120,19 @@
       </div>
     </div>
 
+    <!-- Mobile Helper Bar (Shown ONLY on mobile <= 600px) -->
+    <div class="mobile-helper-bar">
+      <button class="btn-helper accent-op" @mousedown.prevent @click="insertInlineSymbol(' = ')">=</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' + ')">+</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' - ')">-</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' * ')">*</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' / ')">/</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' % ')">%</button>
+      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol('#')">#line</button>
+      <button class="btn-helper icon-btn" @mousedown.prevent @click="handleUndo" title="Undo"><RotateCcw class="icon-xs" /></button>
+      <button class="btn-helper icon-btn" @mousedown.prevent @click="handleRedo" title="Redo"><RotateCw class="icon-xs" /></button>
+    </div>
+
     <!-- Status Bar -->
     <footer class="status-bar">
       <div class="status-left">
@@ -161,7 +174,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { evaluateAll, formatValue } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight } from '@lucide/vue'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw } from '@lucide/vue'
 
 const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
@@ -631,6 +644,68 @@ function syncScrollFromResults() {
   if (backdropRef.value) backdropRef.value.scrollTop = scrollTop
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   requestAnimationFrame(() => { isSyncingInput = false })
+}
+
+function insertTabIndent() {
+  recordHistoryNow(tabContent.value)
+  const textarea = inputRef.value
+  if (!textarea) {
+    tabContent.value += '  '
+    recordHistoryNow(tabContent.value)
+    return
+  }
+  const start = textarea.selectionStart || 0
+  const end = textarea.selectionEnd || 0
+  const current = tabContent.value
+  tabContent.value = current.substring(0, start) + '  ' + current.substring(end)
+  nextTick(() => {
+    textarea.focus()
+    textarea.selectionStart = textarea.selectionEnd = start + 2
+    recordHistoryNow(tabContent.value)
+  })
+}
+
+function insertInlineSymbol(strToInsert) {
+  const textarea = inputRef.value
+  const start = textarea ? (textarea.selectionStart || 0) : tabContent.value.length
+  const end = textarea ? (textarea.selectionEnd || 0) : tabContent.value.length
+
+  recordHistoryNow(tabContent.value)
+
+  if (!textarea) {
+    tabContent.value += strToInsert
+    recordHistoryNow(tabContent.value)
+    return
+  }
+
+  const current = tabContent.value
+  const newText = current.substring(0, start) + strToInsert + current.substring(end)
+  tabContent.value = newText
+
+  const newPos = start + strToInsert.length
+  nextTick(() => {
+    textarea.focus()
+    textarea.setSelectionRange(newPos, newPos)
+    recordHistoryNow(tabContent.value)
+  })
+}
+
+function handleUndo() {
+  undo()
+  nextTick(() => {
+    if (inputRef.value) {
+      inputRef.value.focus()
+    }
+  })
+}
+
+function handleRedo() {
+  redo()
+  nextTick(() => {
+    if (inputRef.value) {
+      inputRef.value.focus()
+    }
+  })
 }
 
 function insertTextAtCursor(textToInsert) {
@@ -1252,6 +1327,68 @@ watch(() => props.tab?.id, () => {
     width: 110px;
     font-size: 13px;
     padding: 12px 5px;
+  }
+}
+
+/* Mobile Quick Helper Toolbar */
+.mobile-helper-bar {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--panel-solid);
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-helper-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.btn-helper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 36px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-helper:active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(0.96);
+}
+
+.btn-helper.accent-op {
+  background: var(--accent-glow);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.btn-helper.icon-btn {
+  padding: 6px 10px;
+}
+
+@media (max-width: 600px) {
+  .mobile-helper-bar {
+    display: flex;
   }
 }
 </style>
