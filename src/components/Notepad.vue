@@ -123,6 +123,7 @@
 
     <!-- Mobile Helper Bar (Shown ONLY on mobile <= 600px) -->
     <div class="mobile-helper-bar">
+      <button v-if="declaredVariablesList.length > 0" class="btn-helper accent-op" @mousedown.prevent @click="showMobileVarsModal = !showMobileVarsModal">vars ({{ declaredVariablesList.length }})</button>
       <button class="btn-helper accent-op" @mousedown.prevent @click="insertInlineSymbol(' = ')">=</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' + ')">+</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' - ')">-</button>
@@ -133,6 +134,34 @@
       <button class="btn-helper icon-btn" @mousedown.prevent @click="handleUndo" title="Undo"><RotateCcw class="icon-xs" /></button>
       <button class="btn-helper icon-btn" @mousedown.prevent @click="handleRedo" title="Redo"><RotateCw class="icon-xs" /></button>
     </div>
+
+    <!-- Mobile Variables Overlay Modal -->
+    <Teleport to="body">
+      <div v-if="showMobileVarsModal" class="mobile-dropdown-backdrop" @click="showMobileVarsModal = false"></div>
+      <div v-if="showMobileVarsModal" class="mobile-vars-modal" @click.stop>
+        <div class="vars-modal-header">
+          <div class="vars-modal-title">
+            <Variable class="icon-sm" />
+            <span>Defined Variables ({{ declaredVariablesList.length }})</span>
+          </div>
+          <button class="btn-close-dropdown" @click="showMobileVarsModal = false">
+            <X class="icon-sm" />
+          </button>
+        </div>
+        <div class="vars-modal-list">
+          <div
+            v-for="v in declaredVariablesList"
+            :key="v.name"
+            class="vars-modal-item"
+            @click="insertInlineSymbol(v.name); showMobileVarsModal = false;"
+          >
+            <span class="var-name">{{ v.name }}</span>
+            <span class="var-eq">=</span>
+            <span class="var-val">{{ v.value }}</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Status Bar -->
     <footer class="status-bar">
@@ -175,7 +204,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { evaluateAll, formatValue } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw } from '@lucide/vue'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X } from '@lucide/vue'
 
 const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
@@ -292,7 +321,9 @@ const props = defineProps({
   showSidebar: { type: Boolean, default: true }
 })
 
-const emit = defineEmits(['update:content', 'toggle-sidebar'])
+const emit = defineEmits(['update:content', 'toggle-sidebar', 'variables-updated'])
+
+const showMobileVarsModal = ref(false)
 
 const inputRef = ref(null)
 const gutterRef = ref(null)
@@ -452,6 +483,18 @@ const declaredVariablesMap = computed(() => {
 
   return map
 })
+
+const declaredVariablesList = computed(() => {
+  const list = []
+  declaredVariablesMap.value.forEach((value, name) => {
+    list.push({ name, value: value || '0' })
+  })
+  return list
+})
+
+watch(declaredVariablesList, (newList) => {
+  emit('variables-updated', newList)
+}, { immediate: true })
 
 // Autocomplete suggestions (active when word length >= 3)
 const autocompleteSuggestions = computed(() => {
@@ -1450,5 +1493,68 @@ watch(() => props.tab?.id, () => {
   .mobile-helper-bar {
     display: flex;
   }
+}
+
+/* Mobile Variables Modal */
+.mobile-vars-modal {
+  position: fixed;
+  top: 96px;
+  left: 16px;
+  right: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slideDown 0.18s ease-out;
+}
+
+.vars-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.vars-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--paper);
+}
+
+.vars-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.vars-modal-item {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 20px minmax(70px, 1fr);
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vars-modal-item:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
 }
 </style>

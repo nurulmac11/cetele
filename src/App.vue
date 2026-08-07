@@ -35,12 +35,14 @@
         :disable-float="!userProfile.showDecimals"
         :show-sidebar="showSidebar"
         @update:content="updateActiveTabContent"
+        @variables-updated="handleVariablesUpdated"
         @toggle-sidebar="toggleSidebar"
       />
 
       <!-- Simple Syntax Reference Sidebar -->
       <ReferenceSidebar
         v-if="showSidebar"
+        :declared-variables="activeVariables"
         @insert="handleInsertSnippet"
         @open-guide-page="currentView = 'guide'"
         @save-tab="handleSaveActiveTabToLibrary"
@@ -192,7 +194,12 @@ const tabs = ref(JSON.parse(JSON.stringify(defaultTabs)))
 const savedLibrary = ref([])
 const closedTabsStack = ref([])
 const activeTabId = ref('tab-1')
+const activeVariables = ref([])
 const currentView = ref('notepad') // 'notepad' | 'library' | 'guide'
+
+function handleVariablesUpdated(vars) {
+  activeVariables.value = Array.isArray(vars) ? vars : []
+}
 const showSidebar = ref(true)
 const isSettingsOpen = ref(false)
 const isAuthModalOpen = ref(false)

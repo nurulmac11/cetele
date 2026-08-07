@@ -20,6 +20,36 @@
       </div>
     </div>
 
+    <!-- Defined Variables Inspector Box -->
+    <div class="variables-card">
+      <div class="var-header">
+        <div class="var-title">
+          <Variable class="icon-sm" />
+          <span>Defined Variables</span>
+        </div>
+        <span class="var-badge">{{ declaredVariables.length }}</span>
+      </div>
+
+      <div v-if="declaredVariables.length > 0" class="var-list">
+        <div
+          v-for="v in declaredVariables"
+          :key="v.name"
+          class="var-item"
+          @click="$emit('insert', v.name)"
+          :title="'Click to insert variable ' + v.name"
+        >
+          <span class="var-name">{{ v.name }}</span>
+          <span class="var-eq">=</span>
+          <span class="var-val">{{ v.value }}</span>
+        </div>
+      </div>
+
+      <div v-else class="var-empty">
+        <span>No variables declared in active tab.</span>
+        <code @click="$emit('insert', 'price = 149.99\ntax = 18%\nprice * (1 + tax)')">e.g. price = 149.99</code>
+      </div>
+    </div>
+
     <!-- Syntax Reference Sheet Box -->
     <aside class="sheet">
       <div class="sheet-header">
@@ -97,7 +127,11 @@
 </template>
 
 <script setup>
-import { BookmarkPlus, Share2, Copy } from '@lucide/vue'
+import { BookmarkPlus, Share2, Copy, Variable } from '@lucide/vue'
+
+defineProps({
+  declaredVariables: { type: Array, default: () => [] }
+})
 
 defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 </script>
@@ -121,6 +155,119 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Defined Variables Inspector Card */
+.variables-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.var-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.var-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.var-badge {
+  font-size: 10.5px;
+  background: var(--accent-glow);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-dim);
+}
+
+.var-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.var-item {
+  display: grid;
+  grid-template-columns: minmax(60px, 1fr) 16px minmax(60px, 1fr);
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.var-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.var-name {
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.var-eq {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  font-weight: 600;
+  user-select: none;
+}
+
+.var-val {
+  color: var(--paper);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.var-empty {
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.var-empty code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--line-soft);
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px dashed var(--accent-dim);
+  cursor: pointer;
 }
 
 .btn-save-main {
