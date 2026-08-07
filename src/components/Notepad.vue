@@ -57,6 +57,7 @@
           @keydown="handleKeyDown"
           @keyup="updateCursorState"
           @click="updateCursorState"
+          @input="updateCursorState"
         ></textarea>
 
         <!-- Variable Autocomplete Overlay -->
@@ -468,10 +469,65 @@ const autocompleteSuggestions = computed(() => {
   return list
 })
 
+const autocompletePos = ref({ top: 40, left: 10 })
+
+function getCaretCoordinates() {
+  if (!inputRef.value) return { top: 40, left: 10 }
+
+  const pos = inputRef.value.selectionStart || 0
+  const textBefore = tabContent.value.slice(0, pos)
+  const lines = textBefore.split('\n')
+  const lineIndex = lines.length - 1
+  const currentLineText = lines[lineIndex]
+
+  const textarea = inputRef.value
+  const style = window.getComputedStyle(textarea)
+
+  const lineHeight = parseFloat(style.lineHeight) || 26
+  const paddingTop = parseFloat(style.paddingTop) || 16
+  const paddingLeft = parseFloat(style.paddingLeft) || 14
+  const scrollTop = textarea.scrollTop || 0
+  const scrollLeft = textarea.scrollLeft || 0
+
+  let measurer = document.getElementById('caret-measurer')
+  if (!measurer) {
+    measurer = document.createElement('span')
+    measurer.id = 'caret-measurer'
+    measurer.style.visibility = 'hidden'
+    measurer.style.position = 'absolute'
+    measurer.style.whiteSpace = 'pre'
+    measurer.style.top = '-9999px'
+    measurer.style.left = '-9999px'
+    measurer.style.pointerEvents = 'none'
+    document.body.appendChild(measurer)
+  }
+  measurer.style.font = style.font
+  measurer.style.fontFamily = style.fontFamily
+  measurer.style.fontSize = style.fontSize
+  measurer.style.fontWeight = style.fontWeight
+  measurer.style.letterSpacing = style.letterSpacing
+  measurer.textContent = currentLineText
+
+  const textWidth = measurer.getBoundingClientRect().width
+
+  let top = paddingTop + (lineIndex + 1) * lineHeight - scrollTop + 2
+  let left = paddingLeft + textWidth - scrollLeft
+
+  const wrapperEl = textarea.parentElement
+  if (wrapperEl) {
+    const wrapperWidth = wrapperEl.clientWidth || 300
+    if (left + 230 > wrapperWidth) {
+      left = Math.max(10, wrapperWidth - 240)
+    }
+  }
+
+  return { top: Math.max(10, top), left: Math.max(10, left) }
+}
+
 const autocompleteStyle = computed(() => {
   return {
-    top: '40px',
-    left: '10px'
+    top: `${autocompletePos.value.top}px`,
+    left: `${autocompletePos.value.left}px`
   }
 })
 
@@ -486,6 +542,7 @@ function updateCursorState() {
     currentPrefix.value = match[1]
     if (currentPrefix.value.length >= 3 && autocompleteSuggestions.value.length > 0) {
       showAutocomplete.value = true
+      autocompletePos.value = getCaretCoordinates()
       if (autocompleteIndex.value >= autocompleteSuggestions.value.length) {
         autocompleteIndex.value = 0
       }
@@ -633,6 +690,9 @@ function syncScroll() {
   }
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   if (resultsRef.value) resultsRef.value.scrollTop = scrollTop
+  if (showAutocomplete.value) {
+    autocompletePos.value = getCaretCoordinates()
+  }
   requestAnimationFrame(() => { isSyncingResults = false })
 }
 
