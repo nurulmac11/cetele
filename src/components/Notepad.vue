@@ -80,7 +80,7 @@
       </div>
 
       <!-- Evaluated results column -->
-      <div ref="resultsRef" class="results">
+      <div ref="resultsRef" class="results" @scroll="syncScrollFromResults">
         <div
           v-for="(item, k) in visibleLines"
           :key="k"
@@ -606,8 +606,12 @@ async function copyTotal() {
   }, 1000)
 }
 
+let isSyncingInput = false
+let isSyncingResults = false
+
 function syncScroll() {
-  if (!inputRef.value) return
+  if (!inputRef.value || isSyncingInput) return
+  isSyncingResults = true
   const scrollTop = inputRef.value.scrollTop
   const scrollLeft = inputRef.value.scrollLeft
   if (backdropRef.value) {
@@ -616,6 +620,17 @@ function syncScroll() {
   }
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   if (resultsRef.value) resultsRef.value.scrollTop = scrollTop
+  requestAnimationFrame(() => { isSyncingResults = false })
+}
+
+function syncScrollFromResults() {
+  if (!resultsRef.value || isSyncingResults) return
+  isSyncingInput = true
+  const scrollTop = resultsRef.value.scrollTop
+  if (inputRef.value) inputRef.value.scrollTop = scrollTop
+  if (backdropRef.value) backdropRef.value.scrollTop = scrollTop
+  if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
+  requestAnimationFrame(() => { isSyncingInput = false })
 }
 
 function insertTextAtCursor(textToInsert) {
@@ -818,19 +833,24 @@ watch(() => props.tab?.id, () => {
   font-family: 'JetBrains Mono', monospace;
   font-size: 14.5px;
   line-height: 26px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  letter-spacing: 0;
+  tab-size: 2;
+  -moz-tab-size: 2;
+  white-space: pre;
   overflow: hidden;
   pointer-events: none;
   color: var(--paper);
   user-select: none;
   z-index: 0;
+  box-sizing: border-box;
 }
 
 .backdrop-line {
   min-height: 26px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  height: 26px;
+  line-height: 26px;
+  white-space: pre;
+  box-sizing: border-box;
 }
 
 .tok-comment {
@@ -860,15 +880,21 @@ watch(() => props.tab?.id, () => {
   font-family: 'JetBrains Mono', monospace;
   font-size: 14.5px;
   line-height: 26px;
+  letter-spacing: 0;
+  tab-size: 2;
+  -moz-tab-size: 2;
   background: transparent;
   color: transparent;
   caret-color: var(--paper);
   border: none;
   outline: none;
   resize: none;
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: auto;
   z-index: 1;
+  box-sizing: border-box;
+  -webkit-text-size-adjust: 100%;
 }
 
 .input-area::placeholder {
@@ -936,13 +962,21 @@ watch(() => props.tab?.id, () => {
   font-size: 14.5px;
   line-height: 26px;
   padding: 16px 12px;
-  overflow-y: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
   text-align: right;
   background: rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.results::-webkit-scrollbar {
+  display: none;
 }
 
 .r {
   height: 26px;
+  line-height: 26px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -950,6 +984,7 @@ watch(() => props.tab?.id, () => {
   transition: all 0.15s ease;
   border-radius: 4px;
   padding: 0 6px;
+  box-sizing: border-box;
 }
 
 .r:not(.empty):not(.comment):not(.err) {
@@ -1144,26 +1179,51 @@ watch(() => props.tab?.id, () => {
 
 /* Mobile & Tablet Optimizations */
 @media (max-width: 768px) {
+  .gutter {
+    width: 36px;
+    padding: 14px 0;
+    padding-right: 6px;
+    font-size: 13px;
+  }
+
+  .editor-backdrop,
+  .input-area {
+    font-size: 14.5px;
+    line-height: 26px;
+    padding: 14px 12px;
+  }
+
   .results {
     width: 140px;
     font-size: 13.5px;
+    line-height: 26px;
     padding: 14px 8px;
   }
 }
 
 @media (max-width: 600px) {
   .gutter {
-    display: none;
+    width: 28px;
+    padding: 12px 0;
+    padding-right: 4px;
+    font-size: 11px;
   }
 
+  .num-text {
+    font-size: 11px;
+  }
+
+  .editor-backdrop,
   .input-area {
-    font-size: 16px;
+    font-size: 15px;
+    line-height: 26px;
     padding: 12px 10px;
   }
 
   .results {
-    width: 115px;
-    font-size: 13px;
+    width: 125px;
+    font-size: 13.5px;
+    line-height: 26px;
     padding: 12px 6px;
   }
 
@@ -1174,6 +1234,24 @@ watch(() => props.tab?.id, () => {
   .status-bar {
     padding: 8px 12px;
     font-size: 11.5px;
+  }
+}
+
+@media (max-width: 400px) {
+  .gutter {
+    display: none;
+  }
+
+  .editor-backdrop,
+  .input-area {
+    font-size: 14.5px;
+    padding: 12px 8px;
+  }
+
+  .results {
+    width: 110px;
+    font-size: 13px;
+    padding: 12px 5px;
   }
 }
 </style>
