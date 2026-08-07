@@ -123,7 +123,6 @@
 
     <!-- Mobile Helper Bar (Shown ONLY on mobile <= 600px) -->
     <div class="mobile-helper-bar">
-      <button v-if="declaredVariablesList.length > 0" class="btn-helper accent-op" @mousedown.prevent @click="showMobileVarsModal = !showMobileVarsModal">vars ({{ declaredVariablesList.length }})</button>
       <button class="btn-helper accent-op" @mousedown.prevent @click="insertInlineSymbol(' = ')">=</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' + ')">+</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' - ')">-</button>
@@ -134,34 +133,6 @@
       <button class="btn-helper icon-btn" @mousedown.prevent @click="handleUndo" title="Undo"><RotateCcw class="icon-xs" /></button>
       <button class="btn-helper icon-btn" @mousedown.prevent @click="handleRedo" title="Redo"><RotateCw class="icon-xs" /></button>
     </div>
-
-    <!-- Mobile Variables Overlay Modal -->
-    <Teleport to="body">
-      <div v-if="showMobileVarsModal" class="mobile-dropdown-backdrop" @click="showMobileVarsModal = false"></div>
-      <div v-if="showMobileVarsModal" class="mobile-vars-modal" @click.stop>
-        <div class="vars-modal-header">
-          <div class="vars-modal-title">
-            <Variable class="icon-sm" />
-            <span>Defined Variables ({{ declaredVariablesList.length }})</span>
-          </div>
-          <button class="btn-close-dropdown" @click="showMobileVarsModal = false">
-            <X class="icon-sm" />
-          </button>
-        </div>
-        <div class="vars-modal-list">
-          <div
-            v-for="v in declaredVariablesList"
-            :key="v.name"
-            class="vars-modal-item"
-            @click="insertInlineSymbol(v.name); showMobileVarsModal = false;"
-          >
-            <span class="var-name">{{ v.name }}</span>
-            <span class="var-eq">=</span>
-            <span class="var-val">{{ v.value }}</span>
-          </div>
-        </div>
-      </div>
-    </Teleport>
 
     <!-- Status Bar -->
     <footer class="status-bar">
@@ -179,7 +150,7 @@
       <div class="status-right">
         <!-- Expand Area Toggle Button -->
         <button
-          class="btn-expand-area"
+          class="btn-expand-area desktop-only"
           :class="{ expanded: !showSidebar }"
           @click="$emit('toggle-sidebar')"
           :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar'"
@@ -322,8 +293,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:content', 'toggle-sidebar', 'variables-updated'])
-
-const showMobileVarsModal = ref(false)
 
 const inputRef = ref(null)
 const gutterRef = ref(null)

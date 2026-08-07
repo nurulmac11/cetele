@@ -68,7 +68,7 @@
           <span v-if="user" class="sync-dot"></span>
         </button>        <!-- Expand Calculation Area / Toggle Sidebar Button -->
         <button
-          class="btn-icon"
+          class="btn-icon desktop-only"
           :class="{ active: !showSidebar }"
           @click="$emit('toggle-sidebar')"
           :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
@@ -936,7 +936,8 @@ function onDragEnd() {
 }
 
 @media (max-width: 600px) {
-  .desktop-tabs {
+  .desktop-tabs,
+  .desktop-only {
     display: none !important;
   }
 
