@@ -475,7 +475,7 @@ const declaredVariablesMap = computed(() => {
       const varName = m[1]
       if (!['prev', 'total', 'pi', 'e'].includes(varName)) {
         const lineRes = scope.rendered[idx]
-        const valText = (lineRes && lineRes.cls === 'num' && lineRes.text) ? lineRes.text : ''
+        const valText = (lineRes && (lineRes.cls === 'num' || lineRes.cls === 'date') && lineRes.text) ? lineRes.text : ''
         map.set(varName, valText)
       }
     }

@@ -725,7 +725,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  background-color: var(--bg);
 }
 
 .workspace {
@@ -747,6 +749,7 @@ onUnmounted(() => {
 .app-footer {
   border-top: 1px solid var(--line);
   padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   background: var(--panel);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);

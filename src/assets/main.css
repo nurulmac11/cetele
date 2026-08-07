@@ -49,9 +49,11 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  background-color: var(--bg);
 }
 
 body {
+  background-color: var(--bg);
   background:
     radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.14) 0%, transparent 65%),
     radial-gradient(950px 750px at 85% 85%, rgba(94, 234, 212, 0.09) 0%, transparent 70%),
@@ -62,11 +64,13 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 [data-theme="light"] body {
+  background-color: var(--bg);
   background:
     radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.12) 0%, transparent 65%),
     radial-gradient(950px 750px at 85% 85%, rgba(20, 184, 166, 0.08) 0%, transparent 70%),
@@ -78,7 +82,9 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
+  background-color: var(--bg);
 }
 
 /* Custom Scrollbars */
