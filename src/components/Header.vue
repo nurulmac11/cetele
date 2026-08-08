@@ -10,8 +10,8 @@
       </div>
 
       <div class="header-actions">
-        <!-- View Navigation -->
-        <div class="nav-pills">
+        <!-- View Navigation Pills (Desktop Only) -->
+        <div class="nav-pills desktop-only">
           <button
             class="btn-nav"
             :class="{ active: currentView === 'notepad' }"
@@ -37,11 +37,76 @@
           </button>
         </div>
 
-        <div class="divider"></div>
+        <!-- Mobile Navigation Menu Dropdown (Shown ONLY ON MOBILE <= 600px) -->
+        <div class="mobile-nav-wrapper mobile-only">
+          <button
+            class="btn-mobile-nav-select"
+            @click="isMobileNavOpen = !isMobileNavOpen"
+            title="Menu & Navigation"
+          >
+            <Calculator v-if="currentView === 'notepad'" class="icon-sm active-nav-icon" />
+            <Bookmark v-else-if="currentView === 'library'" class="icon-sm active-nav-icon" />
+            <BookOpen v-else-if="currentView === 'guide'" class="icon-sm active-nav-icon" />
+            <span class="mobile-nav-current-label">
+              {{ currentView === 'notepad' ? 'Notepad' : currentView === 'library' ? 'Saved Tabs' : 'Syntax Guide' }}
+            </span>
+            <ChevronDown class="icon-xs caret-icon" :class="{ open: isMobileNavOpen }" />
+          </button>
+
+          <Teleport to="body">
+            <div
+              v-if="isMobileNavOpen"
+              class="mobile-dropdown-backdrop"
+              @click="isMobileNavOpen = false"
+            ></div>
+
+            <div v-if="isMobileNavOpen" class="mobile-nav-menu" @click.stop>
+              <div class="mobile-nav-menu-header">Menu & Views</div>
+              <button
+                class="mobile-nav-menu-item"
+                :class="{ active: currentView === 'notepad' }"
+                @click="switchMobileView('notepad')"
+              >
+                <Calculator class="icon-sm" />
+                <span>Notepad</span>
+              </button>
+
+              <button
+                class="mobile-nav-menu-item"
+                :class="{ active: currentView === 'library' }"
+                @click="switchMobileView('library')"
+              >
+                <Bookmark class="icon-sm" />
+                <span>Saved Tabs</span>
+              </button>
+
+              <button
+                class="mobile-nav-menu-item"
+                :class="{ active: currentView === 'guide' }"
+                @click="switchMobileView('guide')"
+              >
+                <BookOpen class="icon-sm" />
+                <span>Syntax Guide</span>
+              </button>
+
+              <div class="mobile-nav-menu-divider"></div>
+
+              <button
+                class="mobile-nav-menu-item"
+                @click="openMobileSettings"
+              >
+                <Settings class="icon-sm" />
+                <span>Settings</span>
+              </button>
+            </div>
+          </Teleport>
+        </div>
+
+        <div class="divider desktop-only"></div>
 
         <!-- Decimals Toggle Switch -->
         <div
-          class="decimals-switch-box"
+          class="decimals-switch-box desktop-only"
           :title="showDecimals ? 'Decimals ON (showing fractional values)' : 'Decimals OFF (rounding to integers)'"
         >
           <span class="switch-text">Decimals</span>
@@ -66,7 +131,9 @@
           <span v-if="user" class="cloud-text">Sync Active</span>
           <span v-else class="cloud-text">Cloud Sync / Sign In</span>
           <span v-if="user" class="sync-dot"></span>
-        </button>        <!-- Expand Calculation Area / Toggle Sidebar Button -->
+        </button>
+
+        <!-- Expand Calculation Area / Toggle Sidebar Button -->
         <button
           class="btn-icon desktop-only"
           :class="{ active: !showSidebar }"
@@ -79,7 +146,7 @@
 
         <!-- Light / Dark Theme Toggle -->
         <button
-          class="btn-icon"
+          class="btn-icon desktop-only"
           @click="$emit('toggle-theme')"
           :title="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
         >
@@ -87,8 +154,9 @@
           <Moon v-else class="icon" />
         </button>
 
-        <button class="btn-icon" @click="$emit('open-settings')" title="Settings & Data Management (Ctrl+,)">
+        <button class="btn-icon btn-settings desktop-only" @click="$emit('open-settings')" title="Settings & Data Management (Ctrl+,)">
           <Settings class="icon" />
+          <span class="btn-settings-text">Settings</span>
         </button>
       </div>
     </div>    <!-- Bottom Bar: Tabs Strip (only shown in notepad view) -->
@@ -165,19 +233,6 @@
           <span class="mobile-active-title">{{ activeTabTitle }}</span>
           <span class="tab-count-badge">{{ tabs.length }} tabs</span>
           <ChevronDown class="icon-xs caret-icon" :class="{ open: isMobileTabMenuOpen }" />
-        </button>
-
-        <button
-          class="btn-mobile-tab-rename"
-          @click.stop="openMobileRenameActiveTab"
-          title="Rename active tab"
-        >
-          <Edit3 class="icon-sm" />
-        </button>
-
-        <button class="btn-mobile-add-tab" @click="$emit('create-tab')" title="New tab">
-          <Plus class="icon-sm" />
-          <span>New</span>
         </button>
 
         <!-- Teleport mobile tab dropdown menu to body so no parent overflow clips it -->
@@ -300,6 +355,17 @@ const editingTitle = ref('')
 const editInputRef = ref(null)
 const mobileEditInputRef = ref(null)
 const isMobileTabMenuOpen = ref(false)
+const isMobileNavOpen = ref(false)
+
+function switchMobileView(view) {
+  emit('switch-view', view)
+  isMobileNavOpen.value = false
+}
+
+function openMobileSettings() {
+  emit('open-settings')
+  isMobileNavOpen.value = false
+}
 
 const activeTabTitle = computed(() => {
   const t = props.tabs.find(x => x.id === props.activeTabId)
@@ -1034,6 +1100,90 @@ function onDragEnd() {
   color: var(--muted);
   border: 1px solid var(--line);
   cursor: pointer;
+}
+
+.btn-settings-text {
+  display: none;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.mobile-only-inline {
+  display: none;
+}
+
+.btn-mobile-nav-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--paper);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-mobile-nav-select .active-nav-icon {
+  color: var(--accent);
+}
+
+.mobile-nav-menu {
+  position: fixed;
+  top: 56px;
+  right: 12px;
+  min-width: 180px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: slideDown 0.15s ease-out;
+}
+
+.mobile-nav-menu-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 8px;
+  letter-spacing: 0.5px;
+}
+
+.mobile-nav-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.mobile-nav-menu-item:hover,
+.mobile-nav-menu-item.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mobile-nav-menu-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
 }
 
 @media (max-width: 600px) {
