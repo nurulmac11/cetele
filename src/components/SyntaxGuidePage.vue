@@ -258,7 +258,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 }
 
 .card {
-  background: var(--panel);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px;
@@ -284,7 +284,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   font-size: 16px;
   font-weight: 700;
   margin: 0;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .card-desc {
@@ -302,7 +302,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 .code-box code {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
-  background: var(--line-soft);
+  background: var(--editor-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px 12px;
@@ -313,18 +313,18 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 }
 
 .code-box code:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-glow);
+  border-color: rgba(32, 214, 192, 0.4);
+  color: var(--paper-bright);
+  background: rgba(32, 214, 192, 0.08);
 }
 
 .var {
-  color: var(--var-color);
+  color: var(--syn-variable);
   font-weight: 600;
 }
 
 .comment {
-  color: var(--comment-color);
+  color: var(--syn-comment);
   font-style: italic;
 }
 
@@ -338,7 +338,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--line-soft);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   padding: 8px 12px;
   border-radius: 6px;
@@ -363,7 +363,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: var(--line-soft);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
 }
@@ -373,7 +373,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   font-size: 12.5px;
   font-weight: 700;
   color: var(--accent);
-  background: var(--bg);
+  background: var(--editor-bg);
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid var(--line);

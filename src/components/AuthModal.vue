@@ -157,6 +157,7 @@ async function handleSignOut() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--card-bg);
 }
 
 .modal-title {
@@ -169,7 +170,7 @@ async function handleSignOut() {
   font-size: 16px;
   font-weight: 700;
   margin: 0;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .btn-close {
@@ -179,8 +180,8 @@ async function handleSignOut() {
   transition: color 0.15s;
 }
 .btn-close:hover {
-  color: var(--paper);
-  background: var(--line-soft);
+  color: var(--paper-bright);
+  background: var(--item-bg);
 }
 
 .modal-body {
@@ -188,8 +189,8 @@ async function handleSignOut() {
 }
 
 .unconfigured-box {
-  background: rgba(245, 185, 113, 0.08);
-  border: 1px solid rgba(245, 185, 113, 0.25);
+  background: rgba(245, 185, 76, 0.08);
+  border: 1px solid rgba(245, 185, 76, 0.25);
   border-radius: 8px;
   padding: 14px;
   font-size: 13px;
@@ -206,7 +207,7 @@ async function handleSignOut() {
 }
 
 .code-block {
-  background: var(--bg);
+  background: var(--editor-bg);
   padding: 8px 12px;
   border-radius: 6px;
   font-family: 'JetBrains Mono', monospace;
@@ -235,7 +236,7 @@ async function handleSignOut() {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--line-soft);
+  background: var(--item-bg);
   border-radius: 8px;
   border: 1px solid var(--line);
 }
@@ -255,14 +256,14 @@ async function handleSignOut() {
 .user-email {
   font-size: 14px;
   font-weight: 600;
-  color: var(--paper);
+  color: var(--paper-bright);
   font-family: 'JetBrains Mono', monospace;
 }
 
 .sync-status-card {
   padding: 12px;
-  background: rgba(94, 234, 212, 0.08);
-  border: 1px solid rgba(94, 234, 212, 0.25);
+  background: rgba(32, 214, 192, 0.06);
+  border: 1px solid rgba(32, 214, 192, 0.25);
   border-radius: 8px;
   font-size: 12.5px;
 }

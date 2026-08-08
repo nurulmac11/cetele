@@ -1,59 +1,89 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #0b0f14;
-  --panel: rgba(20, 24, 30, 0.9);
-  --panel-solid: #14181e;
-  --panel-hover: rgba(28, 34, 42, 0.95);
-  --panel-active: rgba(36, 43, 52, 0.98);
-  --line: #2e3640;
-  --line-soft: rgba(255, 255, 255, 0.1);
-  --paper: #f8fafc;
-  --muted: #94a3b8;
-  --muted-light: #cbd5e1;
-  --accent: #2dd4bf;
-  --accent-glow: rgba(45, 212, 191, 0.2);
-  --accent-dim: rgba(45, 212, 191, 0.35);
-  --var-color: #2dd4bf;
-  --var-glow: rgba(45, 212, 191, 0.2);
-  --var-dim: rgba(45, 212, 191, 0.35);
-  --result-color: #37ce87;
-  --result-glow: rgba(55, 206, 135, 0.2);
-  --comment-color: #94a3b8;
-  --comment-bg: rgba(148, 163, 184, 0.09);
-  --comment-border: rgba(148, 163, 184, 0.3);
-  --amber: #fbbf24;
-  --err: #f87171;
-  --radius: 14px;
+  /* Navy / Dark Foundation Palette */
+  --bg: #080E18;
+  --panel: rgba(13, 21, 34, 0.95);
+  --panel-solid: #0D1522;
+  --panel-hover: #101A29;
+  --panel-active: #152234;
+  --card-bg: #111C2B;
+  --item-bg: #182435;
+  --editor-bg: #0B1320;
+
+  /* Borders */
+  --line: #1E2C40;
+  --line-soft: rgba(30, 44, 64, 0.6);
+  --line-hover: #2B3D58;
+
+  /* Text Colors */
+  --paper: #E2E8F0;
+  --paper-bright: #F8FAFC;
+  --muted: #8295AD;
+  --muted-light: #A0B0C4;
+
+  /* Primary Accent - Çetele Turquoise */
+  --accent: #20D6C0;
+  --accent-hover: #26ECB6;
+  --accent-glow: rgba(32, 214, 192, 0.15);
+  --accent-dim: rgba(32, 214, 192, 0.3);
+
+  /* Variables & Results */
+  --var-color: #20D6C0;
+  --var-glow: rgba(32, 214, 192, 0.12);
+  --var-dim: rgba(32, 214, 192, 0.25);
+  --result-color: #20D6C0;
+  --result-glow: rgba(32, 214, 192, 0.12);
+
+  /* Syntax & Secondary Accents */
+  --syn-variable: #20D6C0;    /* Turquoise */
+  --syn-number: #FF6685;      /* Coral / Pink */
+  --syn-currency: #F5B94C;    /* Warm Yellow */
+  --syn-comment: #5A6E85;     /* Muted Blue-Gray */
+  --syn-keyword: #9B8AFB;     /* Lavender */
+  --syn-unit: #8295AD;        /* Gray-Blue */
+
+  --amber: #F5B94C;
+  --err: #FF6685;
+  --radius: 12px;
   --radius-sm: 8px;
-  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.65);
 }
 
 /* Light Theme Overrides */
 [data-theme="light"] {
-  --bg: #f8fafc;
-  --panel: rgba(255, 255, 255, 0.88);
-  --panel-solid: #ffffff;
-  --panel-hover: rgba(240, 243, 246, 0.9);
-  --panel-active: rgba(228, 232, 236, 0.95);
-  --line: #d8dee4;
-  --line-soft: rgba(0, 0, 0, 0.05);
-  --paper: #1c2128;
-  --muted: #57606a;
-  --muted-light: #6e7781;
-  --accent: #0d9488;
-  --accent-glow: rgba(13, 148, 136, 0.15);
+  --bg: #F1F5F9;
+  --panel: rgba(255, 255, 255, 0.92);
+  --panel-solid: #FFFFFF;
+  --panel-hover: #F8FAFC;
+  --panel-active: #E2E8F0;
+  --card-bg: #FFFFFF;
+  --item-bg: #F8FAFC;
+  --editor-bg: #FFFFFF;
+  --line: #CBD5E1;
+  --line-soft: rgba(0, 0, 0, 0.06);
+  --line-hover: #94A3B8;
+  --paper: #0F172A;
+  --paper-bright: #020617;
+  --muted: #64748B;
+  --muted-light: #475569;
+  --accent: #0D9488;
+  --accent-hover: #0F766E;
+  --accent-glow: rgba(13, 148, 136, 0.12);
   --accent-dim: rgba(13, 148, 136, 0.25);
-  --var-color: #0d9488;
-  --var-glow: rgba(13, 148, 136, 0.15);
+  --var-color: #0D9488;
+  --var-glow: rgba(13, 148, 136, 0.12);
   --var-dim: rgba(13, 148, 136, 0.25);
-  --result-color: #059669;
-  --result-glow: rgba(5, 150, 105, 0.15);
-  --comment-color: #64748b;
-  --comment-bg: rgba(100, 116, 139, 0.08);
-  --comment-border: rgba(100, 116, 139, 0.25);
-  --amber: #d97706;
-  --err: #cf222e;
+  --result-color: #0D9488;
+  --result-glow: rgba(13, 148, 136, 0.12);
+  --syn-variable: #0D9488;
+  --syn-number: #E11D48;
+  --syn-currency: #D97706;
+  --syn-comment: #64748B;
+  --syn-keyword: #7C3AED;
+  --syn-unit: #475569;
+  --amber: #D97706;
+  --err: #E11D48;
   --shadow-lg: 0 16px 36px -8px rgba(0, 0, 0, 0.08);
 }
 
@@ -71,9 +101,9 @@ html, body {
 body {
   background-color: var(--bg);
   background:
-    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.14) 0%, transparent 65%),
-    radial-gradient(950px 750px at 85% 85%, rgba(94, 234, 212, 0.09) 0%, transparent 70%),
-    linear-gradient(180deg, #0f1216 0%, #13171e 40%, #0c0f13 100%);
+    radial-gradient(1200px 700px at 15% 10%, rgba(32, 214, 192, 0.06) 0%, transparent 65%),
+    radial-gradient(1000px 800px at 85% 85%, rgba(155, 138, 251, 0.04) 0%, transparent 70%),
+    linear-gradient(180deg, #080E18 0%, #0A111C 50%, #060B13 100%);
   background-attachment: fixed;
   color: var(--paper);
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;

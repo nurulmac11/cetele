@@ -750,7 +750,7 @@ onUnmounted(() => {
   border-top: 1px solid var(--line);
   padding: 16px 24px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  background: var(--panel);
+  background: var(--panel-solid);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   margin-top: auto;
@@ -779,8 +779,8 @@ onUnmounted(() => {
   letter-spacing: .06em;
   font-weight: 700;
   color: var(--amber);
-  background: rgba(245, 185, 113, 0.12);
-  border: 1px solid rgba(245, 185, 113, 0.25);
+  background: rgba(245, 185, 76, 0.1);
+  border: 1px solid rgba(245, 185, 76, 0.25);
   padding: 2px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -820,7 +820,7 @@ onUnmounted(() => {
 
 .author-link:hover {
   text-decoration: underline;
-  text-shadow: 0 0 8px var(--accent-dim);
+  color: var(--accent-hover);
 }
 
 .github-link {
@@ -829,7 +829,7 @@ onUnmounted(() => {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 500;
   transition: all 0.15s ease;
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--card-bg);
   padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--line);
@@ -838,7 +838,7 @@ onUnmounted(() => {
 .github-link:hover {
   color: var(--accent);
   border-color: var(--accent);
-  background: var(--accent-glow);
+  background: rgba(32, 214, 192, 0.08);
   transform: translateY(-1px);
 }
 

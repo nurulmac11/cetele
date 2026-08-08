@@ -143,38 +143,92 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
-/* Action Box over Reference Box */
+/* Primary Action Box over Inspector Box */
 .save-card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Defined Variables Inspector Card */
-.variables-card {
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.btn-save-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
+  background: var(--accent);
+  color: #080E18;
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 11px 16px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px var(--accent-dim);
+  letter-spacing: 0.01em;
+}
+
+.btn-save-main:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(32, 214, 192, 0.35);
+}
+
+.btn-save-main:active {
+  transform: translateY(0);
+}
+
+.action-btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--item-bg);
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-action:hover {
+  color: var(--paper-bright);
+  border-color: var(--line-hover);
+  background: var(--panel-hover);
+}
+
+/* Defined Variables Inspector Card */
+.variables-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .var-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -182,27 +236,29 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .08em;
   font-weight: 700;
-  color: var(--var-color);
+  color: var(--accent);
 }
 
 .var-badge {
   font-size: 10.5px;
-  background: var(--var-glow);
-  color: var(--var-color);
-  padding: 1px 6px;
+  background: rgba(32, 214, 192, 0.1);
+  color: var(--accent);
+  padding: 1px 7px;
   border-radius: 10px;
-  border: 1px solid var(--var-dim);
+  border: 1px solid rgba(32, 214, 192, 0.25);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
 }
 
 .var-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 180px;
+  gap: 6px;
+  max-height: 190px;
   overflow-y: auto;
 }
 
@@ -210,9 +266,9 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   display: grid;
   grid-template-columns: minmax(60px, 1fr) 16px minmax(60px, 1fr);
   align-items: center;
-  padding: 5px 8px;
+  padding: 6px 10px;
   border-radius: 6px;
-  background: var(--line-soft);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
@@ -221,12 +277,12 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 }
 
 .var-item:hover {
-  border-color: var(--var-color);
-  background: var(--var-glow);
+  border-color: rgba(32, 214, 192, 0.3);
+  background: rgba(32, 214, 192, 0.08);
 }
 
 .var-name {
-  color: var(--var-color);
+  color: var(--accent);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -238,8 +294,9 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   color: var(--muted);
   font-size: 12px;
   text-align: center;
-  font-weight: 600;
+  font-weight: 500;
   user-select: none;
+  opacity: 0.7;
 }
 
 .var-val {
@@ -256,7 +313,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   color: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   padding: 4px 0;
 }
 
@@ -264,67 +321,19 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
   color: var(--accent);
-  background: var(--line-soft);
-  padding: 4px 6px;
-  border-radius: 4px;
-  border: 1px dashed var(--accent-dim);
+  background: var(--item-bg);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px dashed rgba(32, 214, 192, 0.3);
   cursor: pointer;
 }
 
-.btn-save-main {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--accent);
-  color: var(--bg);
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 14px var(--accent-dim);
-}
-
-.btn-save-main:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px var(--accent-dim);
-}
-
-.action-btn-row {
-  display: flex;
-  gap: 6px;
-}
-
-.btn-action {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--line-soft);
-  border: 1px solid var(--line);
-  padding: 7px 8px;
-  border-radius: 6px;
-  transition: all 0.15s ease;
-}
-
-.btn-action:hover {
-  color: var(--paper);
-  border-color: var(--accent);
-  background: var(--accent-glow);
-}
-
+/* Syntax Reference Sheet Box */
 .sheet {
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 16px;
   font-size: 13px;
   color: var(--muted);
   box-shadow: var(--shadow-lg);
@@ -334,16 +343,16 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 16px;
-  padding-bottom: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
 
 .sheet h2 {
-  font-size: 11.5px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .09em;
-  color: var(--paper);
+  letter-spacing: .08em;
+  color: var(--paper-bright);
   margin: 0;
   font-weight: 700;
 }
@@ -353,8 +362,10 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   color: var(--accent);
   transition: all 0.15s;
   padding: 0;
+  font-weight: 600;
 }
 .btn-guide-link:hover {
+  color: var(--accent-hover);
   text-decoration: underline;
 }
 
@@ -366,10 +377,12 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 }
 
 .grp h3 {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
   margin: 0 0 6px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .grp code {
@@ -377,19 +390,19 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   color: var(--paper);
-  background: var(--line-soft);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 5px 8px;
-  margin-bottom: 5px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .grp code:hover {
-  border-color: var(--accent);
-  background: var(--accent-glow);
+  border-color: rgba(32, 214, 192, 0.3);
+  background: rgba(32, 214, 192, 0.08);
   color: var(--accent);
   transform: translateX(2px);
 }

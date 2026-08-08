@@ -197,7 +197,7 @@ function handleSaveAll() {
 }
 
 .modal-card {
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   width: 100%;
@@ -214,6 +214,7 @@ function handleSaveAll() {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--card-bg);
 }
 
 .modal-title {
@@ -222,7 +223,7 @@ function handleSaveAll() {
   gap: 8px;
   font-weight: 600;
   font-size: 16px;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .btn-close {
@@ -231,14 +232,14 @@ function handleSaveAll() {
   border-radius: 6px;
 }
 .btn-close:hover {
-  color: var(--paper);
-  background: var(--line-soft);
+  color: var(--paper-bright);
+  background: var(--item-bg);
 }
 
 .modal-tabs {
   display: flex;
   border-bottom: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--panel-solid);
   padding: 0 16px;
 }
 
@@ -286,7 +287,7 @@ function handleSaveAll() {
 
 .form-input, .form-select {
   width: 100%;
-  background: var(--bg);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   color: var(--paper);
   padding: 8px 12px;
@@ -302,13 +303,13 @@ function handleSaveAll() {
 }
 
 .form-select option {
-  background: var(--panel);
+  background: var(--panel-solid);
   color: var(--paper);
 }
 
 /* Switch styling */
 .switch-group {
-  background: var(--bg);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
@@ -374,12 +375,12 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(20px);
-  background-color: var(--bg);
+  background-color: #080E18;
 }
 
 .account-card {
-  background: rgba(94, 234, 212, 0.05);
-  border: 1px solid rgba(94, 234, 212, 0.2);
+  background: rgba(32, 214, 192, 0.05);
+  border: 1px solid rgba(32, 214, 192, 0.2);
   border-radius: 8px;
   padding: 14px;
   margin-top: 16px;
@@ -394,7 +395,7 @@ input:checked + .slider:before {
 
 .badge-active {
   font-size: 11px;
-  background: rgba(94, 234, 212, 0.2);
+  background: rgba(32, 214, 192, 0.15);
   color: var(--accent);
   padding: 2px 8px;
   border-radius: 12px;
@@ -422,7 +423,7 @@ input:checked + .slider:before {
 }
 
 .action-card {
-  background: var(--bg);
+  background: var(--item-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -431,7 +432,7 @@ input:checked + .slider:before {
 .action-card h4 {
   margin: 0 0 6px;
   font-size: 13px;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .action-card p {
@@ -449,8 +450,8 @@ input:checked + .slider:before {
 }
 
 .danger-zone {
-  background: rgba(242, 112, 122, 0.05);
-  border: 1px solid rgba(242, 112, 122, 0.2);
+  background: rgba(255, 102, 133, 0.05);
+  border: 1px solid rgba(255, 102, 133, 0.2);
   border-radius: 8px;
   padding: 14px;
 }
@@ -473,25 +474,26 @@ input:checked + .slider:before {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--card-bg);
 }
 
 .btn-primary {
   background: var(--accent);
-  color: var(--bg);
-  font-weight: 600;
+  color: #080E18;
+  font-weight: 700;
   font-size: 13px;
   padding: 7px 16px;
   border-radius: 8px;
   transition: all 0.15s;
+  box-shadow: 0 4px 14px var(--accent-dim);
 }
 .btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 0 12px var(--accent-dim);
+  background: var(--accent-hover);
+  box-shadow: 0 6px 18px rgba(32, 214, 192, 0.3);
 }
 
 .btn-secondary {
-  background: var(--line-soft);
+  background: var(--item-bg);
   color: var(--paper);
   border: 1px solid var(--line);
   font-size: 13px;
@@ -503,13 +505,14 @@ input:checked + .slider:before {
   transition: all 0.15s;
 }
 .btn-secondary:hover {
-  border-color: var(--accent);
+  border-color: var(--line-hover);
+  color: var(--paper-bright);
 }
 
 .btn-danger {
-  background: rgba(242, 112, 122, 0.15);
+  background: rgba(255, 102, 133, 0.12);
   color: var(--err);
-  border: 1px solid rgba(242, 112, 122, 0.3);
+  border: 1px solid rgba(255, 102, 133, 0.3);
   font-size: 13px;
   padding: 7px 16px;
   border-radius: 8px;
@@ -519,7 +522,7 @@ input:checked + .slider:before {
   transition: all 0.15s;
 }
 .btn-danger:hover {
-  background: rgba(242, 112, 122, 0.25);
+  background: rgba(255, 102, 133, 0.22);
 }
 
 .icon-sm {

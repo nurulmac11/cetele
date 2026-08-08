@@ -181,68 +181,69 @@ const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
 const backdropRef = ref(null)
 
-const RESERVED_WORDS = new Set([
-  'to', 'in', 'of', 'off', 'increase', 'decrease', 'by',
+const KEYWORDS = new Set([
+  'subtotal', 'total', 'prev', 'to', 'in', 'of', 'off', 'increase', 'decrease', 'by',
+  'min', 'max', 'sqrt', 'abs', 'round', 'floor', 'ceil', 'log', 'sin', 'cos', 'tan', 'count', 'sum', 'avg', 'average',
   'today', 'now',
   'days', 'day', 'weeks', 'week', 'months', 'month', 'years', 'year', 'hours', 'hour', 'mins', 'min', 'minutes', 'minute', 'sec', 'second', 'seconds',
+  'pi', 'e'
+])
+
+const CURRENCY_CRYPTO_GOLD = new Set([
   'usd', 'eur', 'gbp', 'try', 'tl', 'cad', 'aud', 'chf', 'jpy', 'cny', 'rub', 'inr', 'zar', 'krw', 'sgd', 'hkd', 'nzd', 'sek', 'nok', 'mxn', 'brl',
   'dollar', 'dollars', 'euro', 'euros', 'pound', 'pounds', 'lira', 'tlira', 'yen', 'rupee', 'rmb',
   'btc', 'eth', 'sol', 'usdt', 'bnb', 'xrp', 'doge', 'ada', 'avax',
   'gold', 'altin', 'altın', 'ceyrek', 'çeyrek', 'oz', 'ounce', 'ounces', 'troy', 'gram', 'xau'
 ])
 
-const MATH_FUNCTIONS = new Set([
-  'min', 'max', 'sqrt', 'abs', 'round', 'floor', 'ceil', 'log', 'sin', 'cos', 'tan', 'count', 'sum', 'avg', 'average'
+const MEASUREMENT_UNITS = new Set([
+  'km', 'mile', 'miles', 'm', 'cm', 'mm', 'ft', 'inch', 'inches', 'kg', 'g', 'lbs', 'lb', 'celcius', 'fahrenheit'
 ])
-
-function pushCodeToken(tokens, text) {
-  if (!text) return
-  if (tokens.length > 0 && tokens[tokens.length - 1].cls === 'tok-code') {
-    tokens[tokens.length - 1].text += text
-  } else {
-    tokens.push({ cls: 'tok-code', text })
-  }
-}
 
 function tokenizeCodePart(code) {
   if (!code) return []
 
   const tokens = []
-  let lastIndex = 0
+  const regex = /(?:\$[0-9]+(?:\.[0-9]+)?[kmbT]?|[0-9]+(?:\.[0-9]+)?[kmbT]?%?|#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\$|€|£|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[\+\-\*\/\=\(\)%])/gi
 
-  const regex = /(?:#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\b[a-zA-Z_][a-zA-Z0-9_]*\b)/gi
+  let lastIndex = 0
   let match
 
   while ((match = regex.exec(code)) !== null) {
-    const word = match[0]
+    const text = match[0]
     const idx = match.index
-    const lowerWord = word.toLowerCase()
 
-    let isVar = false
-
-    if (/^#[0-9]+$/.test(word) || /^[Ll][0-9]+$/.test(word) || /^[Ll]ine[0-9]+$/i.test(word)) {
-      isVar = true
-    } else if (['prev', 'total', 'subtotal', 'pi', 'e'].includes(lowerWord)) {
-      isVar = true
-    } else if (!RESERVED_WORDS.has(lowerWord)) {
-      const rest = code.slice(idx + word.length)
-      const isFnCall = /^\s*\(/.test(rest) && MATH_FUNCTIONS.has(lowerWord)
-      if (!isFnCall) {
-        isVar = true
-      }
+    if (idx > lastIndex) {
+      tokens.push({ cls: 'tok-code', text: code.slice(lastIndex, idx) })
     }
 
-    if (isVar) {
-      if (idx > lastIndex) {
-        pushCodeToken(tokens, code.slice(lastIndex, idx))
-      }
-      tokens.push({ cls: 'tok-variable', text: word })
-      lastIndex = idx + word.length
+    const lower = text.toLowerCase()
+    let cls = 'tok-code'
+
+    if (text === '$' || text === '€' || text === '£' || text.startsWith('$')) {
+      cls = 'tok-currency'
+    } else if (/^#[0-9]+$/.test(text) || /^[Ll][0-9]+$/.test(text) || /^[Ll]ine[0-9]+$/i.test(text)) {
+      cls = 'tok-number'
+    } else if (/^[0-9]+(?:\.[0-9]+)?[kmbT]?%?$/.test(text)) {
+      cls = 'tok-number'
+    } else if (KEYWORDS.has(lower)) {
+      cls = 'tok-keyword'
+    } else if (CURRENCY_CRYPTO_GOLD.has(lower)) {
+      cls = 'tok-currency'
+    } else if (MEASUREMENT_UNITS.has(lower)) {
+      cls = 'tok-unit'
+    } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(text)) {
+      cls = 'tok-variable'
+    } else if (/[\+\-\*\/\=\(\)%]/.test(text)) {
+      cls = 'tok-op'
     }
+
+    tokens.push({ cls, text })
+    lastIndex = idx + text.length
   }
 
   if (lastIndex < code.length) {
-    pushCodeToken(tokens, code.slice(lastIndex))
+    tokens.push({ cls: 'tok-code', text: code.slice(lastIndex) })
   }
 
   return tokens.length > 0 ? tokens : [{ cls: 'tok-code', text: code }]
@@ -293,8 +294,29 @@ const formattedEditorLines = computed(() => {
       return
     }
 
-    if (/^(?:={3,}|-{3,})/.test(trimmed)) {
-      result.push({ tokens: [{ cls: 'tok-header', text: line }] })
+    const secMatch = line.match(/^(\s*)(={3,}|-{3,})\s*(.*?)\s*(={3,}|-{3,})(\s*)$/)
+    if (secMatch) {
+      result.push({
+        tokens: [
+          { cls: 'tok-code', text: secMatch[1] },
+          { cls: 'tok-header-line', text: secMatch[2] + ' ' },
+          { cls: 'tok-header-title', text: secMatch[3] },
+          { cls: 'tok-header-line', text: ' ' + secMatch[4] },
+          { cls: 'tok-code', text: secMatch[5] }
+        ]
+      })
+      return
+    }
+
+    const secStartMatch = line.match(/^(\s*)(={3,}|-{3,})\s*(.*)$/)
+    if (secStartMatch) {
+      result.push({
+        tokens: [
+          { cls: 'tok-code', text: secStartMatch[1] },
+          { cls: 'tok-header-line', text: secStartMatch[2] + ' ' },
+          { cls: 'tok-header-title', text: secStartMatch[3] }
+        ]
+      })
       return
     }
 
@@ -951,14 +973,14 @@ watch(() => props.tab?.id, () => {
 
 .g-num.is-section {
   font-weight: 700;
-  color: var(--accent);
+  color: var(--syn-keyword, #9B8AFB);
   cursor: pointer;
   border-radius: 4px 0 0 4px;
 }
 
 .g-num.is-section:hover {
-  color: var(--paper);
-  background: rgba(45, 212, 191, 0.16);
+  color: var(--paper-bright);
+  background: rgba(155, 138, 251, 0.18);
 }
 
 .btn-fold {
@@ -967,7 +989,7 @@ watch(() => props.tab?.id, () => {
   justify-content: center;
   background: transparent;
   border: 0;
-  color: var(--accent);
+  color: var(--syn-keyword, #9B8AFB);
   padding: 0;
   cursor: pointer;
   width: 14px;
@@ -976,7 +998,7 @@ watch(() => props.tab?.id, () => {
 }
 
 .btn-fold:hover {
-  color: var(--paper);
+  color: var(--paper-bright);
   transform: scale(1.2);
 }
 
@@ -990,21 +1012,21 @@ watch(() => props.tab?.id, () => {
 }
 
 .highlighted-line {
-  background: rgba(45, 212, 191, 0.12) !important;
+  background: rgba(32, 214, 192, 0.08) !important;
 }
 
 .r.section-header {
-  background: linear-gradient(90deg, rgba(45, 212, 191, 0.18), rgba(45, 212, 191, 0.04)) !important;
-  color: var(--accent) !important;
-  font-weight: 700;
-  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(155, 138, 251, 0.15) 0%, rgba(155, 138, 251, 0.02) 100%) !important;
+  color: var(--syn-keyword, #9B8AFB) !important;
+  font-weight: 600;
+  border-left: 3px solid var(--syn-keyword, #9B8AFB);
   text-align: left !important;
   padding-left: 8px !important;
 }
 
 .section-title-text {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .r.subtotal-line {
@@ -1073,24 +1095,54 @@ watch(() => props.tab?.id, () => {
 }
 
 .tok-comment {
-  color: var(--comment-color);
+  color: var(--syn-comment, #5A6E85);
   font-style: italic;
   font-weight: 500;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
-.tok-header {
-  color: var(--accent);
+.tok-header-line {
+  color: rgba(155, 138, 251, 0.45);
+  font-weight: 500;
+}
+
+.tok-header-title {
+  color: var(--syn-keyword, #9B8AFB);
   font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
-.tok-variable {
-  color: var(--var-color);
+.tok-keyword {
+  color: var(--syn-keyword, #9B8AFB);
   font-weight: 600;
 }
 
+.tok-number {
+  color: var(--syn-number, #FF6685);
+  font-weight: 600;
+}
+
+.tok-currency {
+  color: var(--syn-currency, #F5B94C);
+  font-weight: 600;
+}
+
+.tok-variable {
+  color: var(--syn-variable, #20D6C0);
+  font-weight: 600;
+}
+
+.tok-unit {
+  color: var(--syn-unit, #8295AD);
+}
+
+.tok-op {
+  color: #8295AD;
+  font-weight: 500;
+}
+
 .tok-code {
-  color: var(--paper);
+  color: var(--paper, #E2E8F0);
 }
 
 .input-area {

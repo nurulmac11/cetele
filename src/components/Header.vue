@@ -508,7 +508,7 @@ function onDragEnd() {
 .nav-pills {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--editor-bg);
   padding: 3px;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -522,18 +522,22 @@ function onDragEnd() {
   padding: 5px 12px;
   border-radius: 6px;
   color: var(--muted);
+  font-weight: 500;
   transition: all 0.15s ease;
+  border: 1px solid transparent;
 }
 
 .btn-nav:hover {
   color: var(--paper);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .btn-nav.active {
-  background: var(--panel);
+  background: var(--card-bg);
   color: var(--accent);
   font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  border-color: rgba(32, 214, 192, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .divider {
@@ -549,7 +553,7 @@ function onDragEnd() {
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   user-select: none;
@@ -558,14 +562,14 @@ function onDragEnd() {
 .switch-text {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--paper);
+  color: var(--muted);
 }
 
 .toggle-switch {
   position: relative;
   display: inline-block;
-  width: 36px;
-  height: 20px;
+  width: 34px;
+  height: 18px;
   cursor: pointer;
 }
 
@@ -578,7 +582,8 @@ function onDragEnd() {
 .toggle-slider {
   position: absolute;
   inset: 0;
-  background-color: var(--line);
+  background-color: var(--item-bg);
+  border: 1px solid var(--line);
   transition: .2s ease;
   border-radius: 20px;
 }
@@ -586,25 +591,26 @@ function onDragEnd() {
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 14px;
-  width: 14px;
-  left: 3px;
-  bottom: 3px;
-  background-color: var(--muted-light);
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--muted);
   transition: .2s ease;
   border-radius: 50%;
 }
 
 .toggle-switch input:checked + .toggle-slider {
   background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(16px);
-  background-color: var(--bg);
+  background-color: #080E18;
 }
 
-/* Obvious Cloud Sync Button */
+/* Cloud Sync Button */
 .btn-cloud-pill {
   position: relative;
   display: inline-flex;
@@ -612,9 +618,9 @@ function onDragEnd() {
   gap: 6px;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--paper);
+  color: var(--muted);
   border: 1px solid var(--line);
-  background: var(--line-soft);
+  background: var(--card-bg);
   padding: 5px 12px;
   border-radius: 8px;
   transition: all 0.15s ease;
@@ -622,7 +628,7 @@ function onDragEnd() {
 }
 
 .btn-cloud-pill:hover {
-  background: var(--panel-hover);
+  background: var(--item-bg);
   border-color: var(--accent);
   color: var(--accent);
   transform: translateY(-1px);
@@ -630,8 +636,8 @@ function onDragEnd() {
 
 .btn-cloud-pill.user-active {
   color: var(--accent);
-  border-color: rgba(94, 234, 212, 0.35);
-  background: rgba(94, 234, 212, 0.1);
+  border-color: rgba(32, 214, 192, 0.3);
+  background: rgba(32, 214, 192, 0.08);
 }
 
 .sync-dot {
@@ -651,12 +657,12 @@ function onDragEnd() {
   padding: 6px;
   border-radius: 8px;
   transition: all 0.15s ease;
-  background: transparent;
+  background: var(--card-bg);
 }
 .btn-icon:hover {
-  color: var(--paper);
+  color: var(--paper-bright);
   border-color: var(--accent);
-  background: var(--line-soft);
+  background: var(--item-bg);
 }
 
 .icon {
@@ -694,7 +700,7 @@ function onDragEnd() {
   padding: 7px 12px;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--editor-bg);
   border: 1px solid var(--line);
   border-bottom: none;
   font-size: 13px;
@@ -708,16 +714,16 @@ function onDragEnd() {
 }
 
 .tab-item:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--panel-hover);
   color: var(--paper);
 }
 
 .tab-item.active {
-  background: var(--panel);
+  background: var(--editor-bg);
   color: var(--accent);
   border-color: var(--line);
   border-top: 2px solid var(--accent);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .tab-item[draggable="true"] {
@@ -782,7 +788,7 @@ function onDragEnd() {
 }
 .btn-tab-close:hover {
   color: var(--err);
-  background: rgba(242, 112, 122, 0.15);
+  background: rgba(255, 102, 133, 0.15);
 }
 
 .btn-add-tab {
@@ -795,10 +801,12 @@ function onDragEnd() {
   font-size: 12.5px;
   transition: all 0.15s ease;
   margin-bottom: 2px;
+  border: 1px solid transparent;
 }
 .btn-add-tab:hover {
-  color: var(--paper);
-  background: var(--line-soft);
+  color: var(--accent);
+  background: rgba(32, 214, 192, 0.08);
+  border-color: rgba(32, 214, 192, 0.2);
 }
 
 /* Mobile Touch Compact Tab Selector Bar (Hidden on Desktop) */
@@ -1108,8 +1116,14 @@ function onDragEnd() {
   font-weight: 500;
 }
 
+.mobile-only,
+.mobile-nav-wrapper,
+.mobile-tab-bar {
+  display: none !important;
+}
+
 .mobile-only-inline {
-  display: none;
+  display: none !important;
 }
 
 .btn-mobile-nav-select {
@@ -1192,8 +1206,10 @@ function onDragEnd() {
     display: none !important;
   }
 
+  .mobile-only,
+  .mobile-nav-wrapper,
   .mobile-tab-bar {
-    display: flex;
+    display: flex !important;
   }
 
   .tabs-strip {
