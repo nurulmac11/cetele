@@ -90,6 +90,14 @@ increase 1,200 by 8%   // 1,296
 // Units
 12 km to miles
 3 cups + 2 tbsp to ml
+
+// Number Multiplier Suffixes (k, m, b, t)
+500k                   // 500,000
+2m                     // 2,000,000
+1.5b                   // 1,500,000,000
+3.2t                   // 3,200,000,000,000
+$500k                  // $500,000
+500k usd to tl         // Converts 500,000 USD to TL
 ```
 
 ---

@@ -150,10 +150,26 @@ export class Parser {
       return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(sym) || sym }
     }
 
-    // Number (with optional Currency Suffix like 100 USD, Unit Suffix like 5 miles, or 10%)
+    // Number (with optional Currency Suffix like 100 USD, Unit Suffix like 5 miles, 10%, or Spaced Multipliers like 500 k, 2 m)
     if (tok.type === 'NUMBER') {
-      const amount = this.consume().value
-      const nextTok = this.peek()
+      let amount = this.consume().value
+      let nextTok = this.peek()
+
+      // Spaced multiplier support (e.g. 500 k, 2 m, 1.5 b, 3 t)
+      if (nextTok.type === 'IDENT') {
+        const multKey = nextTok.value.toLowerCase()
+        const MULTIPLIERS = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }
+        if (MULTIPLIERS[multKey]) {
+          const lookahead2 = this.tokens[this.pos + 1]
+          // If 'm' is followed by 'to' or 'in' (e.g. 500 m to km), leave 'm' for unit conversion
+          const isUnitConversionFollowup = multKey === 'm' && lookahead2 && (lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in'))
+          if (!isUnitConversionFollowup) {
+            this.consume() // consume multiplier token 'k', 'm', 'b', or 't'
+            amount = amount * MULTIPLIERS[multKey]
+            nextTok = this.peek()
+          }
+        }
+      }
 
       if (nextTok.type === 'CURRENCY_SYMBOL' || nextTok.type === 'CURRENCY_CODE') {
         const curr = this.consume().value

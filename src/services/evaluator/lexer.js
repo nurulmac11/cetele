@@ -161,7 +161,7 @@ export class Lexer {
         continue
       }
 
-      // Numbers (with optional thousands commas like 1,250.50)
+      // Numbers (with optional thousands commas like 1,250.50, and suffix multipliers like 500k, 2m, 1.5b, 3t)
       if (isDigit(ch) || (ch === '.' && isDigit(this.peek(1)))) {
         let numStr = ''
         while (isDigit(this.peek()) || this.peek() === '.' || this.peek() === ',') {
@@ -177,7 +177,25 @@ export class Lexer {
           }
           numStr += this.consume()
         }
-        tokens.push({ type: 'NUMBER', value: parseFloat(numStr), raw: numStr })
+
+        let numVal = parseFloat(numStr)
+
+        const MULTIPLIERS = {
+          k: 1e3,
+          m: 1e6,
+          b: 1e9,
+          t: 1e12
+        }
+        const nextCh = this.peek()
+        const nextLower = nextCh ? nextCh.toLowerCase() : ''
+
+        if (MULTIPLIERS[nextLower] && !isAlpha(this.peek(1))) {
+          const suffixChar = this.consume()
+          numVal = numVal * MULTIPLIERS[nextLower]
+          numStr = numStr + suffixChar
+        }
+
+        tokens.push({ type: 'NUMBER', value: numVal, raw: numStr })
         continue
       }
 

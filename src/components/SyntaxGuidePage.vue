@@ -116,19 +116,20 @@
         </div>
       </section>
 
-      <!-- Section 5: Percentages & Unit Conversions -->
+      <!-- Section 5: Percentages, Units & Multipliers -->
       <section class="card">
         <div class="card-title">
           <Percent class="card-icon" />
-          <h2>Percentages & Unit Conversions</h2>
+          <h2>Percentages, Units & Magnitude Multipliers</h2>
         </div>
-        <p class="card-desc">Calculate discounts, increases, and convert distance, volume, weight.</p>
+        <p class="card-desc">Calculate discounts, use magnitude suffixes (`k`, `m`, `b`, `t`), and convert units.</p>
         <div class="code-box">
+          <code @click="$emit('insert-snippet', '500k + 2m\n1.5b to usd')">
+            500k + 2m <span class="comment">// 2,500,000 (500K + 2 Million)</span><br>
+            $1.5b <span class="comment">// $1,500,000,000 (1.5 Billion)</span>
+          </code>
           <code @click="$emit('insert-snippet', '20% off 89.99')">
             20% off 89.99 <span class="comment">// 71.99</span>
-          </code>
-          <code @click="$emit('insert-snippet', 'increase 1,200 by 8%')">
-            increase 1,200 by 8% <span class="comment">// 1,296</span>
           </code>
           <code @click="$emit('insert-snippet', '12 km to miles')">
             12 km to miles

@@ -103,9 +103,10 @@
       </div>
 
       <div class="grp">
-        <h3>Units</h3>
+        <h3>Units & Multipliers</h3>
+        <code @click="$emit('insert', '500k + 2m')">500k + 2m (500,000 + 2M)</code>
+        <code @click="$emit('insert', '$1.5b')">$1.5b ($1,500,000,000)</code>
         <code @click="$emit('insert', '12 km to miles')">12 km to miles</code>
-        <code @click="$emit('insert', '3 cups + 2 tbsp to ml')">3 cups + 2 tbsp to ml</code>
       </div>
 
       <div class="grp">
