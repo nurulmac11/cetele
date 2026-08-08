@@ -482,21 +482,21 @@ function onDragEnd() {
 .brand .mark {
   font-family: 'JetBrains Mono', monospace;
   font-size: 14px;
-  color: var(--bg);
-  background: var(--accent);
+  color: var(--accent);
+  background: rgba(22, 217, 196, 0.12);
+  border: 1px solid rgba(22, 217, 196, 0.25);
   padding: 4px 8px;
   border-radius: 6px;
   font-weight: 700;
   letter-spacing: .02em;
-  box-shadow: 0 0 12px var(--accent-dim);
 }
 
 .brand-text h1 {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.02em;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .header-actions {
@@ -508,10 +508,10 @@ function onDragEnd() {
 .nav-pills {
   display: flex;
   align-items: center;
-  background: var(--editor-bg);
+  background: var(--bg);
   padding: 3px;
   border-radius: 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
 }
 
 .btn-nav {
@@ -536,8 +536,8 @@ function onDragEnd() {
   background: var(--card-bg);
   color: var(--accent);
   font-weight: 600;
-  border-color: rgba(32, 214, 192, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border-color: rgba(22, 217, 196, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .divider {
@@ -607,7 +607,7 @@ function onDragEnd() {
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(16px);
-  background-color: #080E18;
+  background-color: #080F1A;
 }
 
 /* Cloud Sync Button */
@@ -617,7 +617,7 @@ function onDragEnd() {
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   border: 1px solid var(--line);
   background: var(--card-bg);
@@ -629,15 +629,14 @@ function onDragEnd() {
 
 .btn-cloud-pill:hover {
   background: var(--item-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: translateY(-1px);
+  border-color: var(--line-hover);
+  color: var(--paper);
 }
 
 .btn-cloud-pill.user-active {
   color: var(--accent);
-  border-color: rgba(32, 214, 192, 0.3);
-  background: rgba(32, 214, 192, 0.08);
+  border-color: rgba(22, 217, 196, 0.25);
+  background: rgba(22, 217, 196, 0.08);
 }
 
 .sync-dot {
@@ -645,7 +644,6 @@ function onDragEnd() {
   height: 7px;
   background: var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--accent);
 }
 
 .btn-icon {
@@ -661,7 +659,7 @@ function onDragEnd() {
 }
 .btn-icon:hover {
   color: var(--paper-bright);
-  border-color: var(--accent);
+  border-color: var(--line-hover);
   background: var(--item-bg);
 }
 
@@ -697,12 +695,12 @@ function onDragEnd() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 7px 14px;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-  background: var(--editor-bg);
-  border: 1px solid var(--line);
-  border-bottom: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
   font-size: 13px;
   color: var(--muted);
   cursor: pointer;
@@ -714,15 +712,16 @@ function onDragEnd() {
 }
 
 .tab-item:hover {
-  background: var(--panel-hover);
+  background: rgba(17, 29, 45, 0.5);
   color: var(--paper);
 }
 
 .tab-item.active {
-  background: var(--editor-bg);
+  background: var(--card-bg);
   color: var(--accent);
-  border-color: var(--line);
-  border-top: 2px solid var(--accent);
+  border-color: var(--line-soft);
+  border-bottom: 2px solid var(--accent);
+  border-top: 1px solid var(--line-soft);
   font-weight: 600;
 }
 
@@ -788,7 +787,7 @@ function onDragEnd() {
 }
 .btn-tab-close:hover {
   color: var(--err);
-  background: rgba(255, 102, 133, 0.15);
+  background: rgba(229, 83, 83, 0.12);
 }
 
 .btn-add-tab {
@@ -805,8 +804,8 @@ function onDragEnd() {
 }
 .btn-add-tab:hover {
   color: var(--accent);
-  background: rgba(32, 214, 192, 0.08);
-  border-color: rgba(32, 214, 192, 0.2);
+  background: rgba(22, 217, 196, 0.08);
+  border-color: rgba(22, 217, 196, 0.2);
 }
 
 /* Mobile Touch Compact Tab Selector Bar (Hidden on Desktop) */

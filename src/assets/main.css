@@ -2,89 +2,95 @@
 
 :root {
   /* Navy / Dark Foundation Palette */
-  --bg: #080E18;
-  --panel: rgba(13, 21, 34, 0.95);
-  --panel-solid: #0D1522;
-  --panel-hover: #101A29;
-  --panel-active: #152234;
-  --card-bg: #111C2B;
-  --item-bg: #182435;
-  --editor-bg: #0B1320;
+  --bg: #080F1A;
+  --panel: #0C1523;
+  --panel-solid: #0C1523;
+  --panel-hover: #111D2D;
+  --panel-active: #162337;
+  --card-bg: #111D2D;
+  --item-bg: #162337;
+  --editor-bg: #0c1421;
 
-  /* Borders */
-  --line: #1E2C40;
-  --line-soft: rgba(30, 44, 64, 0.6);
-  --line-hover: #2B3D58;
+  /* Subtle Borders */
+  --line: #1D3046;
+  --line-soft: #16273A;
+  --line-hover: #263E5A;
 
-  /* Text Colors */
-  --paper: #E2E8F0;
-  --paper-bright: #F8FAFC;
-  --muted: #8295AD;
-  --muted-light: #A0B0C4;
+  /* Typography & Text Contrast */
+  --paper: #C9D6E5;
+  --paper-bright: #F1F5F9;
+  --muted: #6B7F96;
+  --muted-light: #8DA1B5;
 
-  /* Primary Accent - Çetele Turquoise */
-  --accent: #20D6C0;
-  --accent-hover: #26ECB6;
-  --accent-glow: rgba(32, 214, 192, 0.15);
-  --accent-dim: rgba(32, 214, 192, 0.3);
+  /* Primary Accent - Sophisticated Çetele Teal/Cyan */
+  --accent: #16D9C4;
+  --accent-bright: #21E6D0;
+  --accent-hover: #21E6D0;
+  --accent-glow: rgba(22, 217, 196, 0.08);
+  --accent-dim: rgba(22, 217, 196, 0.18);
 
   /* Variables & Results */
-  --var-color: #20D6C0;
-  --var-glow: rgba(32, 214, 192, 0.12);
-  --var-dim: rgba(32, 214, 192, 0.25);
-  --result-color: #20D6C0;
-  --result-glow: rgba(32, 214, 192, 0.12);
+  --var-color: #16D9C4;
+  --var-glow: rgba(22, 217, 196, 0.08);
+  --var-dim: rgba(22, 217, 196, 0.18);
+  --result-color: #16D9C4;
+  --result-glow: rgba(22, 217, 196, 0.08);
 
   /* Syntax & Secondary Accents */
-  --syn-variable: #20D6C0;    /* Turquoise */
-  --syn-number: #FF6685;      /* Coral / Pink */
+  --syn-variable: #16D9C4;    /* Teal / Cyan */
+  --syn-number: #F59E0B;      /* Warm Amber / Orange (Not bright red/pink) */
   --syn-currency: #F5B94C;    /* Warm Yellow */
-  --syn-comment: #5A6E85;     /* Muted Blue-Gray */
-  --syn-keyword: #9B8AFB;     /* Lavender */
-  --syn-unit: #8295AD;        /* Gray-Blue */
+  --syn-comment: #54667A;     /* Muted Blue-Gray */
+  --syn-keyword: #9B8AFB;     /* Soft Purple */
+  --syn-unit: #7D8F9F;        /* Gray-Blue */
 
+  --purple-soft: #7F72D8;
   --amber: #F5B94C;
-  --err: #FF6685;
-  --radius: 12px;
+  --err: #E55353;             /* Muted red strictly for actual errors */
+  --radius: 10px;
   --radius-sm: 8px;
-  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 16px 36px -8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 20px -4px rgba(0, 0, 0, 0.35);
 }
 
 /* Light Theme Overrides */
 [data-theme="light"] {
-  --bg: #F1F5F9;
-  --panel: rgba(255, 255, 255, 0.92);
+  --bg: #F4F7FA;
+  --panel: #FFFFFF;
   --panel-solid: #FFFFFF;
   --panel-hover: #F8FAFC;
   --panel-active: #E2E8F0;
   --card-bg: #FFFFFF;
-  --item-bg: #F8FAFC;
+  --item-bg: #F1F5F9;
   --editor-bg: #FFFFFF;
   --line: #CBD5E1;
-  --line-soft: rgba(0, 0, 0, 0.06);
+  --line-soft: #E2E8F0;
   --line-hover: #94A3B8;
-  --paper: #0F172A;
-  --paper-bright: #020617;
+  --paper: #1E293B;
+  --paper-bright: #0F172A;
   --muted: #64748B;
   --muted-light: #475569;
   --accent: #0D9488;
+  --accent-bright: #0F766E;
   --accent-hover: #0F766E;
-  --accent-glow: rgba(13, 148, 136, 0.12);
-  --accent-dim: rgba(13, 148, 136, 0.25);
+  --accent-glow: rgba(13, 148, 136, 0.08);
+  --accent-dim: rgba(13, 148, 136, 0.2);
   --var-color: #0D9488;
-  --var-glow: rgba(13, 148, 136, 0.12);
-  --var-dim: rgba(13, 148, 136, 0.25);
+  --var-glow: rgba(13, 148, 136, 0.08);
+  --var-dim: rgba(13, 148, 136, 0.2);
   --result-color: #0D9488;
-  --result-glow: rgba(13, 148, 136, 0.12);
+  --result-glow: rgba(13, 148, 136, 0.08);
   --syn-variable: #0D9488;
-  --syn-number: #E11D48;
+  --syn-number: #D97706;
   --syn-currency: #D97706;
   --syn-comment: #64748B;
   --syn-keyword: #7C3AED;
   --syn-unit: #475569;
+  --purple-soft: #7C3AED;
   --amber: #D97706;
-  --err: #E11D48;
-  --shadow-lg: 0 16px 36px -8px rgba(0, 0, 0, 0.08);
+  --err: #DC2626;
+  --shadow-lg: 0 12px 28px -6px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.04);
 }
 
 * {
@@ -101,9 +107,9 @@ html, body {
 body {
   background-color: var(--bg);
   background:
-    radial-gradient(1200px 700px at 15% 10%, rgba(32, 214, 192, 0.06) 0%, transparent 65%),
-    radial-gradient(1000px 800px at 85% 85%, rgba(155, 138, 251, 0.04) 0%, transparent 70%),
-    linear-gradient(180deg, #080E18 0%, #0A111C 50%, #060B13 100%);
+    radial-gradient(1200px 700px at 15% 10%, rgba(22, 217, 196, 0.03) 0%, transparent 60%),
+    radial-gradient(1000px 800px at 85% 85%, rgba(155, 138, 251, 0.02) 0%, transparent 65%),
+    #080F1A;
   background-attachment: fixed;
   color: var(--paper);
   font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -118,9 +124,9 @@ body {
 [data-theme="light"] body {
   background-color: var(--bg);
   background:
-    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.12) 0%, transparent 65%),
-    radial-gradient(950px 750px at 85% 85%, rgba(20, 184, 166, 0.08) 0%, transparent 70%),
-    linear-gradient(180deg, #f8fafc 0%, #edf2f7 50%, #e2e8f0 100%);
+    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.08) 0%, transparent 65%),
+    radial-gradient(950px 750px at 85% 85%, rgba(20, 184, 166, 0.05) 0%, transparent 70%),
+    #F4F7FA;
   background-attachment: fixed;
 }
 

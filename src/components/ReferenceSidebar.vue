@@ -20,7 +20,7 @@
       </div>
     </div>
 
-    <!-- Defined Variables Inspector Box -->
+    <!-- Defined Variables Inspector Box (Hidden on Desktop, Visible on Mobile) -->
     <div class="variables-card">
       <div class="var-header">
         <div class="var-title">
@@ -146,13 +146,13 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   gap: 14px;
 }
 
-/* Primary Action Box over Inspector Box */
+/* Primary Action Box */
 .save-card {
   background: var(--panel-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -165,20 +165,20 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   justify-content: center;
   gap: 8px;
   background: var(--accent);
-  color: #080E18;
+  color: #080F1A;
   font-weight: 700;
   font-size: 13.5px;
-  padding: 11px 16px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
   transition: all 0.15s ease;
-  box-shadow: 0 4px 14px var(--accent-dim);
+  box-shadow: 0 4px 12px rgba(22, 217, 196, 0.2);
   letter-spacing: 0.01em;
 }
 
 .btn-save-main:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(32, 214, 192, 0.35);
+  box-shadow: 0 6px 16px rgba(22, 217, 196, 0.3);
 }
 
 .btn-save-main:active {
@@ -198,11 +198,11 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--muted-light);
   background: var(--item-bg);
   border: 1px solid var(--line);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   transition: all 0.15s ease;
 }
 
@@ -212,16 +212,22 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   background: var(--panel-hover);
 }
 
-/* Defined Variables Inspector Card */
+/* Defined Variables Card - Hidden on Desktop (since editor results panel shows variables), Visible on Mobile */
 .variables-card {
-  background: var(--panel-solid);
+  background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+@media (min-width: 769px) {
+  .variables-card {
+    display: none !important;
+  }
 }
 
 .var-header {
@@ -229,7 +235,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   align-items: center;
   justify-content: space-between;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .var-title {
@@ -245,11 +251,11 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 
 .var-badge {
   font-size: 10.5px;
-  background: rgba(32, 214, 192, 0.1);
+  background: rgba(22, 217, 196, 0.1);
   color: var(--accent);
   padding: 1px 7px;
   border-radius: 10px;
-  border: 1px solid rgba(32, 214, 192, 0.25);
+  border: 1px solid rgba(22, 217, 196, 0.2);
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
 }
@@ -257,7 +263,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 .var-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   max-height: 190px;
   overflow-y: auto;
 }
@@ -269,7 +275,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   padding: 6px 10px;
   border-radius: 6px;
   background: var(--item-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   cursor: pointer;
@@ -277,8 +283,8 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 }
 
 .var-item:hover {
-  border-color: rgba(32, 214, 192, 0.3);
-  background: rgba(32, 214, 192, 0.08);
+  border-color: rgba(22, 217, 196, 0.3);
+  background: rgba(22, 217, 196, 0.06);
 }
 
 .var-name {
@@ -324,19 +330,19 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   background: var(--item-bg);
   padding: 5px 8px;
   border-radius: 6px;
-  border: 1px dashed rgba(32, 214, 192, 0.3);
+  border: 1px dashed rgba(22, 217, 196, 0.25);
   cursor: pointer;
 }
 
-/* Syntax Reference Sheet Box */
+/* Syntax Reference Sheet Box - Visually quieter */
 .sheet {
   background: var(--panel-solid);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   padding: 16px;
   font-size: 13px;
   color: var(--muted);
-  box-shadow: var(--shadow-lg);
+  box-shadow: none;
 }
 
 .sheet-header {
@@ -345,7 +351,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   justify-content: space-between;
   margin-bottom: 14px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .sheet h2 {
@@ -401,8 +407,8 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 }
 
 .grp code:hover {
-  border-color: rgba(32, 214, 192, 0.3);
-  background: rgba(32, 214, 192, 0.08);
+  border-color: rgba(22, 217, 196, 0.3);
+  background: rgba(22, 217, 196, 0.06);
   color: var(--accent);
   transform: translateX(2px);
 }

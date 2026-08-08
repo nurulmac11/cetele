@@ -181,7 +181,7 @@ function confirmDelete(id, title) {
 
 .saved-header {
   padding: 20px 24px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -199,12 +199,12 @@ function confirmDelete(id, title) {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: var(--accent);
-  color: #080E18;
+  background: rgba(22, 217, 196, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(22, 217, 196, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px var(--accent-dim);
 }
 
 .header-title-block h1 {
@@ -226,21 +226,21 @@ function confirmDelete(id, title) {
   gap: 6px;
   font-size: 13px;
   color: var(--accent);
-  background: rgba(32, 214, 192, 0.1);
-  border: 1px solid rgba(32, 214, 192, 0.3);
+  background: rgba(22, 217, 196, 0.08);
+  border: 1px solid rgba(22, 217, 196, 0.25);
   padding: 8px 14px;
   border-radius: 8px;
   font-weight: 500;
   transition: all 0.15s;
 }
 .btn-back:hover {
-  background: rgba(32, 214, 192, 0.2);
+  background: rgba(22, 217, 196, 0.15);
   color: var(--accent-hover);
 }
 
 .filter-bar {
   padding: 16px 24px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -291,7 +291,7 @@ function confirmDelete(id, title) {
 }
 
 .count-badge b {
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .saved-body {
@@ -329,17 +329,17 @@ function confirmDelete(id, title) {
 
 .btn-primary {
   background: var(--accent);
-  color: #080E18;
+  color: #080F1A;
   font-weight: 700;
   font-size: 13px;
   padding: 9px 18px;
   border-radius: 8px;
   transition: all 0.15s;
-  box-shadow: 0 4px 14px var(--accent-dim);
+  box-shadow: 0 4px 12px rgba(22, 217, 196, 0.2);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
-  box-shadow: 0 6px 18px rgba(32, 214, 192, 0.3);
+  box-shadow: 0 6px 16px rgba(22, 217, 196, 0.3);
 }
 
 .cards-grid {
@@ -360,8 +360,8 @@ function confirmDelete(id, title) {
 }
 
 .library-card:hover {
-  border-color: rgba(32, 214, 192, 0.35);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  border-color: rgba(22, 217, 196, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -396,7 +396,7 @@ function confirmDelete(id, title) {
   font-size: 11px;
   background: var(--item-bg);
   color: var(--muted);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   padding: 2px 7px;
   border-radius: 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -413,7 +413,7 @@ function confirmDelete(id, title) {
   font-size: 12px;
   color: var(--paper);
   background: var(--editor-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 6px;
   padding: 10px;
   max-height: 100px;
@@ -424,7 +424,7 @@ function confirmDelete(id, title) {
 }
 
 .code-preview:hover {
-  border-color: rgba(32, 214, 192, 0.4);
+  border-color: rgba(22, 217, 196, 0.3);
   color: var(--accent);
 }
 
@@ -454,19 +454,19 @@ function confirmDelete(id, title) {
 
 .btn-action.primary {
   color: var(--accent);
-  background: rgba(32, 214, 192, 0.1);
-  border-color: rgba(32, 214, 192, 0.25);
+  background: rgba(22, 217, 196, 0.08);
+  border-color: rgba(22, 217, 196, 0.25);
   font-weight: 600;
 }
 .btn-action.primary:hover {
-  color: #080E18;
+  color: #080F1A;
   background: var(--accent);
 }
 
 .btn-action.danger:hover {
   color: var(--err);
-  border-color: rgba(255, 102, 133, 0.3);
-  background: rgba(255, 102, 133, 0.1);
+  border-color: rgba(229, 83, 83, 0.25);
+  background: rgba(229, 83, 83, 0.1);
 }
 
 .icon-sm { width: 15px; height: 15px; }

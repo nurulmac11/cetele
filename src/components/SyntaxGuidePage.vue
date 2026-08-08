@@ -224,7 +224,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--line-soft);
+  background: var(--item-bg);
   color: var(--paper);
   border: 1px solid var(--line);
   padding: 6px 14px;
@@ -234,7 +234,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   transition: all 0.15s ease;
 }
 .btn-back:hover {
-  border-color: var(--accent);
+  border-color: rgba(22, 217, 196, 0.3);
   color: var(--accent);
 }
 
@@ -242,7 +242,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   font-size: 24px;
   font-weight: 700;
   margin: 0 0 8px;
-  color: var(--paper);
+  color: var(--paper-bright);
 }
 
 .subtitle {
@@ -262,7 +262,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
 }
@@ -282,7 +282,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 
 .card h2 {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
   color: var(--paper-bright);
 }
@@ -303,7 +303,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   background: var(--editor-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 6px;
   padding: 8px 12px;
   color: var(--paper);
@@ -313,9 +313,9 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 }
 
 .code-box code:hover {
-  border-color: rgba(32, 214, 192, 0.4);
+  border-color: rgba(22, 217, 196, 0.3);
   color: var(--paper-bright);
-  background: rgba(32, 214, 192, 0.08);
+  background: rgba(22, 217, 196, 0.06);
 }
 
 .var {
@@ -339,7 +339,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   flex-direction: column;
   gap: 2px;
   background: var(--item-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 12.5px;
@@ -349,7 +349,7 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
 
 .sync-title {
   color: var(--accent);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .shortcuts-list {
@@ -364,19 +364,19 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   justify-content: space-between;
   padding: 8px 12px;
   background: var(--item-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 6px;
 }
 
 .sc-key {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--accent);
   background: var(--editor-bg);
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
 }
 
 .sc-desc {

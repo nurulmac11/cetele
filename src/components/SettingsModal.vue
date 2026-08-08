@@ -46,7 +46,7 @@
           <div class="form-group">
             <label>Theme Preference</label>
             <select v-model="profileForm.theme" class="form-select">
-              <option value="dark">Cyberpunk Dark (Default)</option>
+              <option value="dark">Dark Theme (Default)</option>
               <option value="light">Clean Light Mode</option>
             </select>
           </div>
@@ -187,7 +187,7 @@ function handleSaveAll() {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(4, 8, 14, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -210,7 +210,7 @@ function handleSaveAll() {
 
 .modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -238,7 +238,7 @@ function handleSaveAll() {
 
 .modal-tabs {
   display: flex;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   background: var(--panel-solid);
   padding: 0 16px;
 }
@@ -310,7 +310,7 @@ function handleSaveAll() {
 /* Switch styling */
 .switch-group {
   background: var(--item-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 8px;
   padding: 12px;
 }
@@ -375,12 +375,12 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(20px);
-  background-color: #080E18;
+  background-color: #080F1A;
 }
 
 .account-card {
-  background: rgba(32, 214, 192, 0.05);
-  border: 1px solid rgba(32, 214, 192, 0.2);
+  background: rgba(22, 217, 196, 0.05);
+  border: 1px solid rgba(22, 217, 196, 0.2);
   border-radius: 8px;
   padding: 14px;
   margin-top: 16px;
@@ -395,7 +395,7 @@ input:checked + .slider:before {
 
 .badge-active {
   font-size: 11px;
-  background: rgba(32, 214, 192, 0.15);
+  background: rgba(22, 217, 196, 0.12);
   color: var(--accent);
   padding: 2px 8px;
   border-radius: 12px;
@@ -424,7 +424,7 @@ input:checked + .slider:before {
 
 .action-card {
   background: var(--item-bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 8px;
   padding: 14px;
 }
@@ -450,8 +450,8 @@ input:checked + .slider:before {
 }
 
 .danger-zone {
-  background: rgba(255, 102, 133, 0.05);
-  border: 1px solid rgba(255, 102, 133, 0.2);
+  background: rgba(229, 83, 83, 0.05);
+  border: 1px solid rgba(229, 83, 83, 0.2);
   border-radius: 8px;
   padding: 14px;
 }
@@ -470,7 +470,7 @@ input:checked + .slider:before {
 
 .modal-footer {
   padding: 14px 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -479,17 +479,17 @@ input:checked + .slider:before {
 
 .btn-primary {
   background: var(--accent);
-  color: #080E18;
+  color: #080F1A;
   font-weight: 700;
   font-size: 13px;
   padding: 7px 16px;
   border-radius: 8px;
   transition: all 0.15s;
-  box-shadow: 0 4px 14px var(--accent-dim);
+  box-shadow: 0 4px 12px rgba(22, 217, 196, 0.2);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
-  box-shadow: 0 6px 18px rgba(32, 214, 192, 0.3);
+  box-shadow: 0 6px 16px rgba(22, 217, 196, 0.3);
 }
 
 .btn-secondary {
@@ -510,9 +510,9 @@ input:checked + .slider:before {
 }
 
 .btn-danger {
-  background: rgba(255, 102, 133, 0.12);
+  background: rgba(229, 83, 83, 0.1);
   color: var(--err);
-  border: 1px solid rgba(255, 102, 133, 0.3);
+  border: 1px solid rgba(229, 83, 83, 0.25);
   font-size: 13px;
   padding: 7px 16px;
   border-radius: 8px;
@@ -522,7 +522,7 @@ input:checked + .slider:before {
   transition: all 0.15s;
 }
 .btn-danger:hover {
-  background: rgba(255, 102, 133, 0.22);
+  background: rgba(229, 83, 83, 0.18);
 }
 
 .icon-sm {

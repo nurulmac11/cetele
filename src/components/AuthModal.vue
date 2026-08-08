@@ -133,7 +133,7 @@ async function handleSignOut() {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(4, 8, 14, 0.75);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -153,7 +153,7 @@ async function handleSignOut() {
 
 .modal-header {
   padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -168,7 +168,7 @@ async function handleSignOut() {
 
 .modal-title h3 {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
   margin: 0;
   color: var(--paper-bright);
 }
@@ -189,8 +189,8 @@ async function handleSignOut() {
 }
 
 .unconfigured-box {
-  background: rgba(245, 185, 76, 0.08);
-  border: 1px solid rgba(245, 185, 76, 0.25);
+  background: rgba(245, 185, 76, 0.06);
+  border: 1px solid rgba(245, 185, 76, 0.2);
   border-radius: 8px;
   padding: 14px;
   font-size: 13px;
@@ -216,7 +216,7 @@ async function handleSignOut() {
   flex-direction: column;
   gap: 4px;
   margin: 10px 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
 }
 
 .sub-tip {
@@ -262,8 +262,8 @@ async function handleSignOut() {
 
 .sync-status-card {
   padding: 12px;
-  background: rgba(32, 214, 192, 0.06);
-  border: 1px solid rgba(32, 214, 192, 0.25);
+  background: rgba(22, 217, 196, 0.06);
+  border: 1px solid rgba(22, 217, 196, 0.2);
   border-radius: 8px;
   font-size: 12.5px;
 }
@@ -326,8 +326,8 @@ async function handleSignOut() {
 }
 
 .error-banner {
-  background: rgba(242, 112, 122, 0.12);
-  border: 1px solid rgba(242, 112, 122, 0.3);
+  background: rgba(229, 83, 83, 0.1);
+  border: 1px solid rgba(229, 83, 83, 0.25);
   color: var(--err);
   font-size: 12.5px;
   padding: 8px 12px;
@@ -336,9 +336,9 @@ async function handleSignOut() {
 }
 
 .btn-danger {
-  background: rgba(242, 112, 122, 0.12);
+  background: rgba(229, 83, 83, 0.1);
   color: var(--err);
-  border: 1px solid rgba(242, 112, 122, 0.3);
+  border: 1px solid rgba(229, 83, 83, 0.25);
   padding: 8px 14px;
   border-radius: 8px;
   display: flex;
@@ -350,7 +350,7 @@ async function handleSignOut() {
   transition: all 0.15s;
 }
 .btn-danger:hover {
-  background: rgba(242, 112, 122, 0.2);
+  background: rgba(229, 83, 83, 0.18);
 }
 
 .icon-accent { color: var(--accent); width: 18px; height: 18px; }

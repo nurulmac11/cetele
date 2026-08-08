@@ -98,13 +98,21 @@
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
         >
+          <!-- Copied badge overlay -->
           <span v-if="copiedIndex === item.origIdx" class="copied-badge">Copied!</span>
+
+          <!-- Section Header Row -->
           <template v-else-if="item.isSection">
-            <span v-if="item.isCollapsed" class="section-collapsed-title">
-              {{ getSectionCollapsedSummary(item.sec) }}
-            </span>
-            <span v-else class="section-title-text">{{ evaluation.rendered[item.origIdx]?.text }}</span>
+            <div class="res-section-header" @click.stop="toggleSectionCollapse(item.origIdx)">
+              <span class="sec-toggle-icon">{{ item.isCollapsed ? '▸' : '▾' }}</span>
+              <span class="sec-title-text">{{ item.sec?.title || evaluation.rendered[item.origIdx]?.text }}</span>
+              <span v-if="item.isCollapsed" class="sec-collapsed-subtotal">
+                — {{ formatValue(item.sec?.subtotal, { disableFloat: props.disableFloat }) }}
+              </span>
+            </div>
           </template>
+
+          <!-- Comment Row -->
           <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'comment'">
             <div
               v-if="evaluation.rendered[item.origIdx]?.text"
@@ -116,7 +124,48 @@
             </div>
             <span v-else class="comment-empty-space">&nbsp;</span>
           </template>
-          <span v-else>{{ evaluation.rendered[item.origIdx]?.text || '&nbsp;' }}</span>
+
+          <!-- Subtotal Row -->
+          <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'num subtotal-line' || evaluation.rendered[item.origIdx]?.isSubtotal">
+            <div class="res-row subtotal-row">
+              <span class="res-label subtotal-label">subtotal</span>
+              <span class="res-value subtotal-value">{{ evaluation.rendered[item.origIdx]?.text }}</span>
+              <Copy class="row-hover-copy" />
+            </div>
+          </template>
+
+          <!-- Error Row -->
+          <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'err'">
+            <div class="res-row err-row">
+              <span class="res-label">{{ getLineLeftLabel(item.lineText) }}</span>
+              <span class="res-value err-val">{{ evaluation.rendered[item.origIdx]?.text || '—' }}</span>
+            </div>
+          </template>
+
+          <!-- Normal Evaluated Result Row (Two-column: Label on left, Value on right) -->
+          <template v-else-if="evaluation.rendered[item.origIdx]?.text">
+            <div
+              class="res-row"
+              :class="{ 'negative-val': getRowDetails(item).isNegative }"
+            >
+              <span class="res-label" :title="getRowDetails(item).label">{{ getRowDetails(item).label }}</span>
+              <span class="res-value">
+                <template v-if="getRowDetails(item).unitPart">
+                  <span class="val-num">{{ getRowDetails(item).numPart }}</span>
+                  <span class="val-unit">{{ getRowDetails(item).unitPart }}</span>
+                </template>
+                <template v-else>
+                  {{ getRowDetails(item).valueText }}
+                </template>
+              </span>
+              <Copy class="row-hover-copy" />
+            </div>
+          </template>
+
+          <!-- Empty Row -->
+          <template v-else>
+            <span class="res-empty-space">&nbsp;</span>
+          </template>
         </div>
       </div>
     </div>
@@ -175,7 +224,100 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { evaluateAll, formatValue } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X } from '@lucide/vue'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X, Copy } from '@lucide/vue'
+
+function getRowDetails(item) {
+  if (!item) return {}
+  const origIdx = item.origIdx
+  const res = evaluation.value?.rendered?.[origIdx] || {}
+  const rawLine = item.lineText || ''
+
+  if (item.isSection) {
+    const sec = item.sec
+    return {
+      type: 'section',
+      isCollapsed: item.isCollapsed,
+      title: sec ? sec.title : (res.title || res.text || ''),
+      subtotalText: sec ? formatValue(sec.subtotal, { disableFloat: props.disableFloat }) : ''
+    }
+  }
+
+  if (res.cls === 'comment') {
+    return { type: 'comment', text: res.text }
+  }
+
+  if (res.cls === 'num subtotal-line' || res.isSubtotal) {
+    return {
+      type: 'subtotal',
+      label: 'subtotal',
+      valueText: res.text || ''
+    }
+  }
+
+  if (res.cls === 'err') {
+    return {
+      type: 'error',
+      label: getLineLeftLabel(rawLine),
+      valueText: res.text || '—'
+    }
+  }
+
+  if (!res.text || res.cls === 'empty') {
+    return { type: 'empty' }
+  }
+
+  const label = getLineLeftLabel(rawLine)
+  const isNegative = typeof res.text === 'string' && (res.text.startsWith('-') || res.text.includes('-'))
+
+  let numPart = res.text
+  let unitPart = ''
+
+  if (typeof res.text === 'string') {
+    const m = res.text.match(/^(.*?)\s*([A-Z]{2,4}|TL|USD|EUR|GBP|BTC|ETH|SOL|GRAM|CEYREK)$/i)
+    if (m) {
+      numPart = m[1]
+      unitPart = m[2]
+    }
+  }
+
+  return {
+    type: res.cls || 'num',
+    label,
+    valueText: res.text,
+    numPart,
+    unitPart,
+    isNegative
+  }
+}
+
+function getLineLeftLabel(rawLine) {
+  if (!rawLine) return ''
+  const clean = rawLine.replace(/(\/\*[\s\S]*?\*\/|\/\/.*|"""[\s\S]*?"""|'''[\s\S]*?''')/g, '').trim()
+  if (!clean) return ''
+
+  const assignMatch = clean.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
+  if (assignMatch) {
+    return assignMatch[1]
+  }
+
+  if (clean.startsWith('===') || clean.startsWith('---')) {
+    return ''
+  }
+
+  if (clean.includes(' to ') || clean.includes(' in ') || /[\+\-\*\/\%#]/.test(clean)) {
+    return clean
+  }
+
+  if (['total', 'subtotal', 'prev'].includes(clean.toLowerCase())) {
+    return clean.toLowerCase()
+  }
+
+  if (/^[0-9]+(?:\.[0-9]+)?[kmbT]?$/i.test(clean)) {
+    return clean
+  }
+
+  return clean
+}
 
 const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
@@ -927,7 +1069,7 @@ watch(() => props.tab?.id, () => {
 
 <style scoped>
 .notepad {
-  background: var(--panel);
+  background: var(--panel-solid);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -948,7 +1090,7 @@ watch(() => props.tab?.id, () => {
 .gutter {
   width: 42px;
   flex: none;
-  background: var(--line-soft);
+  background: #162233;
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
   font-size: 13.5px;
@@ -958,7 +1100,7 @@ watch(() => props.tab?.id, () => {
   padding-right: 10px;
   overflow: hidden;
   user-select: none;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--line-soft);
 }
 
 .g-num {
@@ -972,7 +1114,7 @@ watch(() => props.tab?.id, () => {
 }
 
 .g-num.is-section {
-  font-weight: 700;
+  font-weight: 600;
   color: var(--syn-keyword, #9B8AFB);
   cursor: pointer;
   border-radius: 4px 0 0 4px;
@@ -980,7 +1122,7 @@ watch(() => props.tab?.id, () => {
 
 .g-num.is-section:hover {
   color: var(--paper-bright);
-  background: rgba(155, 138, 251, 0.18);
+  background: rgba(155, 138, 251, 0.12);
 }
 
 .btn-fold {
@@ -999,7 +1141,7 @@ watch(() => props.tab?.id, () => {
 
 .btn-fold:hover {
   color: var(--paper-bright);
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
 .icon-fold {
@@ -1012,11 +1154,11 @@ watch(() => props.tab?.id, () => {
 }
 
 .highlighted-line {
-  background: rgba(32, 214, 192, 0.08) !important;
+  background: rgba(22, 217, 196, 0.05) !important;
 }
 
 .r.section-header {
-  background: linear-gradient(90deg, rgba(155, 138, 251, 0.15) 0%, rgba(155, 138, 251, 0.02) 100%) !important;
+  background: linear-gradient(90deg, rgba(155, 138, 251, 0.1) 0%, rgba(155, 138, 251, 0.01) 100%) !important;
   color: var(--syn-keyword, #9B8AFB) !important;
   font-weight: 600;
   border-left: 3px solid var(--syn-keyword, #9B8AFB);
@@ -1030,16 +1172,16 @@ watch(() => props.tab?.id, () => {
 }
 
 .r.subtotal-line {
-  font-weight: 700;
-  color: var(--paper);
-  border-top: 1px dashed var(--line);
+  font-weight: 600;
+  color: var(--syn-keyword, #9B8AFB) !important;
+  border-top: 1px dashed var(--line-soft);
 }
 
 .btn-expand-area {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--line-soft);
+  background: var(--card-bg);
   color: var(--muted);
   border: 1px solid var(--line);
   padding: 3px 8px;
@@ -1053,8 +1195,8 @@ watch(() => props.tab?.id, () => {
 
 .btn-expand-area:hover, .btn-expand-area.expanded {
   color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-glow);
+  border-color: rgba(22, 217, 196, 0.25);
+  background: rgba(22, 217, 196, 0.08);
 }
 
 .input-wrapper {
@@ -1062,6 +1204,7 @@ watch(() => props.tab?.id, () => {
   flex: 1;
   display: flex;
   min-width: 0;
+  background: var(--editor-bg);
 }
 
 .editor-backdrop {
@@ -1095,21 +1238,21 @@ watch(() => props.tab?.id, () => {
 }
 
 .tok-comment {
-  color: var(--syn-comment, #5A6E85);
+  color: var(--syn-comment, #54667A);
   font-style: italic;
-  font-weight: 500;
+  font-weight: 400;
   opacity: 0.9;
 }
 
 .tok-header-line {
-  color: rgba(155, 138, 251, 0.45);
+  color: rgba(155, 138, 251, 0.4);
   font-weight: 500;
 }
 
 .tok-header-title {
   color: var(--syn-keyword, #9B8AFB);
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .tok-keyword {
@@ -1118,31 +1261,31 @@ watch(() => props.tab?.id, () => {
 }
 
 .tok-number {
-  color: var(--syn-number, #FF6685);
-  font-weight: 600;
+  color: var(--syn-number, #F59E0B);
+  font-weight: 500;
 }
 
 .tok-currency {
   color: var(--syn-currency, #F5B94C);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .tok-variable {
-  color: var(--syn-variable, #20D6C0);
-  font-weight: 600;
+  color: var(--syn-variable, #16D9C4);
+  font-weight: 500;
 }
 
 .tok-unit {
-  color: var(--syn-unit, #8295AD);
+  color: var(--syn-unit, #7D8F9F);
 }
 
 .tok-op {
-  color: #8295AD;
+  color: var(--muted, #6B7F96);
   font-weight: 500;
 }
 
 .tok-code {
-  color: var(--paper, #E2E8F0);
+  color: var(--paper, #C9D6E5);
 }
 
 .input-area {
@@ -1158,7 +1301,7 @@ watch(() => props.tab?.id, () => {
   -moz-tab-size: 2;
   background: transparent;
   color: transparent;
-  caret-color: var(--paper);
+  caret-color: var(--paper-bright);
   border: none;
   outline: none;
   resize: none;
@@ -1179,10 +1322,10 @@ watch(() => props.tab?.id, () => {
 .autocomplete-menu {
   position: absolute;
   z-index: 100;
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  background: var(--panel-solid);
+  border: 1px solid var(--line-hover);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
   width: 220px;
   max-height: 200px;
   overflow-y: auto;
@@ -1196,7 +1339,7 @@ watch(() => props.tab?.id, () => {
   color: var(--muted);
   padding: 4px 8px;
   font-weight: 700;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   margin-bottom: 2px;
 }
 
@@ -1214,7 +1357,7 @@ watch(() => props.tab?.id, () => {
 }
 
 .ac-item:hover, .ac-item.active {
-  background: rgba(94, 234, 212, 0.15);
+  background: rgba(22, 217, 196, 0.1);
   color: var(--accent);
 }
 
@@ -1229,19 +1372,24 @@ watch(() => props.tab?.id, () => {
 }
 
 .results {
-  width: 260px;
+  width: 310px;
   flex: none;
-  border-left: 1px solid var(--line);
+  border-left: 1px solid #1A2A3D;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 14.5px;
+  font-size: 13.5px;
   line-height: 26px;
   padding: 16px 12px;
   overflow-y: auto;
   scrollbar-width: none;
-  text-align: right;
-  background: rgba(0, 0, 0, 0.15);
+  background: #0D1725;
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="light"] .results {
+  background: #F8FAFC;
+  border-left-color: #E2E8F0;
 }
 
 .results::-webkit-scrollbar {
@@ -1255,7 +1403,7 @@ watch(() => props.tab?.id, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
   border-radius: 4px;
   padding: 0 6px;
   box-sizing: border-box;
@@ -1266,40 +1414,157 @@ watch(() => props.tab?.id, () => {
 }
 
 .r:not(.empty):not(.comment):not(.err):hover {
-  background: var(--result-glow);
-  color: var(--result-color);
+  background: rgba(32, 216, 196, 0.06);
 }
 
-.r.copied {
-  background: var(--result-glow) !important;
-  color: var(--result-color) !important;
+.r:not(.empty):not(.comment):not(.err):hover .val-num,
+.r:not(.empty):not(.comment):not(.err):hover .res-value {
+  color: #21E6D0;
+}
+
+.r:not(.empty):not(.comment):not(.err):hover .row-hover-copy {
+  opacity: 0.6;
+}
+
+.row-hover-copy {
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  opacity: 0;
+  margin-left: 6px;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.row-hover-copy:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+}
+
+.res-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 100%;
+  width: 100%;
+}
+
+.res-label {
+  font-size: 12.5px;
+  color: #8A9AAF;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+[data-theme="light"] .res-label {
+  color: #64748B;
+}
+
+.res-value {
+  font-size: 13.5px;
+  color: #20D8C4;
   font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.val-num {
+  color: #20D8C4;
+  font-weight: 600;
+}
+
+.val-unit {
+  color: #8A9AAF;
+  font-size: 11.5px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.negative-val .res-value,
+.negative-val .val-num {
+  color: var(--err, #E55353) !important;
+}
+
+/* Subtotal Row */
+.subtotal-row {
+  border-top: 1px dashed #1A2A3D;
+}
+
+[data-theme="light"] .subtotal-row {
+  border-top-color: #CBD5E1;
+}
+
+.subtotal-label {
+  color: #A99BFF !important;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.subtotal-value {
+  color: #20D8C4 !important;
+  font-weight: 700;
+}
+
+/* Section Header in Results */
+.res-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  width: 100%;
+  color: #A99BFF;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  user-select: none;
+  padding-bottom: 2px;
+}
+
+.sec-toggle-icon {
+  font-size: 11px;
+  color: #A99BFF;
+  width: 12px;
+  display: inline-block;
+  text-align: center;
+}
+
+.sec-title-text {
+  color: #A99BFF;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sec-collapsed-subtotal {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.err-val {
+  color: var(--err, #E55353);
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 .copied-badge {
   font-size: 11.5px;
-  color: var(--result-color);
+  color: #20D8C4;
   letter-spacing: 0.03em;
   font-weight: 600;
-}
-
-.r.num {
-  color: var(--result-color);
-  font-weight: 600;
-}
-
-.r.date {
-  color: var(--amber);
-}
-
-.r.err {
-  color: var(--err);
-  opacity: 0.85;
-  font-size: 13px;
-}
-
-.r.empty {
-  color: transparent;
 }
 
 .r.comment {
@@ -1315,11 +1580,11 @@ watch(() => props.tab?.id, () => {
   align-items: center;
   gap: 5px;
   padding: 2px 9px;
-  background: var(--comment-bg);
-  border: 1px dashed var(--comment-border);
+  background: var(--card-bg);
+  border: 1px solid var(--line-soft);
   border-radius: 12px;
   font-size: 11.5px;
-  color: var(--comment-color);
+  color: var(--muted);
   font-style: italic;
   max-width: 100%;
   overflow: hidden;
@@ -1330,15 +1595,15 @@ watch(() => props.tab?.id, () => {
 }
 
 .comment-badge:hover {
-  background: var(--line-soft);
-  border-color: var(--comment-color);
-  transform: translateY(-1px);
+  background: var(--item-bg);
+  border-color: var(--line);
+  color: var(--paper);
 }
 
 .comment-badge-prefix {
-  font-weight: 700;
+  font-weight: 600;
   font-style: normal;
-  opacity: 0.8;
+  color: var(--syn-comment);
   font-size: 11px;
 }
 
@@ -1353,8 +1618,8 @@ watch(() => props.tab?.id, () => {
   justify-content: space-between;
   align-items: center;
   padding: 10px 18px;
-  border-top: 1px solid var(--line);
-  background: var(--line-soft);
+  border-top: 1px solid var(--line-soft);
+  background: var(--panel-solid);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12.5px;
   color: var(--muted);
@@ -1382,7 +1647,7 @@ watch(() => props.tab?.id, () => {
 }
 
 .total-val:hover {
-  background: rgba(94, 234, 212, 0.15);
+  background: rgba(22, 217, 196, 0.1);
 }
 
 .copied-mini {
@@ -1392,7 +1657,7 @@ watch(() => props.tab?.id, () => {
 }
 
 .sep {
-  color: var(--line);
+  color: var(--line-soft);
 }
 
 .status-center b {
@@ -1411,24 +1676,26 @@ watch(() => props.tab?.id, () => {
   font-size: 11.5px;
   padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--card-bg);
   border: 1px solid var(--line);
 }
 
 .sync-badge.saved {
   color: var(--accent);
-  border-color: rgba(94, 234, 212, 0.3);
-  background: rgba(94, 234, 212, 0.08);
+  border-color: rgba(22, 217, 196, 0.25);
+  background: rgba(22, 217, 196, 0.08);
 }
 
 .sync-badge.saving {
   color: var(--amber);
-  border-color: rgba(245, 185, 113, 0.3);
+  border-color: rgba(245, 185, 76, 0.25);
+  background: rgba(245, 185, 76, 0.08);
 }
 
 .sync-badge.error {
   color: var(--err);
-  border-color: rgba(242, 112, 122, 0.3);
+  border-color: rgba(229, 83, 83, 0.25);
+  background: rgba(229, 83, 83, 0.08);
 }
 
 .sync-icon {
@@ -1466,6 +1733,19 @@ watch(() => props.tab?.id, () => {
     font-size: 13.5px;
     line-height: 26px;
     padding: 14px 8px;
+  }
+
+  /* Hide variable labels and hover icons on mobile for clean compact single-column display */
+  .res-label {
+    display: none !important;
+  }
+
+  .res-row {
+    justify-content: flex-end;
+  }
+
+  .row-hover-copy {
+    display: none !important;
   }
 }
 
