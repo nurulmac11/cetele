@@ -181,6 +181,73 @@ const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
 const backdropRef = ref(null)
 
+const RESERVED_WORDS = new Set([
+  'to', 'in', 'of', 'off', 'increase', 'decrease', 'by',
+  'today', 'now',
+  'days', 'day', 'weeks', 'week', 'months', 'month', 'years', 'year', 'hours', 'hour', 'mins', 'min', 'minutes', 'minute', 'sec', 'second', 'seconds',
+  'usd', 'eur', 'gbp', 'try', 'tl', 'cad', 'aud', 'chf', 'jpy', 'cny', 'rub', 'inr', 'zar', 'krw', 'sgd', 'hkd', 'nzd', 'sek', 'nok', 'mxn', 'brl',
+  'dollar', 'dollars', 'euro', 'euros', 'pound', 'pounds', 'lira', 'tlira', 'yen', 'rupee', 'rmb',
+  'btc', 'eth', 'sol', 'usdt', 'bnb', 'xrp', 'doge', 'ada', 'avax',
+  'gold', 'altin', 'altın', 'ceyrek', 'çeyrek', 'oz', 'ounce', 'ounces', 'troy', 'gram', 'xau'
+])
+
+const MATH_FUNCTIONS = new Set([
+  'min', 'max', 'sqrt', 'abs', 'round', 'floor', 'ceil', 'log', 'sin', 'cos', 'tan', 'count', 'sum', 'avg', 'average'
+])
+
+function pushCodeToken(tokens, text) {
+  if (!text) return
+  if (tokens.length > 0 && tokens[tokens.length - 1].cls === 'tok-code') {
+    tokens[tokens.length - 1].text += text
+  } else {
+    tokens.push({ cls: 'tok-code', text })
+  }
+}
+
+function tokenizeCodePart(code) {
+  if (!code) return []
+
+  const tokens = []
+  let lastIndex = 0
+
+  const regex = /(?:#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\b[a-zA-Z_][a-zA-Z0-9_]*\b)/gi
+  let match
+
+  while ((match = regex.exec(code)) !== null) {
+    const word = match[0]
+    const idx = match.index
+    const lowerWord = word.toLowerCase()
+
+    let isVar = false
+
+    if (/^#[0-9]+$/.test(word) || /^[Ll][0-9]+$/.test(word) || /^[Ll]ine[0-9]+$/i.test(word)) {
+      isVar = true
+    } else if (['prev', 'total', 'subtotal', 'pi', 'e'].includes(lowerWord)) {
+      isVar = true
+    } else if (!RESERVED_WORDS.has(lowerWord)) {
+      const rest = code.slice(idx + word.length)
+      const isFnCall = /^\s*\(/.test(rest) && MATH_FUNCTIONS.has(lowerWord)
+      if (!isFnCall) {
+        isVar = true
+      }
+    }
+
+    if (isVar) {
+      if (idx > lastIndex) {
+        pushCodeToken(tokens, code.slice(lastIndex, idx))
+      }
+      tokens.push({ cls: 'tok-variable', text: word })
+      lastIndex = idx + word.length
+    }
+  }
+
+  if (lastIndex < code.length) {
+    pushCodeToken(tokens, code.slice(lastIndex))
+  }
+
+  return tokens.length > 0 ? tokens : [{ cls: 'tok-code', text: code }]
+}
+
 const formattedEditorLines = computed(() => {
   const text = tabContent.value || ''
   const lines = text.split('\n')
@@ -238,14 +305,14 @@ const formattedEditorLines = computed(() => {
       const commentPart = line.slice(commentIdx)
       result.push({
         tokens: [
-          { cls: 'tok-code', text: codePart },
+          ...tokenizeCodePart(codePart),
           { cls: 'tok-comment', text: commentPart }
         ]
       })
       return
     }
 
-    result.push({ tokens: [{ cls: 'tok-code', text: line }] })
+    result.push({ tokens: tokenizeCodePart(line) })
   })
 
   return result
@@ -1006,18 +1073,20 @@ watch(() => props.tab?.id, () => {
 }
 
 .tok-comment {
-  color: #34d399;
+  color: var(--comment-color);
   font-style: italic;
   font-weight: 500;
-}
-
-[data-theme='light'] .tok-comment {
-  color: #059669;
+  opacity: 0.85;
 }
 
 .tok-header {
   color: var(--accent);
   font-weight: 700;
+}
+
+.tok-variable {
+  color: var(--var-color);
+  font-weight: 600;
 }
 
 .tok-code {
@@ -1099,6 +1168,7 @@ watch(() => props.tab?.id, () => {
 
 .ac-name {
   font-weight: 600;
+  color: var(--var-color);
 }
 
 .ac-val {
@@ -1144,26 +1214,26 @@ watch(() => props.tab?.id, () => {
 }
 
 .r:not(.empty):not(.comment):not(.err):hover {
-  background: rgba(94, 234, 212, 0.12);
-  color: var(--accent);
+  background: var(--result-glow);
+  color: var(--result-color);
 }
 
 .r.copied {
-  background: rgba(94, 234, 212, 0.25) !important;
-  color: var(--accent) !important;
+  background: var(--result-glow) !important;
+  color: var(--result-color) !important;
   font-weight: 600;
 }
 
 .copied-badge {
   font-size: 11.5px;
-  color: var(--accent);
+  color: var(--result-color);
   letter-spacing: 0.03em;
   font-weight: 600;
 }
 
 .r.num {
-  color: var(--accent);
-  font-weight: 500;
+  color: var(--result-color);
+  font-weight: 600;
 }
 
 .r.date {
@@ -1193,11 +1263,11 @@ watch(() => props.tab?.id, () => {
   align-items: center;
   gap: 5px;
   padding: 2px 9px;
-  background: rgba(52, 211, 153, 0.09);
-  border: 1px dashed rgba(52, 211, 153, 0.35);
+  background: var(--comment-bg);
+  border: 1px dashed var(--comment-border);
   border-radius: 12px;
   font-size: 11.5px;
-  color: #34d399;
+  color: var(--comment-color);
   font-style: italic;
   max-width: 100%;
   overflow: hidden;
@@ -1207,15 +1277,9 @@ watch(() => props.tab?.id, () => {
   line-height: 1.2;
 }
 
-[data-theme='light'] .comment-badge {
-  background: rgba(5, 150, 105, 0.08);
-  border-color: rgba(5, 150, 105, 0.35);
-  color: #059669;
-}
-
 .comment-badge:hover {
-  background: rgba(52, 211, 153, 0.18);
-  border-color: rgba(52, 211, 153, 0.6);
+  background: var(--line-soft);
+  border-color: var(--comment-color);
   transform: translateY(-1px);
 }
 

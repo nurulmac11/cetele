@@ -186,16 +186,16 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   text-transform: uppercase;
   letter-spacing: .08em;
   font-weight: 700;
-  color: var(--paper);
+  color: var(--var-color);
 }
 
 .var-badge {
   font-size: 10.5px;
-  background: var(--accent-glow);
-  color: var(--accent);
+  background: var(--var-glow);
+  color: var(--var-color);
   padding: 1px 6px;
   border-radius: 10px;
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--var-dim);
 }
 
 .var-list {
@@ -221,12 +221,12 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 }
 
 .var-item:hover {
-  border-color: var(--accent);
-  background: var(--accent-glow);
+  border-color: var(--var-color);
+  background: var(--var-glow);
 }
 
 .var-name {
-  color: var(--accent);
+  color: var(--var-color);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;

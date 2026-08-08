@@ -20,16 +20,16 @@
         <p class="card-desc">Refer to previous lines by number (`#1`, `L1`, `line1`) or use `prev` and `total`.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'val = 1200\ntax = 100\n#1 + #2')">
-            val = 1200<br>
-            tax = 100<br>
-            #1 + #2 <span class="comment">// 1300</span>
+            <span class="var">val</span> = 1200<br>
+            <span class="var">tax</span> = 100<br>
+            <span class="var">#1</span> + <span class="var">#2</span> <span class="comment">// 1300</span>
           </code>
           <code @click="$emit('insert-snippet', 'L1 * 2\nprev / 2')">
-            L1 * 2 <span class="comment">// Line 1 * 2</span><br>
-            prev / 2 <span class="comment">// Previous result / 2</span>
+            <span class="var">L1</span> * 2 <span class="comment">// Line 1 * 2</span><br>
+            <span class="var">prev</span> / 2 <span class="comment">// Previous result / 2</span>
           </code>
           <code @click="$emit('insert-snippet', 'total')">
-            total <span class="comment">// Sum of all numeric lines above</span>
+            <span class="var">total</span> <span class="comment">// Sum of all numeric lines above</span>
           </code>
         </div>
       </section>
@@ -44,14 +44,14 @@
         <div class="code-box">
           <code @click="$emit('insert-snippet', '=== Income & Multipliers ===\nsalary = 5.5k\nfreelance = 1.8k\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1.65k\ngroceries = 450\nsubtotal\n\ntotal')">
             === Income & Multipliers === <span class="comment">// Visual section header banner</span><br>
-            salary = 5.5k <span class="comment">// 5,500</span><br>
-            freelance = 1.8k <span class="comment">// 1,800</span><br>
-            subtotal <span class="comment">// 7,300 (Sectional sum)</span><br><br>
+            <span class="var">salary</span> = 5.5k <span class="comment">// 5,500</span><br>
+            <span class="var">freelance</span> = 1.8k <span class="comment">// 1,800</span><br>
+            <span class="var">subtotal</span> <span class="comment">// 7,300 (Sectional sum)</span><br><br>
             === Monthly Expenses ===<br>
-            rent = 1.65k <span class="comment">// 1,650</span><br>
-            groceries = 450<br>
-            subtotal <span class="comment">// 2,100 (Sectional sum)</span><br><br>
-            total <span class="comment">// 9,400 (Grand total of all sections)</span>
+            <span class="var">rent</span> = 1.65k <span class="comment">// 1,650</span><br>
+            <span class="var">groceries</span> = 450<br>
+            <span class="var">subtotal</span> <span class="comment">// 2,100 (Sectional sum)</span><br><br>
+            <span class="var">total</span> <span class="comment">// 9,400 (Grand total of all sections)</span>
           </code>
         </div>
       </section>
@@ -65,9 +65,9 @@
         <p class="card-desc">Live rates for USD, EUR, GBP, TRY, BTC, ETH, SOL, USDT, BNB, XRP, DOGE, ADA, AVAX.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'a = 100 sol + 50$\na + 10$\na to usd')">
-            a = 100 sol + 50$ <span class="comment">// 100.27 SOL</span><br>
-            a + 10$ <span class="comment">// 100.32 SOL (converts $10 to SOL)</span><br>
-            a to usd <span class="comment">// $18,560.00</span>
+            <span class="var">a</span> = 100 sol + 50$ <span class="comment">// 100.27 SOL</span><br>
+            <span class="var">a</span> + 10$ <span class="comment">// 100.32 SOL (converts $10 to SOL)</span><br>
+            <span class="var">a</span> to usd <span class="comment">// $18,560.00</span>
           </code>
           <code @click="$emit('insert-snippet', '10$ + 500 tl')">
             10$ + 500 tl
@@ -107,8 +107,8 @@
         <p class="card-desc">Assign dates to variables and chain multiple date operations together.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'start = today\ndeadline = start + 2 weeks - 1 day + 2 months')">
-            start = today <span class="comment">// Sun, Aug 02, 2026</span><br>
-            deadline = start + 2 weeks - 1 day + 2 months
+            <span class="var">start</span> = today <span class="comment">// Sun, Aug 02, 2026</span><br>
+            <span class="var">deadline</span> = <span class="var">start</span> + 2 weeks - 1 day + 2 months
           </code>
           <code @click="$emit('insert-snippet', 'now + 3 hours - 30 mins')">
             now + 3 hours - 30 mins <span class="comment">// Date with time</span>
@@ -318,8 +318,13 @@ defineEmits(['switch-to-notepad', 'insert-snippet'])
   background: var(--accent-glow);
 }
 
+.var {
+  color: var(--var-color);
+  font-weight: 600;
+}
+
 .comment {
-  color: var(--muted);
+  color: var(--comment-color);
   font-style: italic;
 }
 
