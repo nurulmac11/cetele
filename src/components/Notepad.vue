@@ -935,6 +935,11 @@ watch(() => props.tab?.id, () => {
   padding-left: 8px !important;
 }
 
+.section-title-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .r.subtotal-line {
   font-weight: 700;
   color: var(--paper);

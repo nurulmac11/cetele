@@ -156,7 +156,7 @@ export function evaluateAll(text, options = {}) {
         sectionTotalSum = 0
         sectionLineCount = 0
 
-        rendered.push({ cls: 'section-header', isSection: true, title: sectionTitle, text: `=== ${sectionTitle} ===` })
+        rendered.push({ cls: 'section-header', isSection: true, title: sectionTitle, text: sectionTitle })
         lineResults.push(null)
         lineCurrencies.push(null)
         return

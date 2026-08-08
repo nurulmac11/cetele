@@ -72,11 +72,30 @@ kulba/
 
 ---
 
-## 🧠 Evaluator Engine Architecture (`src/services/evaluator.js`)
+## 🗺️ Feature-to-File Matrix
+
+Use this index to quickly locate the exact files, key functions, and test suites responsible for each feature domain:
+
+| Feature Domain | Primary Source Files | Key Functions & Implementation Details | Associated Test Suite |
+| :--- | :--- | :--- | :--- |
+| **Section Headers & Subtotals** | `src/services/evaluator/lexer.js`<br>`src/services/evaluator/index.js`<br>`src/components/Notepad.vue` | `SECTION_HEADER` tokenizing, `SectionHeader` AST handling, title extraction, clean rendering in result column (no `===`), `.section-title-text` underline CSS, section subtotals & collapsible section folding (`toggleSectionCollapse`). | `tests/evaluator/sections_comments.test.js` |
+| **Math & AST Evaluation** | `src/services/evaluator/lexer.js`<br>`src/services/evaluator/parser.js`<br>`src/services/evaluator/astEvaluator.js` | Lexer tokenization, Recursive Descent Parser, `evaluateAST`, Line references (`#1`, `L1`), running `prev`, percentage operations (`increase A by B%`). | `tests/evaluator/math.test.js` |
+| **Currency, Gold & Crypto Rates** | `src/services/evaluator/rates.js`<br>`src/services/evaluator/astEvaluator.js`<br>`src/services/evaluator/formatters.js` | `RATES` matrix (2,401 pairs), `fetchLiveExchangeRates` API fetcher, gold/crypto decimal preservation rule in `formatValueWithSymbol`. | `tests/evaluator/currency.test.js` |
+| **Magnitude Multipliers** | `src/services/evaluator/lexer.js` | Shorthand magnitude multiplier suffixes (`k`, `m`, `b`, `t` / `K`, `M`, `B`, `T`). | `tests/evaluator/multipliers.test.js` |
+| **Date & Physical Unit Math** | `src/services/evaluator/lexer.js`<br>`src/services/evaluator/astEvaluator.js` | Date arithmetic (`today + 2 weeks - 1 day`), physical unit conversions (`12 km to miles`). | `tests/evaluator/date_units.test.js` |
+| **Notepad Editor & Autocomplete** | `src/components/Notepad.vue` | Textarea sync scrolling, line gutter, evaluation result column, variable autocomplete menu, fold toggles. | — |
+| **Tab Management & Reordering** | `src/App.vue`<br>`src/components/Header.vue` | Reactive `tabs` array, `closedTabsStack`, drag-and-drop tab reordering, global keyboard shortcuts (`Ctrl+N`, `Ctrl+Z`, `Ctrl+Shift+C`). | — |
+| **Offline Storage (IndexedDB)** | `src/services/localDb.js` | `CeteleLocalDB` (IndexedDB stores for `tabs`, `saved_tabs`, `settings`) with `localStorage` fallback. | `tests/services.test.js` |
+| **Cloud Synchronization** | `src/services/syncService.js`<br>`supabase/schema.sql` | Supabase auth integration, `throttledSyncTabsToCloud`, Row-Level Security (RLS) policies. | — |
+| **Document Sharing** | `src/services/shareService.js` | URL hash compression & Base64 payload encoding/decoding (`#doc=...`). | `tests/services.test.js` |
+
+---
+
+## 🧠 Evaluator Engine Architecture (`src/services/evaluator/`)
 
 The evaluator engine parses plain multi-line text input into formatted, calculated line results.
 
-### Architecture & Execution Pipeline (`src/services/evaluator.js`)
+### Execution Pipeline
 
 1. **Lexer (Tokenizer - `class Lexer`)**:
    - Scans line input and emits structured tokens: `NUMBER`, `CURRENCY_SYMBOL`, `CURRENCY_CODE`, `IDENT`, `LINE_REF`, `KEYWORD` (`to`, `in`, `of`, `off`, `increase`, `decrease`, `by`), `OPERATOR` (`+`, `-`, `*`, `/`, `^`, `%`, `=`, `(`, `)`), `COMMENT`, and `EOF`.
@@ -98,6 +117,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
      - `varCurrencies` & `lineCurrencies` (preserves currency symbols across expressions, variables, line references, and `prev`)
      - Mixed currency conversion via `RATES` relative to USD base.
      - Section subtotals and running `total` sum (excluding `total` keyword lines from self-accumulation).
+     - **Section Headers & Rendering**: Syntax like `=== Section Title ===` or `--- Section Title ---` parses into `SectionHeader` nodes. In the evaluated result area, the section line renders the clean title text without `===` characters, styled with underlined text (`.section-title-text`) and an accent background banner.
 
 4. **Value Formatting (`formatValue` / `formatValueWithSymbol`)**:
    - Formats final output numbers with locale grouping.
@@ -127,7 +147,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - **Currency, Gold & Crypto**: Live conversions (`500k tl to usd`, `1 gram gold to tl`, `1 ceyrek gold to tl`, `portfolio = 0.5 btc + 2 eth to usd`).
    - **Physical Units & Percentages**: `12 km to miles`, `increase 2.5m by 15%`.
    - **Date Math**: `start_date = today`, `launch_event = start_date + 2 weeks - 1 day`, `flight_time = now + 4 hours - 15 mins`.
-   - **Section Headers & Totals**: Visual `=== Section Title ===`, `subtotal`, and grand `total`.
+   - **Section Headers & Totals**: Section syntax (`=== Section Title ===`), section subtotals (`subtotal`), and grand `total` (result area renders clean, underlined section titles).
 
 2. **Tab 2: Monthly Budget** (`defaultTabs` in `src/App.vue`):
    - **Revenues & Multiplier Income**: `primary_salary = 5.5k`, `consulting = 1.8k`, `freelance = 500k tl to usd`.
