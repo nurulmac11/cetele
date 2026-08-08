@@ -39,6 +39,7 @@ kulba/
 │       ├── math.test.js         # Basic math, line references, percentage arithmetic, parens, NaN
 │       ├── currency.test.js     # Fiat, gold/precious metals, crypto & 2,401 conversion pair matrix
 │       ├── date_units.test.js   # Date arithmetic (today + 2 weeks) and physical unit conversions
+│       ├── multipliers.test.js  # Shorthand magnitude multipliers (k, m, b, t / K, M, B, T)
 │       └── sections_comments.test.js # Section headers, subtotals, multi-line & block comments
 └── src/
     ├── main.js                  # App bootstrap & Vercel analytics initialization
@@ -79,6 +80,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 
 1. **Lexer (Tokenizer - `class Lexer`)**:
    - Scans line input and emits structured tokens: `NUMBER`, `CURRENCY_SYMBOL`, `CURRENCY_CODE`, `IDENT`, `LINE_REF`, `KEYWORD` (`to`, `in`, `of`, `off`, `increase`, `decrease`, `by`), `OPERATOR` (`+`, `-`, `*`, `/`, `^`, `%`, `=`, `(`, `)`), `COMMENT`, and `EOF`.
+   - **Magnitude Multipliers**: Numbers support shorthand magnitude suffixes: `k`/`K` ($10^3$), `m`/`M` ($10^6$), `b`/`B` ($10^9$), `t`/`T` ($10^{12}$). Lexer parses both direct (`500k`, `2m`, `1.5b`, `3.2t`) and spaced (`500 k`, `2 m`) suffixes seamlessly with currency and unit integration (`$500k`, `500k usd to tl`).
 
 2. **Recursive-Descent Parser (`class Parser`)**:
    - Top-down recursive descent parser implementing precedence rules:
@@ -112,6 +114,26 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
   - `GRAM_GOLD = RATES.XAU * 31.1034768` (1 troy ounce = 31.1034768 grams)
   - `CEYREK_GOLD = RATES.GRAM_GOLD / 1.75` (1 Çeyrek Altın = 1.75 grams of 22k gold)
 - `ratesVersion` reactive Vue ref triggers computation updates across open notepad tabs when live rates load.
+
+---
+
+## 📑 Default Example Showcase Tabs (`defaultTabs`)
+
+Çetele initializes with two rich default showcase tabs designed to demonstrate the full range of notepad calculator capabilities:
+
+1. **Tab 1: Calculator** (`EXAMPLE_TEXT` in `src/services/evaluator/constants.js`):
+   - **Income & Multipliers**: Magnitude shorthand (`salary = 500k`, `freelance = 1.2m`, `investments = $2.5m`).
+   - **Living Expenses & Discounts**: `rent = 1.65k`, `tech_deal = 20% off 1.5k`.
+   - **Currency, Gold & Crypto**: Live conversions (`500k tl to usd`, `1 gram gold to tl`, `1 ceyrek gold to tl`, `portfolio = 0.5 btc + 2 eth to usd`).
+   - **Physical Units & Percentages**: `12 km to miles`, `increase 2.5m by 15%`.
+   - **Date Math**: `start_date = today`, `launch_event = start_date + 2 weeks - 1 day`, `flight_time = now + 4 hours - 15 mins`.
+   - **Section Headers & Totals**: Visual `=== Section Title ===`, `subtotal`, and grand `total`.
+
+2. **Tab 2: Monthly Budget** (`defaultTabs` in `src/App.vue`):
+   - **Revenues & Multiplier Income**: `primary_salary = 5.5k`, `consulting = 1.8k`, `freelance = 500k tl to usd`.
+   - **Fixed Living Expenses**: `rent_mortgage = 1.85k`, `groceries = 650`, `utilities = 220`, `subscriptions = 45`.
+   - **Savings & Investments**: Percentage savings (`15% of primary_salary`), crypto DCA (`0.05 btc + $250`), gold accumulation (`2 gram gold to tl`).
+   - **Financial Summary & Runway**: Subtotal line references (`total_income = L8`, `total_spending = L15`), net monthly savings (`total_income - total_spending`), and projected annual savings (`net_monthly_savings * 12`).
 
 ---
 

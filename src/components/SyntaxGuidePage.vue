@@ -42,16 +42,16 @@
         </div>
         <p class="card-desc">Organize long documents into styled visual sections, compute section subtotals, and collapse/expand blocks.</p>
         <div class="code-box">
-          <code @click="$emit('insert-snippet', '=== Income & Sales ===\nsalary = 4,500\nfreelance = 1,200\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1,650\ngroceries = 450\nsubtotal\n\ntotal')">
-            === Income & Sales === <span class="comment">// Visual section header banner</span><br>
-            salary = 4,500<br>
-            freelance = 1,200<br>
-            subtotal <span class="comment">// 5,700 (Sectional sum)</span><br><br>
+          <code @click="$emit('insert-snippet', '=== Income & Multipliers ===\nsalary = 5.5k\nfreelance = 1.8k\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1.65k\ngroceries = 450\nsubtotal\n\ntotal')">
+            === Income & Multipliers === <span class="comment">// Visual section header banner</span><br>
+            salary = 5.5k <span class="comment">// 5,500</span><br>
+            freelance = 1.8k <span class="comment">// 1,800</span><br>
+            subtotal <span class="comment">// 7,300 (Sectional sum)</span><br><br>
             === Monthly Expenses ===<br>
-            rent = 1,650<br>
+            rent = 1.65k <span class="comment">// 1,650</span><br>
             groceries = 450<br>
             subtotal <span class="comment">// 2,100 (Sectional sum)</span><br><br>
-            total <span class="comment">// 7,800 (Grand total of all sections)</span>
+            total <span class="comment">// 9,400 (Grand total of all sections)</span>
           </code>
         </div>
       </section>

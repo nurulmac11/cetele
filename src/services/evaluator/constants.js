@@ -1,29 +1,34 @@
-export const EXAMPLE_TEXT = `// welcome — this is a notepad calculator
-// write math, it evaluates as you type
+export const EXAMPLE_TEXT = `// welcome — this is çetele notepad calculator
+// write math, currencies, gold, crypto, date math & multipliers naturally
 
-=== Income & Sales ===
-salary = 4,500
-freelance = 1,200
+=== Income & Multipliers 🚀 ===
+salary = 500k
+freelance = 1.2m
+investments = $2.5m
 subtotal
 
-=== Monthly Expenses ===
-rent = 1,650
+=== Living Expenses & Discounts ===
+rent = 1.65k
 groceries = 450
 utilities = 180
+tech_deal = 20% off 1.5k
 subtotal
 
 === Currency, Gold & Crypto ===
-10$ + 500 tl
+500k tl to usd
 1 gram gold to tl
-1 btc to usd
+1 ceyrek gold to tl
+portfolio = 0.5 btc + 2 eth to usd
 
 === Units & Percentages ===
-5 miles to km
-20% off 89.99
+12 km to miles
+increase 2.5m by 15%
+15% of 240
 
-=== Date Math ===
-start = today
-deadline = start + 2 weeks - 1 day
+=== Date Math & Deadlines 📅 ===
+start_date = today
+launch_event = start_date + 2 weeks - 1 day
+flight_time = now + 4 hours - 15 mins
 
 === Grand Summary ===
 total`

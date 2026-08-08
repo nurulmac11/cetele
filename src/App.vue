@@ -183,7 +183,7 @@ const defaultTabs = [
   {
     id: 'tab-2',
     title: 'Monthly Budget',
-    content: `=== Monthly Income ===\nsalary = 4,500\nfreelance = 1,200\nsubtotal\n\n=== Fixed & Living Expenses ===\nrent = 1,650\ngroceries = 450\nutilities = 180\nsubscriptions = 45\nsubtotal\n\n=== Budget Summary ===\ntotal_expenses = L9\nsavings = 20% of L4\nnet_remaining = L4 - total_expenses - savings`,
+    content: `// 📊 Personal & Business Monthly Financial Plan\n\n=== Revenues & Multiplier Income ===\nprimary_salary = 5.5k\nconsulting = 1.8k\nfreelance = 500k tl to usd\nside_project = $500\nsubtotal\n\n=== Fixed Living Expenses ===\nrent_mortgage = 1.85k\ngroceries = 650\nutilities = 220\nsubscriptions = 45\nsubtotal\n\n=== Savings & Investments ===\nemergency_fund = 15% of primary_salary\ncrypto_dca = 0.05 btc + $250\ngold_savings = 2 gram gold to tl\nsubtotal\n\n=== Financial Summary & Runway ===\ntotal_income = L8\ntotal_spending = L15\nnet_monthly_savings = total_income - total_spending\nannual_savings_projected = net_monthly_savings * 12`,
     position: 1,
     isActive: false
   }
