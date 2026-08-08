@@ -167,6 +167,14 @@
           <ChevronDown class="icon-xs caret-icon" :class="{ open: isMobileTabMenuOpen }" />
         </button>
 
+        <button
+          class="btn-mobile-tab-rename"
+          @click.stop="openMobileRenameActiveTab"
+          title="Rename active tab"
+        >
+          <Edit3 class="icon-sm" />
+        </button>
+
         <button class="btn-mobile-add-tab" @click="$emit('create-tab')" title="New tab">
           <Plus class="icon-sm" />
           <span>New</span>
@@ -198,32 +206,53 @@
                 v-for="tab in tabs"
                 :key="tab.id"
                 class="mobile-dropdown-item"
-                :class="{ active: tab.id === activeTabId }"
-                @click="selectMobileTab(tab.id)"
+                :class="{ active: tab.id === activeTabId, editing: editingTabId === tab.id }"
+                @click="editingTabId !== tab.id && selectMobileTab(tab.id)"
               >
-                <div class="dropdown-item-left">
-                  <span class="tab-dot" :class="{ active: tab.id === activeTabId }"></span>
-                  <span class="dropdown-tab-name">{{ tab.title || 'Untitled' }}</span>
-                </div>
+                <template v-if="editingTabId === tab.id">
+                  <div class="mobile-dropdown-rename-form" @click.stop>
+                    <input
+                      ref="mobileEditInputRef"
+                      v-model="editingTitle"
+                      class="mobile-tab-title-input"
+                      placeholder="Tab title..."
+                      @keyup.enter="saveRename(tab.id)"
+                      @keyup.esc="cancelRename"
+                      @click.stop
+                    />
+                    <button class="btn-mobile-rename-save" @click.stop="saveRename(tab.id)" title="Save">
+                      <Check class="icon-xs" />
+                    </button>
+                    <button class="btn-mobile-rename-cancel" @click.stop="cancelRename" title="Cancel">
+                      <X class="icon-xs" />
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="dropdown-item-left">
+                    <span class="tab-dot" :class="{ active: tab.id === activeTabId }"></span>
+                    <span class="dropdown-tab-name">{{ tab.title || 'Untitled' }}</span>
+                  </div>
 
-                <div class="dropdown-item-actions">
-                  <button
-                    class="btn-dropdown-action"
-                    @click.stop="startRename(tab); isMobileTabMenuOpen = false;"
-                    title="Rename"
-                  >
-                    <Edit3 class="icon-xs" />
-                    <span>Rename</span>
-                  </button>
-                  <button
-                    v-if="tabs.length > 1"
-                    class="btn-dropdown-action delete"
-                    @click.stop="$emit('close-tab', tab.id)"
-                    title="Close"
-                  >
-                    <X class="icon-xs" />
-                  </button>
-                </div>
+                  <div class="dropdown-item-actions">
+                    <button
+                      class="btn-dropdown-action"
+                      @click.stop="startRename(tab)"
+                      title="Rename"
+                    >
+                      <Edit3 class="icon-xs" />
+                      <span>Rename</span>
+                    </button>
+                    <button
+                      v-if="tabs.length > 1"
+                      class="btn-dropdown-action delete"
+                      @click.stop="$emit('close-tab', tab.id)"
+                      title="Close"
+                    >
+                      <X class="icon-xs" />
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -240,7 +269,7 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2, Folder, ChevronDown } from '@lucide/vue'
+import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2, Folder, ChevronDown, Check } from '@lucide/vue'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
@@ -269,6 +298,7 @@ const emit = defineEmits([
 const editingTabId = ref(null)
 const editingTitle = ref('')
 const editInputRef = ref(null)
+const mobileEditInputRef = ref(null)
 const isMobileTabMenuOpen = ref(false)
 
 const activeTabTitle = computed(() => {
@@ -283,18 +313,25 @@ function selectMobileTab(id) {
 
 function startRename(tab) {
   editingTabId.value = tab.id
-  editingTitle.value = tab.title
+  editingTitle.value = tab.title || ''
   nextTick(() => {
-    if (editInputRef.value) {
-      if (Array.isArray(editInputRef.value)) {
-        editInputRef.value[0]?.focus()
-        editInputRef.value[0]?.select()
-      } else {
-        editInputRef.value.focus()
-        editInputRef.value.select()
-      }
+    const focusTarget = (refTarget) => {
+      if (!refTarget.value) return
+      const el = Array.isArray(refTarget.value) ? refTarget.value[0] : refTarget.value
+      el?.focus()
+      el?.select()
     }
+    focusTarget(editInputRef)
+    focusTarget(mobileEditInputRef)
   })
+}
+
+function openMobileRenameActiveTab() {
+  const activeTab = props.tabs.find(x => x.id === props.activeTabId)
+  if (activeTab) {
+    isMobileTabMenuOpen.value = true
+    startRename(activeTab)
+  }
 }
 
 function saveRename(tabId) {
@@ -932,6 +969,70 @@ function onDragEnd() {
   padding: 10px;
   border-radius: 8px;
   margin-top: 2px;
+  cursor: pointer;
+}
+
+.btn-mobile-tab-rename {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-mobile-tab-rename:hover,
+.btn-mobile-tab-rename:active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mobile-dropdown-rename-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.mobile-tab-title-input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--paper);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.btn-mobile-rename-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-mobile-rename-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--line-soft);
+  color: var(--muted);
+  border: 1px solid var(--line);
   cursor: pointer;
 }
 
