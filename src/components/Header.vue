@@ -93,6 +93,14 @@
 
               <button
                 class="mobile-nav-menu-item"
+                @click="$emit('open-welcome'); isMobileNavOpen = false"
+              >
+                <HelpCircle class="icon-sm" />
+                <span>Quick Tour</span>
+              </button>
+
+              <button
+                class="mobile-nav-menu-item"
                 @click="openMobileSettings"
               >
                 <Settings class="icon-sm" />
@@ -152,6 +160,15 @@
         >
           <Sun v-if="theme === 'dark'" class="icon" />
           <Moon v-else class="icon" />
+        </button>
+
+        <!-- Quick Tour / Welcome Modal Button -->
+        <button
+          class="btn-icon desktop-only"
+          @click="$emit('open-welcome')"
+          title="Quick Tour & Intro Guide"
+        >
+          <HelpCircle class="icon" />
         </button>
 
         <button class="btn-icon btn-settings desktop-only" @click="$emit('open-settings')" title="Settings & Data Management (Ctrl+,)">
@@ -324,7 +341,7 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2, Folder, ChevronDown, Check } from '@lucide/vue'
+import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2, Folder, ChevronDown, Check, HelpCircle } from '@lucide/vue'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
@@ -347,7 +364,8 @@ const emit = defineEmits([
   'toggle-theme',
   'open-settings',
   'open-auth',
-  'toggle-sidebar'
+  'toggle-sidebar',
+  'open-welcome'
 ])
 
 const editingTabId = ref(null)

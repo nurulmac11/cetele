@@ -20,6 +20,7 @@
       @toggle-theme="toggleTheme"
       @open-settings="isSettingsOpen = true"
       @open-auth="isAuthModalOpen = true"
+      @open-welcome="isWelcomeModalOpen = true"
       @toggle-sidebar="toggleSidebar"
     />
 
@@ -133,6 +134,13 @@
       @user-updated="handleUserUpdated"
       @toast="showToast"
     />
+
+    <!-- Welcome / Onboarding Tour Popup Modal -->
+    <WelcomeModal
+      :is-open="isWelcomeModalOpen"
+      @close="closeWelcomeModal"
+      @try-yourself="handleTryWelcomeYourself"
+    />
   </div>
 </template>
 
@@ -143,6 +151,7 @@ import Notepad from './components/Notepad.vue'
 import ReferenceSidebar from './components/ReferenceSidebar.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import AuthModal from './components/AuthModal.vue'
+import WelcomeModal from './components/WelcomeModal.vue'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
 import SavedTabsPage from './components/SavedTabsPage.vue'
 import { EXAMPLE_TEXT, getFormattedCopyAllText } from './services/evaluator.js'
@@ -203,6 +212,7 @@ function handleVariablesUpdated(vars) {
 const showSidebar = ref(true)
 const isSettingsOpen = ref(false)
 const isAuthModalOpen = ref(false)
+const isWelcomeModalOpen = ref(false)
 const currentUser = ref(null)
 const userProfile = ref({ showDecimals: true, theme: 'dark' })
 const saveStatus = ref('saved') // 'saved' | 'saving' | 'error'
@@ -349,10 +359,26 @@ async function initLocalData() {
       history.replaceState(null, '', window.location.pathname)
       showToast(`Opened shared tab "${sharedDoc.title}"!`)
     }
+
+    // Check if first time opening application
+    const hasSeenWelcome = localStorage.getItem('cetele_welcome_seen')
+    if (!hasSeenWelcome) {
+      isWelcomeModalOpen.value = true
+    }
   } catch (err) {
     console.error('Failed to initialize local data:', err)
     saveStatus.value = 'error'
   }
+}
+
+function closeWelcomeModal() {
+  localStorage.setItem('cetele_welcome_seen', 'true')
+  isWelcomeModalOpen.value = false
+}
+
+function handleTryWelcomeYourself() {
+  closeWelcomeModal()
+  currentView.value = 'notepad'
 }
 
 // Tab Switching & Management
