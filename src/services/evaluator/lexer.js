@@ -17,6 +17,25 @@ function isWhitespace(ch) {
   return ch === ' ' || ch === '\t' || ch === '\r'
 }
 
+// Local-midnight timestamp for a calendar date, or null when the date doesn't exist (2026-02-30)
+function calendarDate(year, month, day) {
+  const d = new Date(year, month - 1, day)
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null
+  return d.getTime()
+}
+
+// Date literals: ISO 2026-12-31 and Turkish/European 31.12.2026
+function matchDateLiteral(rest) {
+  let m = rest.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?![\d.])/)
+  if (m) return { length: m[0].length, timestamp: calendarDate(+m[1], +m[2], +m[3]) }
+  m = rest.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?![\d.])/)
+  if (m) return { length: m[0].length, timestamp: calendarDate(+m[3], +m[2], +m[1]) }
+  return null
+}
+
+// Compound unit written without spaces: km/h, m/s^2, kg*m/s^2
+const COMPOUND_UNIT_RE = /^[A-Za-z]+(?:\^\d+)?(?:[/*][A-Za-z]+(?:\^\d+)?)+/
+
 function checkPhraseMapping(word, input, pos) {
   const rest = input.slice(pos).toLowerCase()
   const lower = word.toLowerCase()
@@ -185,6 +204,17 @@ export class Lexer {
         continue
       }
 
+      // Date literals (2026-12-31, 31.12.2026)
+      if (isDigit(ch)) {
+        const date = matchDateLiteral(this.input.slice(this.pos))
+        if (date) {
+          const raw = this.input.slice(this.pos, this.pos + date.length)
+          this.pos += date.length
+          tokens.push({ type: 'DATE_LITERAL', value: date.timestamp, raw })
+          continue
+        }
+      }
+
       // Numbers (with optional thousands commas like 1,250.50, and suffix multipliers like 500k, 2m, 1.5b, 3t)
       if (isDigit(ch) || (ch === '.' && isDigit(this.peek(1)))) {
         let numStr = ''
@@ -222,7 +252,10 @@ export class Lexer {
         const nextLower = nextCh ? nextCh.toLowerCase() : ''
 
         // An attached 'm' before a conversion (500m to km) means metres, not million
-        const isMetresBeforeConversion = nextLower === 'm' && /^\s+(to|in)\b/i.test(this.input.slice(this.pos + 1))
+        const afterSuffix = this.input.slice(this.pos + 1)
+        // ...and so does 'm' starting a compound unit (500m/s, 9.8m/s^2)
+        const isMetresBeforeConversion =
+          nextLower === 'm' && (/^\s+(to|in)\b/i.test(afterSuffix) || /^(\/[A-Za-z]|\^\d)/.test(afterSuffix))
         if (MULTIPLIERS[nextLower] && !isAlpha(this.peek(1)) && !isMetresBeforeConversion) {
           const suffixChar = this.consume()
           numVal = numVal * MULTIPLIERS[nextLower]
@@ -241,6 +274,18 @@ export class Lexer {
 
       // Identifiers / Keywords / Multi-word phrases
       if (isAlpha(ch)) {
+        // In unit position (after a number, or after to/in), read km/h or m/s^2 as one unit
+        const prevTok = tokens[tokens.length - 1]
+        const isUnitPosition =
+          prevTok?.type === 'NUMBER' ||
+          (prevTok?.type === 'KEYWORD' && (prevTok.value === 'to' || prevTok.value === 'in'))
+        const compound = isUnitPosition ? this.input.slice(this.pos).match(COMPOUND_UNIT_RE) : null
+        if (compound) {
+          this.pos += compound[0].length
+          tokens.push({ type: 'IDENT', value: compound[0], isCompoundUnit: true })
+          continue
+        }
+
         let word = ''
         while (isAlphaNum(this.peek())) {
           word += this.consume()
@@ -262,7 +307,7 @@ export class Lexer {
         const isExtraCurrency = RATES[upper] && !CORE_CURRENCY_CODES.has(upper) && word === upper
         if (CURRENCY_MAP[upper] || (RATES[upper] && CORE_CURRENCY_CODES.has(upper)) || isExtraCurrency) {
           tokens.push({ type: 'CURRENCY_CODE', value: CURRENCY_MAP[upper] || upper, raw: word })
-        } else if (['to', 'in', 'of', 'off', 'increase', 'decrease', 'by'].includes(lowerWord)) {
+        } else if (['to', 'in', 'of', 'off', 'increase', 'decrease', 'by', 'until', 'since'].includes(lowerWord)) {
           tokens.push({ type: 'KEYWORD', value: lowerWord })
         } else if (['today', 'now'].includes(lowerWord)) {
           tokens.push({ type: 'DATE_KEYWORD', value: lowerWord })
@@ -309,7 +354,7 @@ export class Lexer {
       }
 
       // Operators
-      if (['+', '-', '*', '/', '^', '%', '=', '(', ')', ','].includes(ch)) {
+      if (['+', '-', '*', '/', '^', '%', '=', '(', ')', ',', '@'].includes(ch)) {
         tokens.push({ type: 'OPERATOR', value: this.consume() })
         continue
       }

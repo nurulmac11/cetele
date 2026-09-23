@@ -17,6 +17,13 @@ export function fmtDateTime(d) {
   return `${fmtDate(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
+// Display names for units mathjs spells out (degC -> °C, mi / h -> mph)
+const UNIT_DISPLAY = { degC: '°C', degF: '°F', 'mi / h': 'mph', 'km / h': 'km/h', 'm / s': 'm/s' }
+
+function prettyUnit(unitStr) {
+  return UNIT_DISPLAY[unitStr] || unitStr.replace(/ \/ /g, '/')
+}
+
 export function formatValue(v, options = {}) {
   const { disableFloat = false } = options
   if (v === null || v === undefined) return ''
@@ -45,7 +52,7 @@ export function formatValue(v, options = {}) {
         val = v.toNumber(unitStr)
       } catch (e) {}
     }
-    return `${formatValue(val, options)} ${unitStr}`
+    return `${formatValue(val, options)} ${prettyUnit(unitStr)}`
   }
   if (typeof v === 'object' && v.value !== undefined) {
     return formatValue(v.value, options)

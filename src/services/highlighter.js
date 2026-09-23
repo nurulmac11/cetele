@@ -1,10 +1,11 @@
 import { Lexer } from './evaluator/index.js'
 
 // Words the highlighter shows as keywords even though the lexer treats them as identifiers
-const KEYWORD_IDENTS = new Set(['prev', 'pi', 'e'])
+const KEYWORD_IDENTS = new Set(['prev', 'pi', 'e', 'avg', 'average', 'count'])
 
 const TOKEN_CLASSES = {
   NUMBER: 'tok-number',
+  DATE_LITERAL: 'tok-number',
   LINE_REF: 'tok-number',
   CURRENCY_SYMBOL: 'tok-currency',
   CURRENCY_CODE: 'tok-currency',

@@ -36,10 +36,11 @@ function cleanCommentText(text) {
 // Running sum that keeps a currency. Plain numbers add as they are; currency amounts are
 // converted into the first currency the sum meets (10$ + 500 tl stays in dollars).
 function createSum() {
-  return { value: 0, currency: null }
+  return { value: 0, currency: null, count: 0 }
 }
 
 function addToSum(acc, value, currency) {
+  acc.count++
   if (currency && acc.currency) {
     const converted = convertCurrency(value, currency, acc.currency)
     acc.value += converted === null ? value : converted
@@ -70,6 +71,7 @@ export function evaluateAll(text, options = {}) {
     prevDate: null,
     sum: 0,
     sumCurrency: null,
+    rates: RATES,
     options
   }
   const rendered = []
@@ -194,6 +196,23 @@ export function evaluateAll(text, options = {}) {
         return
       }
 
+      // avg / average / count: over the lines since the section header or last subtotal.
+      // A variable with the same name wins, so existing documents keep working.
+      if (ast.type === 'Aggregate' && ctx.scope[ast.name.toLowerCase()] === undefined) {
+        const { value: sumValue, currency, count } = sectionSum
+        const value = ast.kind === 'count' ? count : count > 0 ? sumValue / count : 0
+        const valueCurrency = ast.kind === 'count' ? null : currency
+        pushLine(
+          { cls: 'num aggregate-line', isAggregate: true, text: formatAmount(value, valueCurrency, options) },
+          value,
+          valueCurrency
+        )
+        ctx.prev = value
+        ctx.prevCurrency = valueCurrency
+        ctx.prevDate = null
+        return
+      }
+
       if (ast.type === 'Assignment' && RESERVED_KEYWORDS.has(ast.varName.toLowerCase())) {
         pushLine({ cls: 'err', text: 'Reserved keyword', error: `"${ast.varName}" is a reserved word` })
         return
@@ -201,7 +220,13 @@ export function evaluateAll(text, options = {}) {
 
       ctx.sum = total.value
       ctx.sumCurrency = total.currency
-      const evalRes = evaluateAST(ast, ctx)
+      const evalRes = evaluateAST(ast.type === 'Aggregate' ? { type: 'Identifier', name: ast.name } : ast, ctx)
+
+      // Waiting for historical exchange rates; evaluation re-runs when they arrive
+      if (evalRes.pending) {
+        pushLine({ cls: 'pending', text: '…', error: evalRes.error })
+        return
+      }
 
       if (evalRes.error) {
         pushLine({ cls: 'err', text: '—', error: evalRes.error })

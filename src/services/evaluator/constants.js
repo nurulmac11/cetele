@@ -40,6 +40,8 @@ export const RESERVED_KEYWORDS = new Set([
   'off',
   'increase',
   'decrease',
+  'until',
+  'since',
   'by',
   'prev',
   'total',

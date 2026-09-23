@@ -1,6 +1,6 @@
 import { math } from './math.js'
 import { RESERVED_KEYWORDS } from './constants.js'
-import { convertCurrency, normalizeCurrency } from './rates.js'
+import { RATES, convertCurrency, normalizeCurrency, getHistoricalRates, toDateKey } from './rates.js'
 
 const UNIT_ALIASES = {
   tbsp: 'tablespoon',
@@ -12,7 +12,19 @@ const UNIT_ALIASES = {
   hr: 'hour',
   hrs: 'hours',
   min: 'minutes',
-  mins: 'minutes'
+  mins: 'minutes',
+  // Temperatures (°C / °F: the ° sign is skipped by the lexer)
+  c: 'degC',
+  celsius: 'degC',
+  f: 'degF',
+  fahrenheit: 'degF',
+  kelvin: 'K',
+  // Speeds
+  mph: 'mi/h',
+  kph: 'km/h',
+  kmh: 'km/h',
+  knot: 'knots',
+  kn: 'knots'
 }
 
 // Functions callable from the notepad. Anything else in mathjs (evaluate, import, createUnit...)
@@ -80,6 +92,69 @@ const CURRENCY_PRESERVING_FUNCTIONS = new Set([
 
 const MS_PER_DAY = 86400000
 
+// Finance helpers. Rates can be written as 5% or 5; a plain number of 1 or more is read as percent.
+function rateOf(arg) {
+  if (arg.isPercent) return arg.value
+  return arg.value >= 1 ? arg.value / 100 : arg.value
+}
+
+// A count of periods, from a number or a time unit (30 years -> 360 months)
+function periodsOf(arg, unit) {
+  if (arg.isUnit) return arg.value.toNumber(unit)
+  return arg.value
+}
+
+const FINANCE_FUNCTIONS = {
+  // loan(amount, yearly rate, months or "30 years") -> monthly payment
+  loan: {
+    arity: [3, 3],
+    run([principal, rate, term]) {
+      const months = Math.round(periodsOf(term, 'months'))
+      const r = rateOf(rate) / 12
+      if (!(months > 0)) return { error: 'Loan term must be at least 1 month' }
+      const payment = r === 0 ? principal.value / months : (principal.value * r) / (1 - Math.pow(1 + r, -months))
+      return { value: payment, currency: principal.currency }
+    }
+  },
+  // pmt(rate per period, number of periods, present value) -> payment per period
+  pmt: {
+    arity: [3, 3],
+    run([rate, periods, principal]) {
+      const n = periodsOf(periods, 'months')
+      const r = rateOf(rate)
+      if (!(n > 0)) return { error: 'Number of periods must be positive' }
+      const payment = r === 0 ? principal.value / n : (principal.value * r) / (1 - Math.pow(1 + r, -n))
+      return { value: payment, currency: principal.currency }
+    }
+  },
+  // compound(amount, yearly rate, years, times compounded per year = 12) -> final amount
+  compound: {
+    arity: [3, 4],
+    run([principal, rate, years, perYear]) {
+      const t = periodsOf(years, 'years')
+      const k = perYear ? perYear.value : 12
+      if (!(k > 0)) return { error: 'Compounding must happen at least once a year' }
+      return { value: principal.value * Math.pow(1 + rateOf(rate) / k, k * t), currency: principal.currency }
+    }
+  }
+}
+
+function startOfToday() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+// Whole calendar months from one timestamp to another (negative when "to" is earlier)
+function calendarMonthsBetween(from, to) {
+  if (to < from) return -calendarMonthsBetween(to, from)
+  const a = new Date(from)
+  const b = new Date(to)
+  let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+  if (b.getDate() < a.getDate()) months--
+  return months
+}
+
 function normalizeUnit(unit) {
   if (!unit) return unit
   const key = String(unit).toLowerCase()
@@ -134,11 +209,13 @@ export function evaluateAST(node, ctx) {
     }
 
     case 'DateExpression': {
-      const baseName = node.baseName.toLowerCase()
+      const baseName = node.baseName ? node.baseName.toLowerCase() : null
       let baseTime
       let isTimeIncluded = false
 
-      if (baseName === 'today') {
+      if (node.baseTimestamp !== undefined) {
+        baseTime = node.baseTimestamp
+      } else if (baseName === 'today') {
         const d = new Date()
         d.setHours(0, 0, 0, 0)
         baseTime = d.getTime()
@@ -178,6 +255,48 @@ export function evaluateAST(node, ctx) {
       }
 
       return dateResult(currentTimestamp, isTimeIncluded)
+    }
+
+    case 'DateSpan': {
+      const target = evaluate(node.target)
+      if (isError(target)) return target
+      if (!target.isDate) return { error: `"${node.unit} ${node.direction}" needs a date` }
+      const unit = node.unit.toLowerCase()
+      const usesTime = target.isTimeIncluded || unit.startsWith('hour') || unit.startsWith('min')
+      const now = usesTime ? Date.now() : startOfToday()
+      const [from, to] = node.direction === 'until' ? [now, target.value] : [target.value, now]
+
+      let amount
+      let unitName
+      if (unit.startsWith('month')) {
+        amount = calendarMonthsBetween(from, to)
+        unitName = 'months'
+      } else if (unit.startsWith('year')) {
+        amount = Math.trunc(calendarMonthsBetween(from, to) / 12)
+        unitName = 'years'
+      } else if (unit.startsWith('week')) {
+        amount = Math.round((to - from) / MS_PER_DAY) / 7
+        unitName = 'weeks'
+      } else if (unit.startsWith('hour')) {
+        amount = (to - from) / 3600000
+        unitName = 'hours'
+      } else if (unit.startsWith('min')) {
+        amount = Math.round((to - from) / 60000)
+        unitName = 'minutes'
+      } else {
+        amount = (to - from) / MS_PER_DAY
+        if (!usesTime) amount = Math.round(amount)
+        unitName = 'days'
+      }
+      return { value: math.unit(amount, unitName), isUnit: true }
+    }
+
+    case 'AtDate': {
+      const historical = getHistoricalRates(node.timestamp)
+      if (historical.loading)
+        return { pending: true, error: `Loading exchange rates for ${toDateKey(node.timestamp)}…` }
+      if (historical.error) return { error: historical.error }
+      return evaluateAST(node.expr, { ...ctx, rates: historical.rates })
     }
 
     case 'LineRef': {
@@ -236,7 +355,7 @@ export function evaluateAST(node, ctx) {
       if (targetCurrency && typeof sub.value === 'number') {
         // A plain number is labelled with the currency (100 to usd)
         if (!sub.currency) return { value: sub.value, currency: targetCurrency }
-        const converted = convertCurrency(sub.value, sub.currency, targetCurrency)
+        const converted = convertCurrency(sub.value, sub.currency, targetCurrency, ctx.rates || RATES)
         if (converted === null) return { error: `No exchange rate for ${targetCurrency}` }
         return { value: converted, currency: targetCurrency }
       }
@@ -336,7 +455,7 @@ export function evaluateAST(node, ctx) {
 
       let currency = left.currency || right.currency || null
       if (left.currency && right.currency) {
-        const converted = convertCurrency(rVal, right.currency, left.currency)
+        const converted = convertCurrency(rVal, right.currency, left.currency, ctx.rates || RATES)
         if (converted !== null) rVal = converted
         currency = left.currency
       }
@@ -392,6 +511,22 @@ export function evaluateAST(node, ctx) {
 
     case 'FunctionCall': {
       const lower = node.name.toLowerCase()
+
+      const finance = FINANCE_FUNCTIONS[lower]
+      if (finance) {
+        const [min, max] = finance.arity
+        if (node.args.length < min || node.args.length > max) {
+          return { error: `${lower}() takes ${min === max ? min : `${min}–${max}`} values` }
+        }
+        const args = node.args.map(evaluate)
+        const firstError = args.find(isError)
+        if (firstError) return firstError
+        if (args.some((a) => a.isDate || (typeof a.value !== 'number' && !a.isUnit))) {
+          return { error: `${lower}() needs numbers` }
+        }
+        return finance.run(args)
+      }
+
       const name = FUNCTION_ALIASES[lower] || lower
       if (!ALLOWED_FUNCTIONS.has(name) || typeof math[name] !== 'function') {
         return { error: `Unknown function: ${node.name}` }
@@ -406,7 +541,7 @@ export function evaluateAST(node, ctx) {
       const currency = args.find((a) => a.currency)?.currency || null
       const values = args.map((a) => {
         if (currency && a.currency && a.currency !== currency && typeof a.value === 'number') {
-          const converted = convertCurrency(a.value, a.currency, currency)
+          const converted = convertCurrency(a.value, a.currency, currency, ctx.rates || RATES)
           return converted === null ? a.value : converted
         }
         return a.value

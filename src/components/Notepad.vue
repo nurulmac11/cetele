@@ -147,7 +147,11 @@
           <!-- Error Row -->
           <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'err'">
             <div class="res-row err-row" :title="evaluation.rendered[item.origIdx]?.error || ''">
-              <span class="res-label">{{ rowDetails[k].label }}</span>
+              <!-- Show why the line failed, so it's readable without hovering (and on touch screens) -->
+              <span v-if="evaluation.rendered[item.origIdx]?.error" class="res-label err-reason">
+                {{ evaluation.rendered[item.origIdx].error }}
+              </span>
+              <span v-else class="res-label">{{ rowDetails[k].label }}</span>
               <span class="res-value err-val">{{ evaluation.rendered[item.origIdx]?.text || '—' }}</span>
             </div>
           </template>
@@ -1472,6 +1476,30 @@ watch(
   color: var(--muted);
   font-weight: 500;
   margin-left: auto;
+}
+
+.err-reason {
+  color: var(--err);
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* Waiting for historical exchange rates */
+.r.pending .res-value {
+  color: var(--muted);
+  animation: pending-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pending-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r.pending .res-value {
+    animation: none;
+  }
 }
 
 .err-val {

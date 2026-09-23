@@ -121,6 +121,37 @@
           <code @click="$emit('insert-snippet', 'now + 3 hours - 30 mins')">
             now + 3 hours - 30 mins <span class="comment">// Date with time</span>
           </code>
+          <code @click="$emit('insert-snippet', 'deadline = 2026-12-31\ndeadline - today\ndays until 31.12.2026')">
+            <span class="var">deadline</span> = 2026-12-31 <span class="comment">// or 31.12.2026</span><br />
+            <span class="var">deadline</span> - today <span class="comment">// days between two dates</span><br />
+            days until 31.12.2026 <span class="comment">// also weeks, months, years; since for the past</span>
+          </code>
+        </div>
+      </section>
+
+      <!-- Section 4B: Money helpers -->
+      <section class="card">
+        <div class="card-title">
+          <Landmark class="card-icon" />
+          <h2>Tax, Loans & Historical Rates</h2>
+        </div>
+        <p class="card-desc">Add KDV/VAT, work out loan payments and growth, and convert at a past day's rates.</p>
+        <div class="code-box">
+          <code @click="$emit('insert-snippet', '1000 + %20 kdv')">
+            1000 + %20 kdv <span class="comment">// 1,200 (also 20% vat)</span>
+          </code>
+          <code @click="$emit('insert-snippet', 'loan(250k, 3.5%, 30 years)')">
+            loan(250k, 3.5%, 30 years) <span class="comment">// monthly payment: 1,122.6117</span>
+          </code>
+          <code @click="$emit('insert-snippet', 'compound(10k, 5%, 10 years)')">
+            compound(10k, 5%, 10 years) <span class="comment">// 16,470.095, compounded monthly</span>
+          </code>
+          <code @click="$emit('insert-snippet', '100 usd to tl @ 2025-01-01')">
+            100 usd to tl @ 2025-01-01 <span class="comment">// rates on that day (from 2024-03-02)</span>
+          </code>
+          <code @click="$emit('insert-snippet', '=== Expenses ===\nrent = 1500\nfood = 450\naverage\ncount')">
+            average / count <span class="comment">// over the lines since the header or last subtotal</span>
+          </code>
         </div>
       </section>
 
@@ -140,6 +171,10 @@
             20% off 89.99 <span class="comment">// 71.99</span>
           </code>
           <code @click="$emit('insert-snippet', '12 km to miles')"> 12 km to miles </code>
+          <code @click="$emit('insert-snippet', '20 C to F\n100 km/h to mph')">
+            20 C to F <span class="comment">// 68 °F</span><br />
+            100 km/h to mph <span class="comment">// 62.1371 mph</span>
+          </code>
         </div>
       </section>
 
@@ -236,7 +271,7 @@
 </template>
 
 <script setup>
-import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command, Cloud, FolderTree } from '@lucide/vue'
+import { ArrowLeft, Hash, Coins, Sparkles, Calendar, Percent, Command, Cloud, FolderTree, Landmark } from '@lucide/vue'
 
 defineEmits(['switch-to-notepad', 'insert-snippet'])
 </script>

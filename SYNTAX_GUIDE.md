@@ -75,6 +75,12 @@ now                    // Sun, Aug 02, 2026 09:20
 start = today          // Assign date to variable 'start'
 deadline = start + 2 weeks - 1 day + 2 months
 event = now + 3 hours - 30 mins
+
+// Date literals: ISO or dd.mm.yyyy
+deadline = 2026-12-31  // same as 31.12.2026
+deadline - today       // days between two dates, e.g. 98 days
+days until 2026-12-31  // also weeks / months / years until
+days since 2025-01-15  // time since a past date
 ```
 
 ---
@@ -90,6 +96,8 @@ increase 1,200 by 8%   // 1,296
 // Units
 12 km to miles
 3 cups + 2 tbsp to ml
+20 C to F              // 68 °F (also celsius, fahrenheit, kelvin)
+100 km/h to mph        // 62.1371 mph (write compound units without spaces: m/s, m/s^2)
 
 // Number Multiplier Suffixes (k, m, b, t)
 500k                   // 500,000
@@ -98,6 +106,31 @@ increase 1,200 by 8%   // 1,296
 3.2t                   // 3,200,000,000,000
 $500k                  // $500,000
 500k usd to tl         // Converts 500,000 USD to TL
+```
+
+---
+
+## 4B. Tax, Loans, Section Averages & Historical Rates
+
+```text
+// Tax: a percent after + or -, optionally labelled
+1000 + %20 kdv         // 1,200
+1000 + 20% vat         // 1,200
+
+// Loans and growth (rates as 3.5%; terms in months or "30 years")
+loan(250k, 3.5%, 30 years)     // monthly payment: 1,122.6117
+pmt(1%, 12, 1000)              // payment per period: 88.8488
+compound(10k, 5%, 10 years)    // 16,470.095 (compounded monthly; 4th value sets times per year)
+
+// Section summaries (lines since the header or last subtotal)
+=== Expenses ===
+rent = 1500
+food = 450
+average                // 975
+count                  // 2
+
+// Exchange rates on a past day (available from 2024-03-02)
+100 usd to tl @ 2025-01-01
 ```
 
 ---

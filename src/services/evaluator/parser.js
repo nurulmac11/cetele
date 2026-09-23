@@ -1,5 +1,11 @@
 import { normalizeCurrency } from './rates.js'
 
+// Words that may follow a percentage as a label: 1000 + %20 kdv, 50 + 8% vat
+const TAX_WORDS = new Set(['kdv', 'vat', 'tax', 'gst', 'otv', 'ötv', 'stopaj'])
+
+// Standalone words that summarise the lines above (like subtotal)
+const AGGREGATE_WORDS = new Set(['avg', 'average', 'count'])
+
 export class Parser {
   constructor(tokens) {
     this.tokens = tokens
@@ -38,11 +44,22 @@ export class Parser {
     ) {
       const varName = this.consume().value
       this.consume() // '='
-      const expr = this.parseExpression()
+      const expr = this.parseExpressionWithDate()
       if (this.peek().type !== 'EOF') {
         return { type: 'Error', message: 'Unexpected token' }
       }
       return { type: 'Assignment', varName, expr }
+    }
+
+    // avg / average / count on their own line
+    if (
+      tok.type === 'IDENT' &&
+      AGGREGATE_WORDS.has(tok.value.toLowerCase()) &&
+      this.tokens[this.pos + 1]?.type === 'EOF'
+    ) {
+      this.consume()
+      const name = tok.value.toLowerCase()
+      return { type: 'Aggregate', kind: name === 'count' ? 'count' : 'average', name: tok.value }
     }
 
     if (tok.type === 'SUBTOTAL') {
@@ -53,15 +70,41 @@ export class Parser {
       return { type: 'Subtotal' }
     }
 
-    const expr = this.parseExpression()
+    const expr = this.parseExpressionWithDate()
     if (expr && this.peek().type !== 'EOF') {
       return { type: 'Error', message: 'Unexpected token' }
     }
     return expr
   }
 
+  // expr, optionally followed by "@ 2025-01-01" to use that day's exchange rates
+  parseExpressionWithDate() {
+    const expr = this.parseExpression()
+    if (!this.match('OPERATOR', '@')) return expr
+    const dateTok = this.match('DATE_LITERAL')
+    if (!dateTok) return { type: 'Error', message: 'Expected a date after @, e.g. @ 2025-01-01' }
+    if (dateTok.value === null) return { type: 'Error', message: `Invalid date: ${dateTok.raw}` }
+    return { type: 'AtDate', expr, timestamp: dateTok.value, raw: dateTok.raw }
+  }
+
+  // Consumes a tax label after a percentage (%20 kdv)
+  skipTaxWord() {
+    const tok = this.peek()
+    if (tok.type === 'IDENT' && TAX_WORDS.has(String(tok.value).toLowerCase())) this.consume()
+  }
+
   parseExpression() {
     const kw = this.peek()
+
+    // days until 2026-12-31, weeks since start
+    const next = this.tokens[this.pos + 1]
+    if (kw.type === 'DATE_UNIT' && next?.type === 'KEYWORD' && (next.value === 'until' || next.value === 'since')) {
+      const unit = this.consume().value
+      const direction = this.consume().value
+      const target = this.parseAdditive()
+      return { type: 'DateSpan', unit, direction, target }
+    }
+
     if (kw.type === 'KEYWORD' && (kw.value === 'increase' || kw.value === 'decrease')) {
       const verb = this.consume().value
       const baseExpr = this.parseAdditive()
@@ -136,6 +179,27 @@ export class Parser {
     return this.parsePower()
   }
 
+  // Reads "+ 2 weeks - 1 day" style offsets after a date
+  parseDateOffsets() {
+    const offsets = []
+    while (true) {
+      const opTok = this.peek()
+      if (opTok.type === 'OPERATOR' && (opTok.value === '+' || opTok.value === '-')) {
+        const lookAheadN = this.tokens[this.pos + 1]
+        const lookAheadU = this.tokens[this.pos + 2]
+        if (lookAheadN && lookAheadN.type === 'NUMBER' && lookAheadU && lookAheadU.type === 'DATE_UNIT') {
+          const op = this.consume().value
+          const numTok = this.consume()
+          const unitTok = this.consume()
+          offsets.push({ op, amount: numTok.value, unit: unitTok.value })
+          continue
+        }
+      }
+      break
+    }
+    return offsets
+  }
+
   // Is the '%' at the current position a postfix percent (10%) rather than modulo (10 % 3)?
   isPostfixPercent() {
     const tok = this.peek()
@@ -144,7 +208,7 @@ export class Parser {
     const isModuloOperand =
       after &&
       (after.type === 'NUMBER' ||
-        after.type === 'IDENT' ||
+        (after.type === 'IDENT' && !TAX_WORDS.has(String(after.value).toLowerCase())) ||
         after.type === 'LINE_REF' ||
         after.type === 'CURRENCY_SYMBOL' ||
         after.type === 'CURRENCY_CODE' ||
@@ -173,6 +237,21 @@ export class Parser {
 
   parsePrimary() {
     const tok = this.peek()
+
+    // Prefix percent, as written in Turkish: %20
+    if (tok.type === 'OPERATOR' && tok.value === '%' && this.tokens[this.pos + 1]?.type === 'NUMBER') {
+      this.consume()
+      const amount = this.consume().value
+      this.skipTaxWord()
+      return { type: 'PercentNumber', amount }
+    }
+
+    // Date literal, with optional offsets: 2026-12-31 + 2 weeks
+    if (tok.type === 'DATE_LITERAL') {
+      this.consume()
+      if (tok.value === null) return { type: 'Error', message: `Invalid date: ${tok.raw}` }
+      return { type: 'DateExpression', baseTimestamp: tok.value, offsets: this.parseDateOffsets() }
+    }
 
     // Currency Prefix Symbol ($10, ₺500, €50)
     if (tok.type === 'CURRENCY_SYMBOL') {
@@ -218,6 +297,7 @@ export class Parser {
       // Distinguish postfix percentage (10%) from binary modulo operator (10 % 3)
       if (this.isPostfixPercent()) {
         this.consume() // '%'
+        this.skipTaxWord()
         return { type: 'PercentNumber', amount }
       }
       // Unit identifier suffix (e.g. 5 miles)
@@ -252,23 +332,7 @@ export class Parser {
 
       if (tok.type === 'DATE_KEYWORD' || isDateOffsetFollowup) {
         const baseName = this.consume().value
-        const offsets = []
-        while (true) {
-          const opTok = this.peek()
-          if (opTok.type === 'OPERATOR' && (opTok.value === '+' || opTok.value === '-')) {
-            const lookAheadN = this.tokens[this.pos + 1]
-            const lookAheadU = this.tokens[this.pos + 2]
-            if (lookAheadN && lookAheadN.type === 'NUMBER' && lookAheadU && lookAheadU.type === 'DATE_UNIT') {
-              const op = this.consume().value
-              const numTok = this.consume()
-              const unitTok = this.consume()
-              offsets.push({ op, amount: numTok.value, unit: unitTok.value })
-              continue
-            }
-          }
-          break
-        }
-        return { type: 'DateExpression', baseName, offsets }
+        return { type: 'DateExpression', baseName, offsets: this.parseDateOffsets() }
       }
     }
 

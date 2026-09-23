@@ -110,11 +110,16 @@ export const ratesVersion = ref(1)
 // When rates last came from the network (ms), or null while only defaults are in use
 export const ratesUpdatedAt = ref(null)
 
+// Fills in rates computed from others (TL alias, gram and çeyrek gold from XAU)
+function deriveRates(rates) {
+  rates.TL = rates.TRY
+  const xauRate = rates.XAU || DEFAULT_XAU
+  rates.GRAM_GOLD = xauRate * GRAM_PER_TROY_OZ
+  rates.CEYREK_GOLD = rates.GRAM_GOLD / 1.75
+}
+
 export function updateDerivedRates() {
-  RATES.TL = RATES.TRY
-  const xauRate = RATES.XAU || DEFAULT_XAU
-  RATES.GRAM_GOLD = xauRate * GRAM_PER_TROY_OZ
-  RATES.CEYREK_GOLD = RATES.GRAM_GOLD / 1.75
+  deriveRates(RATES)
 }
 
 updateDerivedRates()
@@ -229,11 +234,106 @@ export function normalizeCurrency(str) {
   return CURRENCY_MAP[s] || (RATES[s] ? s : null)
 }
 
-// Converts an amount between currencies (codes or symbols). Returns null when a rate is missing.
-export function convertCurrency(amount, from, to) {
+// Converts an amount between currencies (codes or symbols) using the given rate table.
+// Returns null when a rate is missing.
+export function convertCurrency(amount, from, to, rates = RATES) {
   const baseFrom = getBaseCurrencyCode(from)
   const baseTo = getBaseCurrencyCode(to)
   if (!baseFrom || !baseTo || baseFrom === baseTo) return amount
-  if (!RATES[baseFrom] || !RATES[baseTo]) return null
-  return (amount / RATES[baseFrom]) * RATES[baseTo]
+  if (!rates[baseFrom] || !rates[baseTo]) return null
+  return (amount / rates[baseFrom]) * rates[baseTo]
+}
+
+// --- Historical rates (100 usd to tl @ 2025-01-01) ---
+
+// The dated feed starts on this day
+export const HISTORICAL_RATES_START = '2024-03-02'
+const HISTORICAL_CACHE_PREFIX = 'cetele_historical_rates_'
+
+// dateKey -> { rates } | { loading: true } | { error }
+const historicalRates = new Map()
+
+export function toDateKey(timestamp) {
+  const d = new Date(timestamp)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function ratesFromUsdFeed(usd) {
+  const rates = {}
+  for (const [rawKey, val] of Object.entries(usd || {})) {
+    const key = rawKey.toUpperCase()
+    if (key === '__PROTO__' || key === 'CONSTRUCTOR' || key === 'PROTOTYPE') continue
+    const isKnown = Object.prototype.hasOwnProperty.call(RATES, key) || CRYPTO_AND_GOLD_CODES.includes(key)
+    if ((isKnown || /^[A-Z]{3}$/.test(key)) && typeof val === 'number' && Number.isFinite(val) && val > 0) {
+      rates[key] = val
+    }
+  }
+  rates.USD = 1
+  deriveRates(rates)
+  return rates
+}
+
+async function loadHistoricalRates(dateKey) {
+  // Past days never change, so a cached copy is final
+  try {
+    const cached = localStorage.getItem(HISTORICAL_CACHE_PREFIX + dateKey)
+    if (cached) return JSON.parse(cached)
+  } catch (e) {}
+
+  const urls = [
+    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateKey}/v1/currencies/usd.json`,
+    `https://${dateKey}.currency-api.pages.dev/v1/currencies/usd.json`
+  ]
+  let lastError = null
+  for (const url of urls) {
+    try {
+      const data = await fetchJson(url)
+      if (!data?.usd) throw new Error('Unexpected response')
+      const rates = ratesFromUsdFeed(data.usd)
+      try {
+        localStorage.setItem(HISTORICAL_CACHE_PREFIX + dateKey, JSON.stringify(rates))
+      } catch (e) {}
+      return rates
+    } catch (err) {
+      lastError = err
+    }
+  }
+  throw lastError || new Error('No rates')
+}
+
+/**
+ * Exchange rates for a past day. Returns { rates } when available, { loading: true } while the
+ * first request is in flight (ratesVersion is bumped when it finishes, re-running evaluation),
+ * or { error } with a message for the result row.
+ */
+export function getHistoricalRates(timestamp) {
+  const dateKey = toDateKey(timestamp)
+  if (dateKey < HISTORICAL_RATES_START) {
+    return { error: `Historical rates start on ${HISTORICAL_RATES_START}` }
+  }
+  if (dateKey > toDateKey(Date.now())) {
+    return { error: 'No exchange rates for future dates' }
+  }
+
+  const known = historicalRates.get(dateKey)
+  if (known) return known
+
+  historicalRates.set(dateKey, { loading: true })
+  loadHistoricalRates(dateKey)
+    .then((rates) => historicalRates.set(dateKey, { rates }))
+    .catch(() => {
+      // Forget the failure after a minute so it can be retried (e.g. back online)
+      historicalRates.set(dateKey, { error: `Couldn't load exchange rates for ${dateKey}` })
+      setTimeout(() => historicalRates.delete(dateKey), 60000)
+    })
+    .finally(() => {
+      ratesVersion.value++
+    })
+  return { loading: true }
+}
+
+// For tests
+export function _resetHistoricalRates() {
+  historicalRates.clear()
 }

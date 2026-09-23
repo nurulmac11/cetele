@@ -130,6 +130,12 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 - `m` is million by default, but metres before `to`/`in` and in arithmetic with units (`5 m + 3 cm`). `gram` is a mass unit; only `gram gold`/`gram altın` is gold.
 - Core currencies match in any case. Extra ISO codes from the live feed (`MXN`, `PLN`...) only match in capitals, so words like `all` or `cup` stay usable.
 - Function calls go through an allowlist in `astEvaluator.js`; failures return an error instead of `0`. Errors carry a message in `rendered[i].error`, shown as the result row's tooltip.
+- Date literals (`2026-12-31`, `31.12.2026`) are `DATE_LITERAL` tokens; `days|weeks|months|years until|since <date>` parses to `DateSpan`.
+- `expr @ 2025-01-01` parses to `AtDate`: the expression is evaluated with that day's rates (`getHistoricalRates` in `rates.js`). The first request returns `{ pending: true }` and the line shows `…`; `ratesVersion` is bumped when the download finishes, which re-runs evaluation. Days are cached in `localStorage`.
+- Currency conversions must use `ctx.rates` (not `RATES` directly) so `@ date` works.
+- `avg`/`average`/`count` alone on a line summarise the lines since the header or last subtotal, unless a variable has that name.
+- Finance functions (`loan`, `pmt`, `compound`) live in `FINANCE_FUNCTIONS` in `astEvaluator.js`. A rate written without `%` is read as a percent when it is 1 or more.
+- Units: `UNIT_ALIASES` maps C/F/mph/kph etc. to mathjs names; `prettyUnit` in `formatters.js` maps them back for display. Compound units (`km/h`) are lexed as one word only when written without spaces in unit position.
 - mathjs is loaded as a trimmed instance (`src/services/evaluator/math.js`). Add a function's `*Dependencies` there before using it.
 
 ### Live Exchange & Gold Rate Pipeline
