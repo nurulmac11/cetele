@@ -267,7 +267,11 @@ export function evaluateAll(text, options = {}) {
         formattedText = formatAmount(val, curr, options)
       }
 
-      pushLine({ cls: 'num', text: formattedText }, val, curr)
+      pushLine(
+        evalRes.note ? { cls: 'num', text: formattedText, note: evalRes.note } : { cls: 'num', text: formattedText },
+        val,
+        curr
+      )
       if (val !== null) {
         ctx.prev = val
         ctx.prevCurrency = curr

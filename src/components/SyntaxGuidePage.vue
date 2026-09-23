@@ -147,7 +147,8 @@
             compound(10k, 5%, 10 years) <span class="comment">// 16,470.095, compounded monthly</span>
           </code>
           <code @click="$emit('insert-snippet', '100 usd to tl @ 2025-01-01')">
-            100 usd to tl @ 2025-01-01 <span class="comment">// rates on that day (from 2024-03-02)</span>
+            100 usd to tl @ 2010-06-15
+            <span class="comment">// that day's rates: major currencies from 1999, gold & crypto from 2024-03-02</span>
           </code>
           <code @click="$emit('insert-snippet', '=== Expenses ===\nrent = 1500\nfood = 450\naverage\ncount')">
             average / count <span class="comment">// over the lines since the header or last subtotal</span>

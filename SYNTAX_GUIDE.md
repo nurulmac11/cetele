@@ -129,8 +129,10 @@ food = 450
 average                // 975
 count                  // 2
 
-// Exchange rates on a past day (available from 2024-03-02)
-100 usd to tl @ 2025-01-01
+// Exchange rates on a past day
+100 usd to tl @ 2025-01-01     // every currency, gold and crypto from 2024-03-02
+100 usd to tl @ 2010-06-15     // back to 1999-01-04 for ~30 major currencies (ECB data)
+// Weekends and holidays use the last business day before; the result is marked with *
 ```
 
 ---

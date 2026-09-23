@@ -120,8 +120,68 @@ describe('Historical exchange rates', () => {
   })
 
   it('explains dates without rates', () => {
-    expect(evaluateAll('1 usd to tl @ 2020-01-01').rendered[0].error).toContain('start on')
+    expect(evaluateAll('1 usd to tl @ 1998-12-31').rendered[0].error).toContain('start on 1999-01-04')
     expect(evaluateAll('1 usd to tl @ 2999-01-01').rendered[0].error).toContain('future')
+  })
+
+  it('uses European Central Bank rates for dates before 2024-03-02', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ amount: 1, base: 'USD', date: '2010-06-15', rates: { TRY: 1.58, EUR: 0.81 } })
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const before = ratesVersion.value
+    expect(evaluateAll('100 usd to tl @ 2010-06-15').rendered[0].cls).toBe('pending')
+    await vi.waitFor(() => expect(ratesVersion.value).toBeGreaterThan(before))
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.frankfurter.dev/v1/2010-06-15?base=USD')
+    expect(first('100 usd to tl @ 2010-06-15')).toBe('158 TL')
+  })
+
+  it('explains that older rates have no gold or crypto instead of guessing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ date: '2010-06-15', rates: { TRY: 1.58 } }) }))
+    )
+    const before = ratesVersion.value
+    evaluateAll('1 gram gold to tl @ 2010-06-15')
+    await vi.waitFor(() => expect(ratesVersion.value).toBeGreaterThan(before))
+
+    const [gold] = evaluateAll('1 gram gold to tl @ 2010-06-15').rendered
+    expect(gold.cls).toBe('err')
+    expect(gold.error).toContain('gram gold')
+    expect(gold.error).toContain('major currencies only')
+    expect(evaluateAll('1 btc + 10 usd @ 2010-06-15').rendered[0].cls).toBe('err')
+  })
+
+  it('says which business day was used for weekends and holidays', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ date: '2010-06-11', rates: { TRY: 1.6 } }) }))
+    )
+    const before = ratesVersion.value
+    evaluateAll('1 usd to tl @ 2010-06-13')
+    await vi.waitFor(() => expect(ratesVersion.value).toBeGreaterThan(before))
+
+    const [line] = evaluateAll('1 usd to tl @ 2010-06-13').rendered
+    expect(line.text).toBe('1.6 TL')
+    expect(line.note).toContain('2010-06-11')
+  })
+
+  it('falls back to major-currency rates when the full feed is unavailable', async () => {
+    const fetchMock = vi.fn(async (url) =>
+      url.includes('frankfurter')
+        ? { ok: true, json: async () => ({ date: '2025-01-02', rates: { TRY: 35.3 } }) }
+        : { ok: false, status: 503, json: async () => ({}) }
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const before = ratesVersion.value
+    evaluateAll('10 usd to tl @ 2025-01-02')
+    await vi.waitFor(() => expect(ratesVersion.value).toBeGreaterThan(before))
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(first('10 usd to tl @ 2025-01-02')).toBe('353 TL')
   })
 
   it('reports a failed download', async () => {

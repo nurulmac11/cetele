@@ -99,7 +99,12 @@
           ]"
           :title="
             evaluation.rendered[item.origIdx]?.error ||
-            (evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : '')
+            [
+              evaluation.rendered[item.origIdx]?.note,
+              evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : ''
+            ]
+              .filter(Boolean)
+              .join(' · ')
           "
           @click="copyResult(evaluation.rendered[item.origIdx], item.origIdx)"
           @mouseenter="hoveredLineIndex = item.origIdx"
@@ -169,6 +174,13 @@
                   {{ rowDetails[k].valueText }}
                 </template>
               </span>
+              <!-- Marks results that used another day's rates; the reason is in the row tooltip -->
+              <span
+                v-if="evaluation.rendered[item.origIdx]?.note"
+                class="res-note"
+                :aria-label="evaluation.rendered[item.origIdx].note"
+                >*</span
+              >
               <Copy class="row-hover-copy" />
             </div>
           </template>
@@ -1476,6 +1488,12 @@ watch(
   color: var(--muted);
   font-weight: 500;
   margin-left: auto;
+}
+
+.res-note {
+  color: var(--amber);
+  font-weight: 700;
+  margin-left: 2px;
 }
 
 .err-reason {

@@ -111,14 +111,18 @@ export const ratesVersion = ref(1)
 export const ratesUpdatedAt = ref(null)
 
 // Fills in rates computed from others (TL alias, gram and çeyrek gold from XAU)
+// Gold is only derived when the table has an XAU price: older historical rates have none,
+// and a made-up gold price would be silently wrong.
 function deriveRates(rates) {
-  rates.TL = rates.TRY
-  const xauRate = rates.XAU || DEFAULT_XAU
-  rates.GRAM_GOLD = xauRate * GRAM_PER_TROY_OZ
-  rates.CEYREK_GOLD = rates.GRAM_GOLD / 1.75
+  if (rates.TRY) rates.TL = rates.TRY
+  if (rates.XAU) {
+    rates.GRAM_GOLD = rates.XAU * GRAM_PER_TROY_OZ
+    rates.CEYREK_GOLD = rates.GRAM_GOLD / 1.75
+  }
 }
 
 export function updateDerivedRates() {
+  if (!RATES.XAU) RATES.XAU = DEFAULT_XAU
   deriveRates(RATES)
 }
 
@@ -245,12 +249,17 @@ export function convertCurrency(amount, from, to, rates = RATES) {
 }
 
 // --- Historical rates (100 usd to tl @ 2025-01-01) ---
+//
+// Two sources, both quoted per 1 USD like RATES:
+// - fawazahmed0 currency-api: every currency plus gold and crypto, from 2024-03-02
+// - Frankfurter (European Central Bank): about 30 major currencies, from 1999-01-04,
+//   business days only (a weekend or holiday gives the previous business day)
 
-// The dated feed starts on this day
-export const HISTORICAL_RATES_START = '2024-03-02'
-const HISTORICAL_CACHE_PREFIX = 'cetele_historical_rates_'
+export const HISTORICAL_RATES_START = '1999-01-04'
+export const FULL_HISTORICAL_RATES_START = '2024-03-02'
+const HISTORICAL_CACHE_PREFIX = 'cetele_historical_rates_v2_'
 
-// dateKey -> { rates } | { loading: true } | { error }
+// dateKey -> { rates, effectiveDate, coverage } | { loading: true } | { error }
 const historicalRates = new Map()
 
 export function toDateKey(timestamp) {
@@ -259,9 +268,9 @@ export function toDateKey(timestamp) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-function ratesFromUsdFeed(usd) {
+function cleanRates(source) {
   const rates = {}
-  for (const [rawKey, val] of Object.entries(usd || {})) {
+  for (const [rawKey, val] of Object.entries(source || {})) {
     const key = rawKey.toUpperCase()
     if (key === '__PROTO__' || key === 'CONSTRUCTOR' || key === 'PROTOTYPE') continue
     const isKnown = Object.prototype.hasOwnProperty.call(RATES, key) || CRYPTO_AND_GOLD_CODES.includes(key)
@@ -274,27 +283,47 @@ function ratesFromUsdFeed(usd) {
   return rates
 }
 
+async function fromCurrencyApi(url, dateKey) {
+  const data = await fetchJson(url)
+  if (!data?.usd) throw new Error('Unexpected response')
+  return { rates: cleanRates(data.usd), effectiveDate: data.date || dateKey, coverage: 'full' }
+}
+
+async function fromFrankfurter(dateKey) {
+  const data = await fetchJson(`https://api.frankfurter.dev/v1/${dateKey}?base=USD`)
+  if (!data?.rates) throw new Error('Unexpected response')
+  return { rates: cleanRates(data.rates), effectiveDate: data.date || dateKey, coverage: 'major' }
+}
+
 async function loadHistoricalRates(dateKey) {
   // Past days never change, so a cached copy is final
   try {
-    const cached = localStorage.getItem(HISTORICAL_CACHE_PREFIX + dateKey)
-    if (cached) return JSON.parse(cached)
+    const cached = JSON.parse(localStorage.getItem(HISTORICAL_CACHE_PREFIX + dateKey) || 'null')
+    if (cached?.rates) return cached
   } catch (e) {}
 
-  const urls = [
-    `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateKey}/v1/currencies/usd.json`,
-    `https://${dateKey}.currency-api.pages.dev/v1/currencies/usd.json`
-  ]
+  const sources =
+    dateKey >= FULL_HISTORICAL_RATES_START
+      ? [
+          () =>
+            fromCurrencyApi(
+              `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateKey}/v1/currencies/usd.json`,
+              dateKey
+            ),
+          () => fromCurrencyApi(`https://${dateKey}.currency-api.pages.dev/v1/currencies/usd.json`, dateKey),
+          // Major currencies only, but better than nothing if the full feed is down
+          () => fromFrankfurter(dateKey)
+        ]
+      : [() => fromFrankfurter(dateKey)]
+
   let lastError = null
-  for (const url of urls) {
+  for (const load of sources) {
     try {
-      const data = await fetchJson(url)
-      if (!data?.usd) throw new Error('Unexpected response')
-      const rates = ratesFromUsdFeed(data.usd)
+      const result = await load()
       try {
-        localStorage.setItem(HISTORICAL_CACHE_PREFIX + dateKey, JSON.stringify(rates))
+        localStorage.setItem(HISTORICAL_CACHE_PREFIX + dateKey, JSON.stringify(result))
       } catch (e) {}
-      return rates
+      return result
     } catch (err) {
       lastError = err
     }
@@ -303,9 +332,10 @@ async function loadHistoricalRates(dateKey) {
 }
 
 /**
- * Exchange rates for a past day. Returns { rates } when available, { loading: true } while the
- * first request is in flight (ratesVersion is bumped when it finishes, re-running evaluation),
- * or { error } with a message for the result row.
+ * Exchange rates for a past day. Returns { rates, effectiveDate, coverage } when available,
+ * { loading: true } while the first request is in flight (ratesVersion is bumped when it
+ * finishes, re-running evaluation), or { error } with a message for the result row.
+ * coverage is 'full' (all currencies, gold, crypto) or 'major' (about 30 major currencies).
  */
 export function getHistoricalRates(timestamp) {
   const dateKey = toDateKey(timestamp)
@@ -321,7 +351,7 @@ export function getHistoricalRates(timestamp) {
 
   historicalRates.set(dateKey, { loading: true })
   loadHistoricalRates(dateKey)
-    .then((rates) => historicalRates.set(dateKey, { rates }))
+    .then((result) => historicalRates.set(dateKey, result))
     .catch(() => {
       // Forget the failure after a minute so it can be retried (e.g. back online)
       historicalRates.set(dateKey, { error: `Couldn't load exchange rates for ${dateKey}` })

@@ -1,6 +1,13 @@
 import { math } from './math.js'
 import { RESERVED_KEYWORDS } from './constants.js'
-import { RATES, convertCurrency, normalizeCurrency, getHistoricalRates, toDateKey } from './rates.js'
+import {
+  RATES,
+  convertCurrency,
+  normalizeCurrency,
+  getBaseCurrencyCode,
+  getHistoricalRates,
+  toDateKey
+} from './rates.js'
 
 const UNIT_ALIASES = {
   tbsp: 'tablespoon',
@@ -137,6 +144,29 @@ const FINANCE_FUNCTIONS = {
       return { value: principal.value * Math.pow(1 + rateOf(rate) / k, k * t), currency: principal.currency }
     }
   }
+}
+
+// Error for a conversion without a rate. Inside "@ date" it names the day, and explains that
+// rates before 2024-03-02 cover only major currencies.
+function missingRateError(ctx, from, to) {
+  const codes = [from, to].filter((c) => c && !(ctx.rates || RATES)[getBaseCurrencyCode(c)])
+  const label = (codes.length ? codes : [to]).map((c) => DISPLAY_CODES[c] || c).join(' / ')
+  if (!ctx.rateDate) return { error: `No exchange rate for ${label}` }
+  const hint =
+    ctx.rateCoverage === 'major' ? ' (rates before 2024-03-02 cover major currencies only, no gold or crypto)' : ''
+  return { error: `No ${label} rate for ${ctx.rateDate}${hint}` }
+}
+
+const DISPLAY_CODES = {
+  GRAM_GOLD: 'gram gold',
+  CEYREK_GOLD: 'çeyrek gold',
+  XAU: 'gold (XAU)',
+  $: 'USD',
+  '€': 'EUR',
+  '£': 'GBP',
+  '₺': 'TRY',
+  '¥': 'JPY',
+  '₹': 'INR'
 }
 
 function startOfToday() {
@@ -296,7 +326,19 @@ export function evaluateAST(node, ctx) {
       if (historical.loading)
         return { pending: true, error: `Loading exchange rates for ${toDateKey(node.timestamp)}…` }
       if (historical.error) return { error: historical.error }
-      return evaluateAST(node.expr, { ...ctx, rates: historical.rates })
+
+      const requested = toDateKey(node.timestamp)
+      const result = evaluateAST(node.expr, {
+        ...ctx,
+        rates: historical.rates,
+        rateDate: requested,
+        rateCoverage: historical.coverage
+      })
+      // Markets were closed that day (weekend, holiday): say which day's rates were used
+      if (!isError(result) && historical.effectiveDate && historical.effectiveDate !== requested) {
+        return { ...result, note: `Rates from ${historical.effectiveDate}, the last business day before ${requested}` }
+      }
+      return result
     }
 
     case 'LineRef': {
@@ -356,7 +398,7 @@ export function evaluateAST(node, ctx) {
         // A plain number is labelled with the currency (100 to usd)
         if (!sub.currency) return { value: sub.value, currency: targetCurrency }
         const converted = convertCurrency(sub.value, sub.currency, targetCurrency, ctx.rates || RATES)
-        if (converted === null) return { error: `No exchange rate for ${targetCurrency}` }
+        if (converted === null) return missingRateError(ctx, sub.currency, targetCurrency)
         return { value: converted, currency: targetCurrency }
       }
 
@@ -456,7 +498,9 @@ export function evaluateAST(node, ctx) {
       let currency = left.currency || right.currency || null
       if (left.currency && right.currency) {
         const converted = convertCurrency(rVal, right.currency, left.currency, ctx.rates || RATES)
-        if (converted !== null) rVal = converted
+        // Adding amounts in different currencies without a rate would give a meaningless number
+        if (converted === null) return missingRateError(ctx, right.currency, left.currency)
+        rVal = converted
         currency = left.currency
       }
 
@@ -539,10 +583,17 @@ export function evaluateAST(node, ctx) {
 
       // Bring every currency argument into the first argument's currency
       const currency = args.find((a) => a.currency)?.currency || null
+      const missing = args.find(
+        (a) =>
+          currency &&
+          a.currency &&
+          typeof a.value === 'number' &&
+          convertCurrency(a.value, a.currency, currency, ctx.rates || RATES) === null
+      )
+      if (missing) return missingRateError(ctx, missing.currency, currency)
       const values = args.map((a) => {
         if (currency && a.currency && a.currency !== currency && typeof a.value === 'number') {
-          const converted = convertCurrency(a.value, a.currency, currency, ctx.rates || RATES)
-          return converted === null ? a.value : converted
+          return convertCurrency(a.value, a.currency, currency, ctx.rates || RATES)
         }
         return a.value
       })
