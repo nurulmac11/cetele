@@ -1,0 +1,12 @@
+{
+  "name": "çetele — Notepad Calculator",
+  "short_name": "çetele",
+  "description": "Offline-first notepad calculator for math, currencies, gold, crypto and dates.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080F1A",
+  "theme_color": "#0f1216",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
