@@ -1,23 +1,32 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient.js'
+import { getSupabase, isSupabaseConfigured } from './supabaseClient.js'
 import { saveLocalTabs } from './localDb.js'
 
 // Subscribe to auth state changes
 export function subscribeToAuth(callback) {
-  if (!isSupabaseConfigured || !supabase) return () => {}
+  if (!isSupabaseConfigured) return () => {}
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    callback(session?.user || null, session, event)
-  })
+  let subscription = null
+  let unsubscribed = false
+  getSupabase()
+    .then((client) => {
+      if (unsubscribed || !client) return
+      subscription = client.auth.onAuthStateChange((event, session) => {
+        callback(session?.user || null, session, event)
+      }).data.subscription
+    })
+    .catch((err) => console.error('Could not load Supabase:', err))
 
   return () => {
+    unsubscribed = true
     subscription?.unsubscribe()
   }
 }
 
 // Get current session user
 export async function getSessionUser() {
-  if (!isSupabaseConfigured || !supabase) return null
+  if (!isSupabaseConfigured) return null
   try {
+    const supabase = await getSupabase()
     const { data: { session } } = await supabase.auth.getSession()
     return session?.user || null
   } catch (e) {
@@ -28,9 +37,10 @@ export async function getSessionUser() {
 
 // Sign In with Google OAuth
 export async function signInWithGoogle() {
-  if (!isSupabaseConfigured || !supabase) {
+  if (!isSupabaseConfigured) {
     throw new Error('Supabase project URL and Key are not configured in environment variables.')
   }
+  const supabase = await getSupabase()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -43,9 +53,10 @@ export async function signInWithGoogle() {
 
 // Sign Out
 export async function signOut() {
-  if (!isSupabaseConfigured || !supabase) return
+  if (!isSupabaseConfigured) return
   // Push unsynced edits while the session is still valid; the app resets local tabs after sign-out
   await flushPendingSync()
+  const supabase = await getSupabase()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
   tabSync.cancel()
@@ -109,6 +120,7 @@ const NO_MATCHING_CONSTRAINT = '42P10'
 // Upserts on (user_id, id). Databases that haven't run the per-user-ids migration only have a
 // primary key on id, so fall back to that until the migration is applied.
 async function upsertOwnRows(table, rows) {
+  const supabase = await getSupabase()
   const result = await supabase.from(table).upsert(rows, { onConflict: 'user_id,id' })
   if (result.error?.code === NO_MATCHING_CONSTRAINT) {
     return supabase.from(table).upsert(rows, { onConflict: 'id' })
@@ -135,7 +147,7 @@ function needsUpload(tab, idx) {
 
 // Accepts the tabs array or a getter returning it; a getter is read when the write actually runs
 export function syncTabsToCloud(tabs, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId) return Promise.resolve()
+  if (!isSupabaseConfigured || !userId) return Promise.resolve()
 
   return enqueue(async () => {
     const list = resolveList(tabs)
@@ -180,10 +192,11 @@ export function throttledSyncTabsToCloud(tabs, userId) {
 }
 
 export function deleteCloudTab(tabId, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !tabId) return Promise.resolve()
+  if (!isSupabaseConfigured || !userId || !tabId) return Promise.resolve()
 
   return enqueue(async () => {
     try {
+      const supabase = await getSupabase()
       const { error } = await supabase
         .from('user_tabs')
         .delete()
@@ -201,9 +214,10 @@ export function deleteCloudTab(tabId, userId) {
 
 // Returns the user's cloud tabs ([] when there are none), or null when the fetch failed
 export async function fetchCloudTabs(userId) {
-  if (!isSupabaseConfigured || !supabase || !userId) return null
+  if (!isSupabaseConfigured || !userId) return null
 
   try {
+    const supabase = await getSupabase()
     const { data, error } = await supabase
       .from('user_tabs')
       .select('*')
@@ -267,7 +281,7 @@ export function mergeCloudTabs(localTabs, cloudTabs, isDisposable = () => false)
 // --- Saved Tabs Library Cloud Sync ---
 
 export function syncLibraryToCloud(library, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId) return Promise.resolve()
+  if (!isSupabaseConfigured || !userId) return Promise.resolve()
 
   return enqueue(async () => {
     const items = resolveList(library)
@@ -300,10 +314,11 @@ export function throttledSyncLibraryToCloud(library, userId) {
 }
 
 export function deleteCloudLibraryItem(itemId, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !itemId) return Promise.resolve()
+  if (!isSupabaseConfigured || !userId || !itemId) return Promise.resolve()
 
   return enqueue(async () => {
     try {
+      const supabase = await getSupabase()
       const { error } = await supabase
         .from('saved_library')
         .delete()
@@ -320,9 +335,10 @@ export function deleteCloudLibraryItem(itemId, userId) {
 }
 
 export async function fetchCloudLibrary(userId) {
-  if (!isSupabaseConfigured || !supabase || !userId) return null
+  if (!isSupabaseConfigured || !userId) return null
 
   try {
+    const supabase = await getSupabase()
     const { data, error } = await supabase
       .from('saved_library')
       .select('*')
