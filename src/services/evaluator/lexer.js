@@ -71,14 +71,17 @@ export class Lexer {
     let sLine = this.input.trim()
     if (sLine.startsWith('//')) sLine = sLine.slice(2).trim()
 
-    const isAssignAttempt = (sLine.includes('=') && !sLine.startsWith('==='))
+    const isAssignAttempt = sLine.includes('=') && !sLine.startsWith('===')
     if (!isAssignAttempt && (sLine.startsWith('===') || sLine.startsWith('---'))) {
       let title = sLine
       while (title.startsWith('=') || title.startsWith('-') || title.startsWith(' ')) title = title.slice(1)
       while (title.endsWith('=') || title.endsWith('-') || title.endsWith(' ')) title = title.slice(0, -1)
 
       if (title && !isDigit(title[0])) {
-        return [{ type: 'SECTION_HEADER', value: title, raw: this.input.trim() }, { type: 'EOF', value: '' }]
+        return [
+          { type: 'SECTION_HEADER', value: title, raw: this.input.trim() },
+          { type: 'EOF', value: '' }
+        ]
       }
     }
 
@@ -122,7 +125,7 @@ export class Lexer {
         (ch === '"' && this.peek(1) === '"' && this.peek(2) === '"') ||
         (ch === "'" && this.peek(1) === "'" && this.peek(2) === "'")
       ) {
-        const delim = ch === '/' ? '*/' : (ch === '"' ? '"""' : "'''")
+        const delim = ch === '/' ? '*/' : ch === '"' ? '"""' : "'''"
         const openLen = ch === '/' ? 2 : 3
         this.pos += openLen
         const closeIdx = this.input.indexOf(delim, this.pos)
@@ -131,7 +134,7 @@ export class Lexer {
           this.pos = closeIdx + delim.length
           this.comments.push({ start: passStart, end: this.pos })
           const restOfLine = this.input.slice(this.pos).trim()
-          
+
           // Emit COMMENT token ONLY if it is a standalone comment line (no preceding or trailing code)
           if (tokens.length === 0 && restOfLine === '') {
             tokens.push({ type: 'COMMENT', value: commentContent })
@@ -263,7 +266,24 @@ export class Lexer {
           tokens.push({ type: 'KEYWORD', value: lowerWord })
         } else if (['today', 'now'].includes(lowerWord)) {
           tokens.push({ type: 'DATE_KEYWORD', value: lowerWord })
-        } else if (['days', 'day', 'weeks', 'week', 'months', 'month', 'years', 'year', 'hours', 'hour', 'mins', 'min', 'minutes', 'minute'].includes(lowerWord)) {
+        } else if (
+          [
+            'days',
+            'day',
+            'weeks',
+            'week',
+            'months',
+            'month',
+            'years',
+            'year',
+            'hours',
+            'hour',
+            'mins',
+            'min',
+            'minutes',
+            'minute'
+          ].includes(lowerWord)
+        ) {
           let peekIdx = 0
           while (isWhitespace(this.peek(peekIdx))) peekIdx++
           if (this.peek(peekIdx) === '(') {

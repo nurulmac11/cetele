@@ -37,7 +37,11 @@ import { confirmState, settleConfirm } from '../services/confirmService.js'
 import { useModalA11y } from '../composables/useModalA11y.js'
 
 const dialogRef = ref(null)
-useModalA11y(() => confirmState.open, dialogRef, () => settleConfirm(false))
+useModalA11y(
+  () => confirmState.open,
+  dialogRef,
+  () => settleConfirm(false)
+)
 </script>
 
 <style scoped>

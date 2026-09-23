@@ -27,7 +27,9 @@ export async function getSessionUser() {
   if (!isSupabaseConfigured) return null
   try {
     const supabase = await getSupabase()
-    const { data: { session } } = await supabase.auth.getSession()
+    const {
+      data: { session }
+    } = await supabase.auth.getSession()
     return session?.user || null
   } catch (e) {
     console.error('Error fetching Supabase session:', e)
@@ -62,7 +64,6 @@ export async function signOut() {
   tabSync.cancel()
   librarySync.cancel()
 }
-
 
 // --- Write Queue & Throttling ---
 
@@ -151,9 +152,7 @@ export function syncTabsToCloud(tabs, userId) {
 
   return enqueue(async () => {
     const list = resolveList(tabs)
-    const pending = list
-      .map((tab, idx) => ({ tab, idx }))
-      .filter(({ tab, idx }) => needsUpload(tab, idx))
+    const pending = list.map((tab, idx) => ({ tab, idx })).filter(({ tab, idx }) => needsUpload(tab, idx))
     if (pending.length === 0) return
 
     const rows = pending.map(({ tab, idx }) => ({
@@ -197,11 +196,7 @@ export function deleteCloudTab(tabId, userId) {
   return enqueue(async () => {
     try {
       const supabase = await getSupabase()
-      const { error } = await supabase
-        .from('user_tabs')
-        .delete()
-        .eq('id', tabId)
-        .eq('user_id', userId)
+      const { error } = await supabase.from('user_tabs').delete().eq('id', tabId).eq('user_id', userId)
 
       if (error) {
         console.warn('Error deleting cloud tab:', error.message)
@@ -229,7 +224,7 @@ export async function fetchCloudTabs(userId) {
       return null
     }
 
-    return (data || []).map(r => {
+    return (data || []).map((r) => {
       const updatedAt = new Date(r.updated_at).toISOString()
       return {
         id: r.id,
@@ -259,8 +254,8 @@ export function mergeCloudTabs(localTabs, cloudTabs, isDisposable = () => false)
   const cloud = Array.isArray(cloudTabs) ? cloudTabs : []
   if (cloud.length === 0) return [...local]
 
-  const localById = new Map(local.map(t => [t.id, t]))
-  const merged = cloud.map(cloudTab => {
+  const localById = new Map(local.map((t) => [t.id, t]))
+  const merged = cloud.map((cloudTab) => {
     const localTab = localById.get(cloudTab.id)
     if (localTab && hasUnsyncedEdits(localTab) && toMs(localTab.updatedAt) > toMs(cloudTab.updatedAt)) {
       return localTab
@@ -268,7 +263,7 @@ export function mergeCloudTabs(localTabs, cloudTabs, isDisposable = () => false)
     return cloudTab
   })
 
-  const cloudIds = new Set(cloud.map(t => t.id))
+  const cloudIds = new Set(cloud.map((t) => t.id))
   for (const localTab of local) {
     if (cloudIds.has(localTab.id)) continue
     if (!hasUnsyncedEdits(localTab)) continue
@@ -319,11 +314,7 @@ export function deleteCloudLibraryItem(itemId, userId) {
   return enqueue(async () => {
     try {
       const supabase = await getSupabase()
-      const { error } = await supabase
-        .from('saved_library')
-        .delete()
-        .eq('id', String(itemId))
-        .eq('user_id', userId)
+      const { error } = await supabase.from('saved_library').delete().eq('id', String(itemId)).eq('user_id', userId)
 
       if (error) {
         console.warn('Error deleting cloud library item:', error.message)
@@ -351,7 +342,7 @@ export async function fetchCloudLibrary(userId) {
     }
 
     if (Array.isArray(data) && data.length > 0) {
-      return data.map(r => ({
+      return data.map((r) => ({
         id: r.id,
         title: r.title,
         content: r.content,

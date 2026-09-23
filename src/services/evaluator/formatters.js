@@ -31,7 +31,7 @@ export function formatValue(v, options = {}) {
     }
     // Drop float noise (0.1 + 0.2 = 0.30000000000000004) before choosing decimals
     const abs = Math.abs(Number(v.toPrecision(12)))
-    const dec = (abs % 1 === 0) ? 0 : ((abs * 10) % 1 === 0 ? 1 : (abs >= 1000 ? 0 : 2))
+    const dec = abs % 1 === 0 ? 0 : (abs * 10) % 1 === 0 ? 1 : abs >= 1000 ? 0 : 2
     return v.toLocaleString('en-US', {
       minimumFractionDigits: disableFloat ? 0 : dec,
       maximumFractionDigits: disableFloat ? 0 : 4
@@ -55,7 +55,20 @@ export function formatValue(v, options = {}) {
 
 export function formatValueWithSymbol(val, symbol, options = {}) {
   if (val === null || val === undefined || isNaN(val)) return '—'
-  const isGoldOrCrypto = ['GRAM_GOLD', 'CEYREK_GOLD', 'XAU', 'BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX'].includes(symbol)
+  const isGoldOrCrypto = [
+    'GRAM_GOLD',
+    'CEYREK_GOLD',
+    'XAU',
+    'BTC',
+    'ETH',
+    'SOL',
+    'USDT',
+    'BNB',
+    'XRP',
+    'DOGE',
+    'ADA',
+    'AVAX'
+  ].includes(symbol)
   const effectiveOptions = isGoldOrCrypto ? { ...options, disableFloat: false } : options
 
   let formattedNum
@@ -75,16 +88,28 @@ export function formatValueWithSymbol(val, symbol, options = {}) {
   }
 
   switch (symbol) {
-    case '$': return `$${formattedNum}`
-    case '€': return `€${formattedNum}`
-    case '£': return `£${formattedNum}`
-    case '₺': return `₺${formattedNum}`
-    case '¥': return `¥${formattedNum}`
-    case '₹': return `₹${formattedNum}`
-    case 'TL': case 'TRY': return `${formattedNum} TL`
-    case 'GRAM_GOLD': return `${formattedNum} gram gold`
-    case 'CEYREK_GOLD': return `${formattedNum} çeyrek gold`
-    case 'XAU': return `${formattedNum} oz gold`
-    default: return `${formattedNum} ${symbol}`
+    case '$':
+      return `$${formattedNum}`
+    case '€':
+      return `€${formattedNum}`
+    case '£':
+      return `£${formattedNum}`
+    case '₺':
+      return `₺${formattedNum}`
+    case '¥':
+      return `¥${formattedNum}`
+    case '₹':
+      return `₹${formattedNum}`
+    case 'TL':
+    case 'TRY':
+      return `${formattedNum} TL`
+    case 'GRAM_GOLD':
+      return `${formattedNum} gram gold`
+    case 'CEYREK_GOLD':
+      return `${formattedNum} çeyrek gold`
+    case 'XAU':
+      return `${formattedNum} oz gold`
+    default:
+      return `${formattedNum} ${symbol}`
   }
 }

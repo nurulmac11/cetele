@@ -182,7 +182,11 @@ export function evaluateAll(text, options = {}) {
 
       if (ast.type === 'Subtotal') {
         const { value, currency } = sectionSum
-        pushLine({ cls: 'num subtotal-line', isSubtotal: true, text: formatAmount(value, currency, options) }, value, currency)
+        pushLine(
+          { cls: 'num subtotal-line', isSubtotal: true, text: formatAmount(value, currency, options) },
+          value,
+          currency
+        )
         ctx.prev = value
         ctx.prevCurrency = currency
         ctx.prevDate = null
@@ -245,7 +249,7 @@ export function evaluateAll(text, options = {}) {
         ctx.prevDate = null
       }
 
-      const isTotalKeywordLine = (ast.type === 'Identifier' && ast.name.toLowerCase() === 'total')
+      const isTotalKeywordLine = ast.type === 'Identifier' && ast.name.toLowerCase() === 'total'
       if (typeof val === 'number' && !isNaN(val) && !isTotalKeywordLine) {
         addToSum(total, val, curr)
         addToSum(sectionSum, val, curr)
@@ -274,11 +278,13 @@ export function evaluateAll(text, options = {}) {
 export function getFormattedCopyAllText(text, options = {}) {
   const { rendered } = evaluateAll(text, options)
   const lines = (text || '').split('\n')
-  return lines.map((line, idx) => {
-    const res = rendered[idx]
-    if (res && res.text && res.cls !== 'empty' && res.cls !== 'comment' && res.cls !== 'err') {
-      return `${line} = ${res.text}`
-    }
-    return line
-  }).join('\n')
+  return lines
+    .map((line, idx) => {
+      const res = rendered[idx]
+      if (res && res.text && res.cls !== 'empty' && res.cls !== 'comment' && res.cls !== 'err') {
+        return `${line} = ${res.text}`
+      }
+      return line
+    })
+    .join('\n')
 }

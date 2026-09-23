@@ -2,7 +2,14 @@
   <Teleport to="body">
     <Transition name="welcome-fade">
       <div v-if="isOpen" class="welcome-overlay" @click.self="handleClose">
-        <div ref="dialogRef" class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
+        <div
+          ref="dialogRef"
+          class="welcome-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          tabindex="-1"
+        >
           <!-- Top Right Controls (Language Selector + Close Button) -->
           <div class="header-top-actions">
             <!-- Language Selector Dropdown -->
@@ -82,11 +89,25 @@
               <p class="step-desc">{{ t.steps.step1Desc }}</p>
 
               <div class="code-box">
-                <div class="code-line"><span class="line-num">1</span> <span class="syn-comment">{{ t.codeExample.comment }}</span></div>
-                <div class="code-line"><span class="line-num">2</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span> <span class="syn-op">=</span> <span class="syn-num">5,000</span></div>
-                <div class="code-line"><span class="line-num">3</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span> <span class="syn-op">=</span> <span class="syn-num">2,000</span></div>
-                <div class="code-line"><span class="line-num">4</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span> <span class="syn-op">=</span> <span class="syn-num">1,500</span></div>
-                <div class="code-line"><span class="line-num">5</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span> <span class="syn-op">=</span> <span class="syn-num">4,000</span></div>
+                <div class="code-line">
+                  <span class="line-num">1</span> <span class="syn-comment">{{ t.codeExample.comment }}</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">2</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">5,000</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">3</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">2,000</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">4</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">1,500</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">5</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">4,000</span>
+                </div>
                 <div class="code-line"><span class="line-num">6</span></div>
               </div>
             </div>
@@ -94,8 +115,20 @@
             <!-- Curved Flow Arrow 1 -> 2 -->
             <div class="flow-arrow" aria-hidden="true">
               <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 5C14 20 28 20 35 9" stroke="#16D9C4" stroke-width="1.8" stroke-dasharray="3 3" stroke-linecap="round"/>
-                <path d="M31 6L37 8L35 14" stroke="#16D9C4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path
+                  d="M3 5C14 20 28 20 35 9"
+                  stroke="#16D9C4"
+                  stroke-width="1.8"
+                  stroke-dasharray="3 3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M31 6L37 8L35 14"
+                  stroke="#16D9C4"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </div>
 
@@ -108,21 +141,53 @@
               <p class="step-desc">{{ t.steps.step2Desc }}</p>
 
               <div class="code-box">
-                <div class="code-line"><span class="line-num">1</span> <span class="syn-comment">{{ t.codeExample.comment }}</span></div>
-                <div class="code-line"><span class="line-num">2</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span> <span class="syn-op">=</span> <span class="syn-num">5,000</span></div>
-                <div class="code-line"><span class="line-num">3</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span> <span class="syn-op">=</span> <span class="syn-num">2,000</span></div>
-                <div class="code-line"><span class="line-num">4</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span> <span class="syn-op">=</span> <span class="syn-num">1,500</span></div>
-                <div class="code-line"><span class="line-num">5</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span> <span class="syn-op">=</span> <span class="syn-num">4,000</span></div>
+                <div class="code-line">
+                  <span class="line-num">1</span> <span class="syn-comment">{{ t.codeExample.comment }}</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">2</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">5,000</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">3</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">2,000</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">4</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">1,500</span>
+                </div>
+                <div class="code-line">
+                  <span class="line-num">5</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-num">4,000</span>
+                </div>
                 <div class="code-line"><span class="line-num">6</span></div>
-                <div class="code-line active-formula"><span class="line-num">7</span> <span class="syn-total">{{ t.codeExample.totalVar }}</span> <span class="syn-op">=</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span> <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span> <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span> <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span></div>
+                <div class="code-line active-formula">
+                  <span class="line-num">7</span> <span class="syn-total">{{ t.codeExample.totalVar }}</span>
+                  <span class="syn-op">=</span> <span class="syn-var">{{ t.codeExample.hotelVar }}</span>
+                  <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.foodVar }}</span>
+                  <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.fuelVar }}</span>
+                  <span class="syn-op">+</span> <span class="syn-var">{{ t.codeExample.activitiesVar }}</span>
+                </div>
               </div>
             </div>
 
             <!-- Curved Flow Arrow 2 -> 3 -->
             <div class="flow-arrow" aria-hidden="true">
               <svg width="40" height="24" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 5C14 20 28 20 35 9" stroke="#16D9C4" stroke-width="1.8" stroke-dasharray="3 3" stroke-linecap="round"/>
-                <path d="M31 6L37 8L35 14" stroke="#16D9C4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path
+                  d="M3 5C14 20 28 20 35 9"
+                  stroke="#16D9C4"
+                  stroke-width="1.8"
+                  stroke-dasharray="3 3"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M31 6L37 8L35 14"
+                  stroke="#16D9C4"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </div>
 
@@ -223,11 +288,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useModalA11y } from '../composables/useModalA11y.js'
 import { X, Folder, Bookmark, Zap, ArrowRight, Globe, ChevronDown } from '@lucide/vue'
-import {
-  SUPPORTED_LANGUAGES,
-  detectBrowserLanguage,
-  getWelcomeTranslation
-} from '../i18n/welcomeTranslations.js'
+import { SUPPORTED_LANGUAGES, detectBrowserLanguage, getWelcomeTranslation } from '../i18n/welcomeTranslations.js'
 
 const props = defineProps({
   isOpen: {
@@ -244,7 +305,7 @@ const isLangMenuOpen = ref(false)
 const langDropdownRef = ref(null)
 
 const activeLangMeta = computed(() => {
-  return SUPPORTED_LANGUAGES.find(l => l.code === currentLang.value) || SUPPORTED_LANGUAGES[0]
+  return SUPPORTED_LANGUAGES.find((l) => l.code === currentLang.value) || SUPPORTED_LANGUAGES[0]
 })
 
 const t = computed(() => {
@@ -277,13 +338,17 @@ function handleTryYourself() {
 
 // Escape closes the language menu first, then the dialog
 const dialogRef = ref(null)
-useModalA11y(() => props.isOpen, dialogRef, () => {
-  if (isLangMenuOpen.value) {
-    isLangMenuOpen.value = false
-  } else {
-    handleClose()
+useModalA11y(
+  () => props.isOpen,
+  dialogRef,
+  () => {
+    if (isLangMenuOpen.value) {
+      isLangMenuOpen.value = false
+    } else {
+      handleClose()
+    }
   }
-})
+)
 
 function handleClickOutside(e) {
   if (langDropdownRef.value && !langDropdownRef.value.contains(e.target)) {
@@ -304,7 +369,9 @@ onUnmounted(() => {
 /* Modal Transition Fade & Scale */
 .welcome-fade-enter-active,
 .welcome-fade-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
 }
 
 .welcome-fade-enter-from,
@@ -333,15 +400,15 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   max-width: 980px;
-  background: #0B1320;
+  background: #0b1320;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   padding: 38px 40px 32px;
-  box-shadow: 
+  box-shadow:
     0 30px 60px -12px rgba(0, 0, 0, 0.8),
     0 0 0 1px rgba(22, 217, 196, 0.08),
     inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  color: #F1F5F9;
+  color: #f1f5f9;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -373,7 +440,7 @@ onUnmounted(() => {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94A3B8;
+  color: #94a3b8;
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -382,14 +449,14 @@ onUnmounted(() => {
 
 .btn-lang-toggle:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 .icon-globe {
   width: 14px;
   height: 14px;
-  color: #16D9C4;
+  color: #16d9c4;
 }
 
 .lang-flag {
@@ -420,11 +487,13 @@ onUnmounted(() => {
   top: calc(100% + 6px);
   right: 0;
   width: 160px;
-  background: #0D1726;
+  background: #0d1726;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   padding: 6px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(22, 217, 196, 0.1);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(22, 217, 196, 0.1);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -442,7 +511,7 @@ onUnmounted(() => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #94A3B8;
+  color: #94a3b8;
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
@@ -452,12 +521,12 @@ onUnmounted(() => {
 
 .lang-option:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .lang-option.is-selected {
   background: rgba(22, 217, 196, 0.12);
-  color: #16D9C4;
+  color: #16d9c4;
   font-weight: 600;
 }
 
@@ -471,13 +540,15 @@ onUnmounted(() => {
 
 .option-check {
   font-size: 12px;
-  color: #16D9C4;
+  color: #16d9c4;
 }
 
 /* Dropdown transition */
 .dropdown-fade-enter-active,
 .dropdown-fade-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .dropdown-fade-enter-from,
@@ -493,7 +564,7 @@ onUnmounted(() => {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94A3B8;
+  color: #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,7 +574,7 @@ onUnmounted(() => {
 
 .btn-close:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.2);
   transform: scale(1.05);
 }
@@ -534,7 +605,7 @@ onUnmounted(() => {
   justify-content: center;
   padding: 3px 9px;
   border-radius: 8px;
-  border: 1.5px solid #16D9C4;
+  border: 1.5px solid #16d9c4;
   background: rgba(22, 217, 196, 0.08);
   box-shadow: 0 0 12px rgba(22, 217, 196, 0.18);
 }
@@ -543,37 +614,37 @@ onUnmounted(() => {
   font-family: 'JetBrains Mono', monospace;
   font-weight: 700;
   font-size: 15px;
-  color: #16D9C4;
+  color: #16d9c4;
   letter-spacing: -0.5px;
 }
 
 .brand-name {
   font-size: 25px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
   letter-spacing: -0.5px;
 }
 
 .welcome-headline {
   font-size: 32px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
   margin: 2px 0 0;
   letter-spacing: -0.5px;
   line-height: 1.25;
 }
 
 .highlight-teal {
-  color: #16D9C4;
+  color: #16d9c4;
 }
 
 .highlight-purple {
-  color: #9B8AFB;
+  color: #9b8afb;
 }
 
 .welcome-subheadline {
   font-size: 14.5px;
-  color: #94A3B8;
+  color: #94a3b8;
   max-width: 560px;
   margin: 0;
   line-height: 1.5;
@@ -591,7 +662,7 @@ onUnmounted(() => {
 
 .step-card {
   min-width: 0; /* CRITICAL: prevents grid columns from blowing out */
-  background: #080F1A;
+  background: #080f1a;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 18px;
@@ -599,7 +670,9 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 8px;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
-  transition: border-color 0.25s ease, transform 0.25s ease;
+  transition:
+    border-color 0.25s ease,
+    transform 0.25s ease;
 }
 
 .step-card:hover {
@@ -617,8 +690,8 @@ onUnmounted(() => {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #16D9C4;
-  color: #080F1A;
+  background: #16d9c4;
+  color: #080f1a;
   font-size: 12px;
   font-weight: 800;
   display: flex;
@@ -630,13 +703,13 @@ onUnmounted(() => {
 .step-title {
   font-size: 14.5px;
   font-weight: 700;
-  color: #16D9C4;
+  color: #16d9c4;
   white-space: nowrap;
 }
 
 .step-desc {
   font-size: 12px;
-  color: #94A3B8;
+  color: #94a3b8;
   margin: 0 0 4px;
   line-height: 1.4;
   height: 32px;
@@ -655,7 +728,7 @@ onUnmounted(() => {
 .code-box {
   flex: 1;
   min-width: 0;
-  background: #0C1523;
+  background: #0c1523;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   padding: 12px;
@@ -689,25 +762,25 @@ onUnmounted(() => {
 
 /* Syntax Highlighting */
 .syn-comment {
-  color: #9B8AFB;
+  color: #9b8afb;
   font-weight: 500;
 }
 
 .syn-var {
-  color: #38BDF8;
+  color: #38bdf8;
 }
 
 .syn-op {
-  color: #FB923C;
+  color: #fb923c;
 }
 
 .syn-num {
-  color: #F59E0B;
+  color: #f59e0b;
   font-weight: 600;
 }
 
 .syn-total {
-  color: #16D9C4;
+  color: #16d9c4;
   font-weight: 600;
 }
 
@@ -722,7 +795,7 @@ onUnmounted(() => {
 .results-box {
   flex: 1;
   min-width: 0;
-  background: #0C1523;
+  background: #0c1523;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
   padding: 12px;
@@ -741,13 +814,13 @@ onUnmounted(() => {
 .results-title {
   font-size: 11.5px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
 }
 
 .live-pill {
   font-size: 9.5px;
   font-weight: 600;
-  color: #16D9C4;
+  color: #16d9c4;
   background: rgba(22, 217, 196, 0.12);
   border: 1px solid rgba(22, 217, 196, 0.25);
   padding: 1px 7px;
@@ -761,14 +834,21 @@ onUnmounted(() => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #16D9C4;
-  box-shadow: 0 0 6px #16D9C4;
+  background: #16d9c4;
+  box-shadow: 0 0 6px #16d9c4;
   animation: pulse-dot 1.8s infinite;
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .results-body {
@@ -784,17 +864,17 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #94A3B8;
+  color: #94a3b8;
   line-height: 1.6;
 }
 
 .res-label {
-  color: #94A3B8;
+  color: #94a3b8;
   white-space: nowrap;
 }
 
 .res-val {
-  color: #16D9C4;
+  color: #16d9c4;
   font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -811,13 +891,13 @@ onUnmounted(() => {
 }
 
 .res-label-total {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .res-val-total {
-  color: #16D9C4;
+  color: #16d9c4;
   font-weight: 800;
   font-size: 12.5px;
   white-space: nowrap;
@@ -845,7 +925,7 @@ onUnmounted(() => {
   border-radius: 10px;
   background: rgba(22, 217, 196, 0.08);
   border: 1px solid rgba(22, 217, 196, 0.2);
-  color: #16D9C4;
+  color: #16d9c4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -860,13 +940,13 @@ onUnmounted(() => {
 .feature-info h4 {
   font-size: 13px;
   font-weight: 600;
-  color: #F1F5F9;
+  color: #f1f5f9;
   margin: 0 0 2px;
 }
 
 .feature-info p {
   font-size: 11.5px;
-  color: #94A3B8;
+  color: #94a3b8;
   margin: 0;
   line-height: 1.35;
 }
@@ -886,8 +966,8 @@ onUnmounted(() => {
   height: 46px;
   border-radius: 12px;
   border: none;
-  background: #16D9C4;
-  color: #080F1A;
+  background: #16d9c4;
+  color: #080f1a;
   font-size: 15px;
   font-weight: 700;
   display: flex;
@@ -900,7 +980,7 @@ onUnmounted(() => {
 }
 
 .btn-primary-cta:hover {
-  background: #21E6D0;
+  background: #21e6d0;
   transform: translateY(-2px);
   box-shadow: 0 12px 28px -4px rgba(22, 217, 196, 0.55);
 }
@@ -922,7 +1002,7 @@ onUnmounted(() => {
 .btn-skip-tour {
   background: none;
   border: none;
-  color: #94A3B8;
+  color: #94a3b8;
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
@@ -931,7 +1011,7 @@ onUnmounted(() => {
 }
 
 .btn-skip-tour:hover {
-  color: #FFFFFF;
+  color: #ffffff;
   text-decoration: underline;
 }
 

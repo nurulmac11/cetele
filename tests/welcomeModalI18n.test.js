@@ -13,25 +13,31 @@ describe('WelcomeModal i18n', () => {
     mockStorage = {}
     vi.stubGlobal('localStorage', {
       getItem: (key) => mockStorage[key] || null,
-      setItem: (key, val) => { mockStorage[key] = String(val) },
-      removeItem: (key) => { delete mockStorage[key] },
-      clear: () => { mockStorage = {} }
+      setItem: (key, val) => {
+        mockStorage[key] = String(val)
+      },
+      removeItem: (key) => {
+        delete mockStorage[key]
+      },
+      clear: () => {
+        mockStorage = {}
+      }
     })
   })
 
   it('supports 8 popular languages', () => {
     expect(SUPPORTED_LANGUAGES.length).toBe(8)
-    const codes = SUPPORTED_LANGUAGES.map(l => l.code)
+    const codes = SUPPORTED_LANGUAGES.map((l) => l.code)
     expect(codes).toEqual(['en', 'es', 'tr', 'de', 'fr', 'pt', 'it', 'ja'])
   })
 
   it('has complete translation keys for every supported language', () => {
     const requiredKeys = ['headlineFragments', 'subheadline', 'steps', 'codeExample', 'results', 'features', 'actions']
-    
+
     SUPPORTED_LANGUAGES.forEach(({ code }) => {
       const translation = WELCOME_TRANSLATIONS[code]
       expect(translation).toBeDefined()
-      requiredKeys.forEach(key => {
+      requiredKeys.forEach((key) => {
         expect(translation[key]).toBeDefined()
       })
       expect(translation.headlineFragments.length).toBeGreaterThan(0)

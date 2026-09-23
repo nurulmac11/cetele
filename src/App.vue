@@ -15,7 +15,7 @@
       @rename-tab="renameTab"
       @reorder-tabs="reorderTabs"
       @clear-active-tab="clearActiveTab"
-      @switch-view="view => currentView = view"
+      @switch-view="(view) => (currentView = view)"
       @toggle-show-decimals="toggleShowDecimals"
       @toggle-theme="toggleTheme"
       @open-settings="isSettingsOpen = true"
@@ -77,7 +77,9 @@
         <div class="footer-disclaimer">
           <span class="disclaimer-badge">Disclaimer</span>
           <p class="disclaimer-text">
-            Exchange rates, spot gold prices, and crypto valuations are for calculation and informational purposes only. Data is stored 100% locally in your browser offline, or securely isolated to your private account when Google Cloud Sync is enabled.
+            Exchange rates, spot gold prices, and crypto valuations are for calculation and informational purposes only.
+            Data is stored 100% locally in your browser offline, or securely isolated to your private account when
+            Google Cloud Sync is enabled.
           </p>
         </div>
 
@@ -85,9 +87,7 @@
         <div class="footer-meta">
           <span class="meta-item built-by">
             Built by
-            <a href="https://nmacun.com/" target="_blank" rel="noopener noreferrer" class="author-link">
-              nurulmac11
-            </a>
+            <a href="https://nmacun.com/" target="_blank" rel="noopener noreferrer" class="author-link"> nurulmac11 </a>
           </span>
 
           <span class="dot-sep">•</span>
@@ -100,7 +100,9 @@
             title="Star çetele on GitHub"
           >
             <svg class="github-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+              />
             </svg>
             <span>Star on GitHub</span>
           </a>
@@ -143,11 +145,7 @@
     <ConfirmDialog />
 
     <!-- Welcome / Onboarding Tour Popup Modal -->
-    <WelcomeModal
-      :is-open="isWelcomeModalOpen"
-      @close="closeWelcomeModal"
-      @try-yourself="handleTryWelcomeYourself"
-    />
+    <WelcomeModal :is-open="isWelcomeModalOpen" @close="closeWelcomeModal" @try-yourself="handleTryWelcomeYourself" />
   </div>
 </template>
 
@@ -254,14 +252,18 @@ const activeTab = computed(() => {
 })
 
 // Keep state valid: there is always at least one tab, and activeTabId points at one of them
-watch([tabs, activeTabId], () => {
-  if (!Array.isArray(tabs.value) || tabs.value.length === 0) {
-    tabs.value = JSON.parse(JSON.stringify(defaultTabs))
-    activeTabId.value = defaultTabs[0].id
-  } else if (!tabs.value.some((t) => t.id === activeTabId.value)) {
-    activeTabId.value = tabs.value[0].id
-  }
-}, { immediate: true })
+watch(
+  [tabs, activeTabId],
+  () => {
+    if (!Array.isArray(tabs.value) || tabs.value.length === 0) {
+      tabs.value = JSON.parse(JSON.stringify(defaultTabs))
+      activeTabId.value = defaultTabs[0].id
+    } else if (!tabs.value.some((t) => t.id === activeTabId.value)) {
+      activeTabId.value = tabs.value[0].id
+    }
+  },
+  { immediate: true }
+)
 
 // Apply Theme Attribute
 function applyTheme(themeName) {
@@ -270,9 +272,12 @@ function applyTheme(themeName) {
   }
 }
 
-watch(() => userProfile.value.theme, (newTheme) => {
-  applyTheme(newTheme)
-})
+watch(
+  () => userProfile.value.theme,
+  (newTheme) => {
+    applyTheme(newTheme)
+  }
+)
 
 function showToast(msg) {
   toastMessage.value = msg
@@ -323,9 +328,7 @@ async function pullFromCloud(userId) {
     const merged = mergeCloudTabs(tabs.value, cloudTabs, isUntouchedDefaultTab)
     if (merged.length > 0) {
       // Preserve current activeTabId if it survived the merge
-      const targetActiveId = merged.some((t) => t.id === activeTabId.value)
-        ? activeTabId.value
-        : merged[0].id
+      const targetActiveId = merged.some((t) => t.id === activeTabId.value) ? activeTabId.value : merged[0].id
       merged.forEach((t) => {
         t.isActive = t.id === targetActiveId
       })
@@ -388,7 +391,7 @@ async function initLocalData() {
       const newTab = {
         id: newId,
         title: sharedDoc.title || 'Shared Tab',
-        content: sharedDoc.content !== undefined ? sharedDoc.content : (sharedDoc.text || ''),
+        content: sharedDoc.content !== undefined ? sharedDoc.content : sharedDoc.text || '',
         position: tabs.value.length,
         isActive: true
       }
@@ -582,7 +585,7 @@ async function handleShareActiveTab() {
 async function handleSaveActiveTabToLibrary() {
   if (!activeTab.value) return
   const isAlreadySaved = savedLibrary.value.some(
-    i => i.title === activeTab.value.title && i.content === activeTab.value.content
+    (i) => i.title === activeTab.value.title && i.content === activeTab.value.content
   )
   await saveTabToLibrary({
     title: activeTab.value.title,
@@ -603,7 +606,7 @@ async function handleSaveActiveTabToLibrary() {
 }
 
 function handleLoadSavedTabAsTab(savedItem) {
-  const existing = tabs.value.find(t => t.title === savedItem.title && t.content === savedItem.content)
+  const existing = tabs.value.find((t) => t.title === savedItem.title && t.content === savedItem.content)
   if (existing) {
     selectTab(existing.id)
   } else {
@@ -669,7 +672,9 @@ function toggleSidebar() {
 
 async function copyAllWithResults() {
   if (!activeTab.value) return
-  const fullFormattedText = getFormattedCopyAllText(activeTab.value.content, { disableFloat: !userProfile.value.showDecimals })
+  const fullFormattedText = getFormattedCopyAllText(activeTab.value.content, {
+    disableFloat: !userProfile.value.showDecimals
+  })
   const copied = await copyText(fullFormattedText)
   showToast(copied ? 'Copied all inputs with results (= result)!' : 'Could not copy: clipboard access was blocked')
 }
@@ -769,7 +774,7 @@ function exportTabs() {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(tabs.value, null, 2))
   const downloadAnchor = document.createElement('a')
   downloadAnchor.setAttribute('href', dataStr)
-  downloadAnchor.setAttribute('download', `cetele-local-tabs-${new Date().toISOString().slice(0,10)}.json`)
+  downloadAnchor.setAttribute('download', `cetele-local-tabs-${new Date().toISOString().slice(0, 10)}.json`)
   document.body.appendChild(downloadAnchor)
   downloadAnchor.click()
   downloadAnchor.remove()
@@ -802,13 +807,16 @@ async function importTabs(importedArray) {
   activeTabId.value = tabs.value[0].id
   triggerSave()
   const skipped = importedArray.length - valid.length
-  showToast(`Imported ${valid.length} tab${valid.length === 1 ? '' : 's'}${skipped ? ` (skipped ${skipped} invalid)` : ''}`)
+  showToast(
+    `Imported ${valid.length} tab${valid.length === 1 ? '' : 's'}${skipped ? ` (skipped ${skipped} invalid)` : ''}`
+  )
 }
 
 async function resetLocalData() {
   const confirmed = await askConfirm({
     title: 'Reset local data?',
-    message: 'All tabs and your saved library on this device will be replaced with the example tabs. This cannot be undone.',
+    message:
+      'All tabs and your saved library on this device will be replaced with the example tabs. This cannot be undone.',
     confirmLabel: 'Reset data',
     danger: true
   })
@@ -904,7 +912,7 @@ onUnmounted(() => {
 .disclaimer-badge {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   font-weight: 700;
   color: var(--amber);
   background: rgba(245, 185, 76, 0.1);
@@ -1018,8 +1026,14 @@ onUnmounted(() => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50%, 10px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @media (max-width: 900px) {

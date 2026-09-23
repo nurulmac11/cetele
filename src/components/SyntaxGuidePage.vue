@@ -6,7 +6,10 @@
         <ArrowLeft class="icon-sm" /> Back to Notepad
       </button>
       <h1>çetele Syntax & Feature Guide</h1>
-      <p class="subtitle">Learn how to write math, currency conversions, gold/crypto calculations, date math, line references, and cloud sync.</p>
+      <p class="subtitle">
+        Learn how to write math, currency conversions, gold/crypto calculations, date math, line references, and cloud
+        sync.
+      </p>
     </header>
 
     <!-- Guide Content Grid -->
@@ -20,12 +23,12 @@
         <p class="card-desc">Refer to previous lines by number (`#1`, `L1`, `line1`) or use `prev` and `total`.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'val = 1200\ntax = 100\n#1 + #2')">
-            <span class="var">val</span> = 1200<br>
-            <span class="var">tax</span> = 100<br>
+            <span class="var">val</span> = 1200<br />
+            <span class="var">tax</span> = 100<br />
             <span class="var">#1</span> + <span class="var">#2</span> <span class="comment">// 1300</span>
           </code>
           <code @click="$emit('insert-snippet', 'L1 * 2\nprev / 2')">
-            <span class="var">L1</span> * 2 <span class="comment">// Line 1 * 2</span><br>
+            <span class="var">L1</span> * 2 <span class="comment">// Line 1 * 2</span><br />
             <span class="var">prev</span> / 2 <span class="comment">// Previous result / 2</span>
           </code>
           <code @click="$emit('insert-snippet', 'total')">
@@ -40,17 +43,26 @@
           <FolderTree class="card-icon" />
           <h2>Sections, Subtotals & Collapsible Blocks 📂</h2>
         </div>
-        <p class="card-desc">Organize long documents into styled visual sections, compute section subtotals, and collapse/expand blocks.</p>
+        <p class="card-desc">
+          Organize long documents into styled visual sections, compute section subtotals, and collapse/expand blocks.
+        </p>
         <div class="code-box">
-          <code @click="$emit('insert-snippet', '=== Income & Multipliers ===\nsalary = 5.5k\nfreelance = 1.8k\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1.65k\ngroceries = 450\nsubtotal\n\ntotal')">
-            === Income & Multipliers === <span class="comment">// Visual section header banner</span><br>
-            <span class="var">salary</span> = 5.5k <span class="comment">// 5,500</span><br>
-            <span class="var">freelance</span> = 1.8k <span class="comment">// 1,800</span><br>
-            <span class="var">subtotal</span> <span class="comment">// 7,300 (Sectional sum)</span><br><br>
-            === Monthly Expenses ===<br>
-            <span class="var">rent</span> = 1.65k <span class="comment">// 1,650</span><br>
-            <span class="var">groceries</span> = 450<br>
-            <span class="var">subtotal</span> <span class="comment">// 2,100 (Sectional sum)</span><br><br>
+          <code
+            @click="
+              $emit(
+                'insert-snippet',
+                '=== Income & Multipliers ===\nsalary = 5.5k\nfreelance = 1.8k\nsubtotal\n\n=== Monthly Expenses ===\nrent = 1.65k\ngroceries = 450\nsubtotal\n\ntotal'
+              )
+            "
+          >
+            === Income & Multipliers === <span class="comment">// Visual section header banner</span><br />
+            <span class="var">salary</span> = 5.5k <span class="comment">// 5,500</span><br />
+            <span class="var">freelance</span> = 1.8k <span class="comment">// 1,800</span><br />
+            <span class="var">subtotal</span> <span class="comment">// 7,300 (Sectional sum)</span><br /><br />
+            === Monthly Expenses ===<br />
+            <span class="var">rent</span> = 1.65k <span class="comment">// 1,650</span><br />
+            <span class="var">groceries</span> = 450<br />
+            <span class="var">subtotal</span> <span class="comment">// 2,100 (Sectional sum)</span><br /><br />
             <span class="var">total</span> <span class="comment">// 9,400 (Grand total of all sections)</span>
           </code>
         </div>
@@ -65,16 +77,12 @@
         <p class="card-desc">Live rates for USD, EUR, GBP, TRY, BTC, ETH, SOL, USDT, BNB, XRP, DOGE, ADA, AVAX.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'a = 100 sol + 50$\na + 10$\na to usd')">
-            <span class="var">a</span> = 100 sol + 50$ <span class="comment">// 100.27 SOL</span><br>
-            <span class="var">a</span> + 10$ <span class="comment">// 100.32 SOL (converts $10 to SOL)</span><br>
+            <span class="var">a</span> = 100 sol + 50$ <span class="comment">// 100.27 SOL</span><br />
+            <span class="var">a</span> + 10$ <span class="comment">// 100.32 SOL (converts $10 to SOL)</span><br />
             <span class="var">a</span> to usd <span class="comment">// $18,560.00</span>
           </code>
-          <code @click="$emit('insert-snippet', '10$ + 500 tl')">
-            10$ + 500 tl
-          </code>
-          <code @click="$emit('insert-snippet', '0.5 btc + 2 eth to tl')">
-            0.5 btc + 2 eth to tl
-          </code>
+          <code @click="$emit('insert-snippet', '10$ + 500 tl')"> 10$ + 500 tl </code>
+          <code @click="$emit('insert-snippet', '0.5 btc + 2 eth to tl')"> 0.5 btc + 2 eth to tl </code>
         </div>
       </section>
 
@@ -107,7 +115,7 @@
         <p class="card-desc">Assign dates to variables and chain multiple date operations together.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', 'start = today\ndeadline = start + 2 weeks - 1 day + 2 months')">
-            <span class="var">start</span> = today <span class="comment">// Sun, Aug 02, 2026</span><br>
+            <span class="var">start</span> = today <span class="comment">// Sun, Aug 02, 2026</span><br />
             <span class="var">deadline</span> = <span class="var">start</span> + 2 weeks - 1 day + 2 months
           </code>
           <code @click="$emit('insert-snippet', 'now + 3 hours - 30 mins')">
@@ -125,15 +133,13 @@
         <p class="card-desc">Calculate discounts, use magnitude suffixes (`k`, `m`, `b`, `t`), and convert units.</p>
         <div class="code-box">
           <code @click="$emit('insert-snippet', '500k + 2m\n1.5b to usd')">
-            500k + 2m <span class="comment">// 2,500,000 (500K + 2 Million)</span><br>
+            500k + 2m <span class="comment">// 2,500,000 (500K + 2 Million)</span><br />
             $1.5b <span class="comment">// $1,500,000,000 (1.5 Billion)</span>
           </code>
           <code @click="$emit('insert-snippet', '20% off 89.99')">
             20% off 89.99 <span class="comment">// 71.99</span>
           </code>
-          <code @click="$emit('insert-snippet', '12 km to miles')">
-            12 km to miles
-          </code>
+          <code @click="$emit('insert-snippet', '12 km to miles')"> 12 km to miles </code>
         </div>
       </section>
 
@@ -186,19 +192,31 @@
         <div class="sync-info-list">
           <div class="sync-info-item">
             <strong class="sync-title">100% Offline Local-First:</strong>
-            <span>All calculations and open tabs save instantly to your browser's local database (`IndexedDB`). No account needed!</span>
+            <span
+              >All calculations and open tabs save instantly to your browser's local database (`IndexedDB`). No account
+              needed!</span
+            >
           </div>
           <div class="sync-info-item">
             <strong class="sync-title">Google Cloud Sync:</strong>
-            <span>Sign in with Google to sync your active open tabs (`user_tabs`) and Saved Library (`saved_library`) across all devices.</span>
+            <span
+              >Sign in with Google to sync your active open tabs (`user_tabs`) and Saved Library (`saved_library`)
+              across all devices.</span
+            >
           </div>
           <div class="sync-info-item">
             <strong class="sync-title">Saved Tabs Library:</strong>
-            <span>Click <strong>Save Tab to Library</strong> to store reusable templates. Deduplicates entries automatically so no copies are populated.</span>
+            <span
+              >Click <strong>Save Tab to Library</strong> to store reusable templates. Deduplicates entries
+              automatically so no copies are populated.</span
+            >
           </div>
           <div class="sync-info-item">
             <strong class="sync-title">Rate-Limited Throttling:</strong>
-            <span>Typing saves instantly locally, while cloud sync is throttled to max 1 request per 2 seconds to prevent network spam.</span>
+            <span
+              >Typing saves instantly locally, while cloud sync is throttled to max 1 request per 2 seconds to prevent
+              network spam.</span
+            >
           </div>
           <div class="sync-info-item">
             <strong class="sync-title">Row Level Security (RLS):</strong>
@@ -206,7 +224,10 @@
           </div>
           <div class="sync-info-item">
             <strong class="sync-title">Clean Sign Out:</strong>
-            <span>Signing out resets active tabs back to default guest templates and clears user saved templates locally.</span>
+            <span
+              >Signing out resets active tabs back to default guest templates and clears user saved templates
+              locally.</span
+            >
           </div>
         </div>
       </section>

@@ -15,8 +15,9 @@
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
         >
-          <button :aria-label="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
+          <button
             v-if="item.isSection"
+            :aria-label="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
             class="btn-fold"
             :title="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
             @click.stop="toggleSectionCollapse(item.origIdx)"
@@ -32,11 +33,7 @@
       <div class="input-wrapper">
         <!-- Editor Syntax Highlighting Backdrop Layer -->
         <div ref="backdropRef" class="editor-backdrop" aria-hidden="true">
-          <div
-            v-for="(line, idx) in formattedEditorLines"
-            :key="idx"
-            class="backdrop-line"
-          >
+          <div v-for="(line, idx) in formattedEditorLines" :key="idx" class="backdrop-line">
             <template v-for="(token, tIdx) in line.tokens" :key="tIdx">
               <span :class="token.cls">{{ token.text }}</span>
             </template>
@@ -52,8 +49,14 @@
           :readonly="hasCollapsedSections"
           spellcheck="false"
           autocomplete="off"
-          :placeholder="hasCollapsedSections ? 'Expand folded sections to edit...' : '// Type math expressions, unit conversions, or date math here...'"
-          :title="hasCollapsedSections ? 'Expand folded sections before editing to keep their hidden lines intact.' : ''"
+          :placeholder="
+            hasCollapsedSections
+              ? 'Expand folded sections to edit...'
+              : '// Type math expressions, unit conversions, or date math here...'
+          "
+          :title="
+            hasCollapsedSections ? 'Expand folded sections before editing to keep their hidden lines intact.' : ''
+          "
           @scroll="syncScroll"
           @keydown="handleKeyDown"
           @keyup="updateCursorState"
@@ -94,7 +97,10 @@
               'highlighted-line': hoveredLineIndex === item.origIdx
             }
           ]"
-          :title="evaluation.rendered[item.origIdx]?.error || (evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : '')"
+          :title="
+            evaluation.rendered[item.origIdx]?.error ||
+            (evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : '')
+          "
           @click="copyResult(evaluation.rendered[item.origIdx], item.origIdx)"
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
@@ -107,9 +113,7 @@
             <div class="res-section-header" @click.stop="toggleSectionCollapse(item.origIdx)">
               <span class="sec-toggle-icon">{{ item.isCollapsed ? '▸' : '▾' }}</span>
               <span class="sec-title-text">{{ item.sec?.title || evaluation.rendered[item.origIdx]?.text }}</span>
-              <span v-if="item.isCollapsed" class="sec-collapsed-subtotal">
-                — {{ item.sec?.subtotalText }}
-              </span>
+              <span v-if="item.isCollapsed" class="sec-collapsed-subtotal"> — {{ item.sec?.subtotalText }} </span>
             </div>
           </template>
 
@@ -127,7 +131,12 @@
           </template>
 
           <!-- Subtotal Row -->
-          <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'num subtotal-line' || evaluation.rendered[item.origIdx]?.isSubtotal">
+          <template
+            v-else-if="
+              evaluation.rendered[item.origIdx]?.cls === 'num subtotal-line' ||
+              evaluation.rendered[item.origIdx]?.isSubtotal
+            "
+          >
             <div class="res-row subtotal-row">
               <span class="res-label subtotal-label">subtotal</span>
               <span class="res-value subtotal-value">{{ evaluation.rendered[item.origIdx]?.text }}</span>
@@ -145,10 +154,7 @@
 
           <!-- Normal Evaluated Result Row (Two-column: Label on left, Value on right) -->
           <template v-else-if="evaluation.rendered[item.origIdx]?.text">
-            <div
-              class="res-row"
-              :class="{ 'negative-val': rowDetails[k].isNegative }"
-            >
+            <div class="res-row" :class="{ 'negative-val': rowDetails[k].isNegative }">
               <span class="res-label" :title="rowDetails[k].label">{{ rowDetails[k].label }}</span>
               <span class="res-value">
                 <template v-if="rowDetails[k].unitPart">
@@ -180,23 +186,33 @@
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' / ')">/</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' % ')">%</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol('#')">#line</button>
-      <button aria-label="Undo" class="btn-helper icon-btn" title="Undo" @mousedown.prevent @click="handleUndo"><RotateCcw class="icon-xs" /></button>
-      <button aria-label="Redo" class="btn-helper icon-btn" title="Redo" @mousedown.prevent @click="handleRedo"><RotateCw class="icon-xs" /></button>
+      <button aria-label="Undo" class="btn-helper icon-btn" title="Undo" @mousedown.prevent @click="handleUndo">
+        <RotateCcw class="icon-xs" />
+      </button>
+      <button aria-label="Redo" class="btn-helper icon-btn" title="Redo" @mousedown.prevent @click="handleRedo">
+        <RotateCw class="icon-xs" />
+      </button>
     </div>
 
     <!-- Status Bar -->
     <footer class="status-bar">
       <div class="status-left">
-        <span>lines: <b>{{ evaluation.count }}</b></span>
+        <span
+          >lines: <b>{{ evaluation.count }}</b></span
+        >
         <span class="sep">•</span>
-        <span>total: <b class="total-val" title="Click to copy total" @click="copyTotal">{{ formattedTotal }}</b></span>
+        <span
+          >total: <b class="total-val" title="Click to copy total" @click="copyTotal">{{ formattedTotal }}</b></span
+        >
         <span v-if="copiedTotal" class="copied-mini">Copied!</span>
       </div>
 
       <div class="status-center desktop-only">
         <span>direct lines: <b>#1, L1, line1</b></span>
         <span class="sep">•</span>
-        <span :title="ratesTitle">rates: <b>{{ ratesAgeText }}</b></span>
+        <span :title="ratesTitle"
+          >rates: <b>{{ ratesAgeText }}</b></span
+        >
       </div>
 
       <div class="status-right">
@@ -228,7 +244,18 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { evaluateAll, ratesUpdatedAt } from '../services/evaluator.js'
 import { highlightDocument } from '../services/highlighter.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Copy, Maximize2, Minimize2 } from '@lucide/vue'
+import {
+  HardDrive,
+  Loader2,
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  RotateCcw,
+  RotateCw,
+  Copy,
+  Maximize2,
+  Minimize2
+} from '@lucide/vue'
 
 // Letters in any script, so Turkish variable names (maaş, ödeme) are recognised
 const IDENT_PATTERN = '[\\p{L}_][\\p{L}\\p{N}_]*'
@@ -248,7 +275,7 @@ function getRowDetails(item) {
     return {
       type: 'section',
       isCollapsed: item.isCollapsed,
-      title: sec ? sec.title : (res.title || res.text || ''),
+      title: sec ? sec.title : res.title || res.text || '',
       subtotalText: sec ? sec.subtotalText : ''
     }
   }
@@ -340,7 +367,7 @@ const formattedEditorLines = computed(() => highlightDocument(tabContent.value |
 const collapsedLineIndices = computed(() => {
   const set = new Set()
   const secs = evaluation.value.sections || []
-  secs.forEach(sec => {
+  secs.forEach((sec) => {
     if (collapsedSections.value[sec.headerIdx]) {
       for (let i = sec.headerIdx + 1; i <= sec.endIdx; i++) {
         set.add(i)
@@ -396,7 +423,7 @@ const visibleLines = computed(() => {
   lines.forEach((lineText, origIdx) => {
     if (origIdx <= skipUntil) return
 
-    const sec = secs.find(s => s.headerIdx === origIdx)
+    const sec = secs.find((s) => s.headerIdx === origIdx)
     if (sec && collapsedSections.value[origIdx]) {
       const hiddenCount = sec.endIdx - sec.headerIdx
       const formattedSub = sec.subtotalText
@@ -427,7 +454,7 @@ const tabContent = computed({
     if (!visibleLines.value || !Array.isArray(visibleLines.value)) {
       return props.tab?.content || ''
     }
-    return visibleLines.value.map(item => item.lineText).join('\n')
+    return visibleLines.value.map((item) => item.lineText).join('\n')
   },
   set: (val) => {
     // The folded view is a shortened display projection, not the document itself.
@@ -466,7 +493,9 @@ function undo() {
     historyIndex.value--
     isUndoRedoAction = true
     emit('update:content', historyStack.value[historyIndex.value])
-    setTimeout(() => { isUndoRedoAction = false }, 50)
+    setTimeout(() => {
+      isUndoRedoAction = false
+    }, 50)
   }
 }
 
@@ -475,7 +504,9 @@ function redo() {
     historyIndex.value++
     isUndoRedoAction = true
     emit('update:content', historyStack.value[historyIndex.value])
-    setTimeout(() => { isUndoRedoAction = false }, 50)
+    setTimeout(() => {
+      isUndoRedoAction = false
+    }, 50)
   }
 }
 
@@ -501,9 +532,11 @@ const ratesAgeText = computed(() => {
   if (hours < 48) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
 })
-const ratesTitle = computed(() => ratesUpdatedAt.value
-  ? `Exchange rates updated ${new Date(ratesUpdatedAt.value).toLocaleString()}`
-  : 'Live rates have not loaded yet; using built-in approximate rates')
+const ratesTitle = computed(() =>
+  ratesUpdatedAt.value
+    ? `Exchange rates updated ${new Date(ratesUpdatedAt.value).toLocaleString()}`
+    : 'Live rates have not loaded yet; using built-in approximate rates'
+)
 
 const saveStateClass = computed(() => {
   if (props.saveStatus === 'saving') return 'saving'
@@ -530,7 +563,7 @@ const declaredVariablesMap = computed(() => {
       const varName = m[1]
       if (!['prev', 'total', 'pi', 'e'].includes(varName)) {
         const lineRes = scope.rendered[idx]
-        const valText = (lineRes && (lineRes.cls === 'num' || lineRes.cls === 'date') && lineRes.text) ? lineRes.text : ''
+        const valText = lineRes && (lineRes.cls === 'num' || lineRes.cls === 'date') && lineRes.text ? lineRes.text : ''
         map.set(varName, valText)
       }
     }
@@ -547,9 +580,13 @@ const declaredVariablesList = computed(() => {
   return list
 })
 
-watch(declaredVariablesList, (newList) => {
-  emit('variables-updated', newList)
-}, { immediate: true })
+watch(
+  declaredVariablesList,
+  (newList) => {
+    emit('variables-updated', newList)
+  },
+  { immediate: true }
+)
 
 // Autocomplete suggestions (active when word length >= 3)
 const autocompleteSuggestions = computed(() => {
@@ -702,7 +739,8 @@ function handleKeyDown(e) {
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault()
-      autocompleteIndex.value = (autocompleteIndex.value - 1 + autocompleteSuggestions.value.length) % autocompleteSuggestions.value.length
+      autocompleteIndex.value =
+        (autocompleteIndex.value - 1 + autocompleteSuggestions.value.length) % autocompleteSuggestions.value.length
       return
     }
     if (e.key === 'Tab' || e.key === 'Enter') {
@@ -785,7 +823,9 @@ function syncScroll() {
   if (showAutocomplete.value) {
     autocompletePos.value = getCaretCoordinates()
   }
-  requestAnimationFrame(() => { isSyncingResults = false })
+  requestAnimationFrame(() => {
+    isSyncingResults = false
+  })
 }
 
 function syncScrollFromResults() {
@@ -795,7 +835,9 @@ function syncScrollFromResults() {
   if (inputRef.value) inputRef.value.scrollTop = scrollTop
   if (backdropRef.value) backdropRef.value.scrollTop = scrollTop
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
-  requestAnimationFrame(() => { isSyncingInput = false })
+  requestAnimationFrame(() => {
+    isSyncingInput = false
+  })
 }
 
 function insertTabIndent() {
@@ -819,8 +861,8 @@ function insertTabIndent() {
 
 function insertInlineSymbol(strToInsert) {
   const textarea = inputRef.value
-  const start = textarea ? (textarea.selectionStart || 0) : tabContent.value.length
-  const end = textarea ? (textarea.selectionEnd || 0) : tabContent.value.length
+  const start = textarea ? textarea.selectionStart || 0 : tabContent.value.length
+  const end = textarea ? textarea.selectionEnd || 0 : tabContent.value.length
 
   recordHistoryNow(tabContent.value)
 
@@ -901,7 +943,9 @@ defineExpose({
 })
 
 onMounted(() => {
-  nowTimer = setInterval(() => { nowTick.value = Date.now() }, 60000)
+  nowTimer = setInterval(() => {
+    nowTick.value = Date.now()
+  }, 60000)
   if (typeof window !== 'undefined') {
     window.scrollTo(0, 0)
   }
@@ -916,24 +960,27 @@ onUnmounted(() => {
 // Undo history for tabs that aren't shown, so switching tabs doesn't lose it
 const historyByTab = new Map()
 
-watch(() => props.tab?.id, (newId, oldId) => {
-  // Folds are per document; carrying them over could lock another tab read-only
-  collapsedSections.value = {}
+watch(
+  () => props.tab?.id,
+  (newId, oldId) => {
+    // Folds are per document; carrying them over could lock another tab read-only
+    collapsedSections.value = {}
 
-  clearTimeout(historyDebounceTimer)
-  if (oldId) historyByTab.set(oldId, { stack: historyStack.value, index: historyIndex.value })
-  const saved = newId ? historyByTab.get(newId) : null
-  if (saved) {
-    historyStack.value = saved.stack
-    historyIndex.value = saved.index
-    // Content may have changed elsewhere (cloud sync, import) while the tab was hidden
-    recordHistoryNow(tabContent.value)
-  } else {
-    historyStack.value = []
-    historyIndex.value = -1
-    recordHistoryNow(tabContent.value)
+    clearTimeout(historyDebounceTimer)
+    if (oldId) historyByTab.set(oldId, { stack: historyStack.value, index: historyIndex.value })
+    const saved = newId ? historyByTab.get(newId) : null
+    if (saved) {
+      historyStack.value = saved.stack
+      historyIndex.value = saved.index
+      // Content may have changed elsewhere (cloud sync, import) while the tab was hidden
+      recordHistoryNow(tabContent.value)
+    } else {
+      historyStack.value = []
+      historyIndex.value = -1
+      recordHistoryNow(tabContent.value)
+    }
   }
-})
+)
 </script>
 
 <style scoped>
@@ -984,7 +1031,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 
 .g-num.is-section {
   font-weight: 600;
-  color: var(--syn-keyword, #9B8AFB);
+  color: var(--syn-keyword, #9b8afb);
   cursor: pointer;
   border-radius: 4px 0 0 4px;
 }
@@ -1000,12 +1047,14 @@ watch(() => props.tab?.id, (newId, oldId) => {
   justify-content: center;
   background: transparent;
   border: 0;
-  color: var(--syn-keyword, #9B8AFB);
+  color: var(--syn-keyword, #9b8afb);
   padding: 0;
   cursor: pointer;
   width: 14px;
   height: 14px;
-  transition: transform 0.15s ease, color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease;
 }
 
 .btn-fold:hover {
@@ -1028,9 +1077,9 @@ watch(() => props.tab?.id, (newId, oldId) => {
 
 .r.section-header {
   background: linear-gradient(90deg, rgba(155, 138, 251, 0.1) 0%, rgba(155, 138, 251, 0.01) 100%) !important;
-  color: var(--syn-keyword, #9B8AFB) !important;
+  color: var(--syn-keyword, #9b8afb) !important;
   font-weight: 600;
-  border-left: 3px solid var(--syn-keyword, #9B8AFB);
+  border-left: 3px solid var(--syn-keyword, #9b8afb);
   text-align: left !important;
   padding-left: 8px !important;
 }
@@ -1042,7 +1091,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 
 .r.subtotal-line {
   font-weight: 600;
-  color: var(--syn-keyword, #9B8AFB) !important;
+  color: var(--syn-keyword, #9b8afb) !important;
   border-top: 1px dashed var(--line-soft);
 }
 
@@ -1062,7 +1111,8 @@ watch(() => props.tab?.id, (newId, oldId) => {
   transition: all 0.15s ease;
 }
 
-.btn-expand-area:hover, .btn-expand-area.expanded {
+.btn-expand-area:hover,
+.btn-expand-area.expanded {
   color: var(--accent);
   border-color: rgba(22, 217, 196, 0.25);
   background: rgba(22, 217, 196, 0.08);
@@ -1107,7 +1157,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 }
 
 .tok-comment {
-  color: var(--syn-comment, #54667A);
+  color: var(--syn-comment, #54667a);
   font-style: italic;
   font-weight: 400;
   opacity: 0.9;
@@ -1119,42 +1169,42 @@ watch(() => props.tab?.id, (newId, oldId) => {
 }
 
 .tok-header-title {
-  color: var(--syn-keyword, #9B8AFB);
+  color: var(--syn-keyword, #9b8afb);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .tok-keyword {
-  color: var(--syn-keyword, #9B8AFB);
+  color: var(--syn-keyword, #9b8afb);
   font-weight: 600;
 }
 
 .tok-number {
-  color: var(--syn-number, #F59E0B);
+  color: var(--syn-number, #f59e0b);
   font-weight: 500;
 }
 
 .tok-currency {
-  color: var(--syn-currency, #F5B94C);
+  color: var(--syn-currency, #f5b94c);
   font-weight: 500;
 }
 
 .tok-variable {
-  color: var(--syn-variable, #16D9C4);
+  color: var(--syn-variable, #16d9c4);
   font-weight: 500;
 }
 
 .tok-unit {
-  color: var(--syn-unit, #7D8F9F);
+  color: var(--syn-unit, #7d8f9f);
 }
 
 .tok-op {
-  color: var(--muted, #6B7F96);
+  color: var(--muted, #6b7f96);
   font-weight: 500;
 }
 
 .tok-code {
-  color: var(--paper, #C9D6E5);
+  color: var(--paper, #c9d6e5);
 }
 
 .input-area {
@@ -1204,7 +1254,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 .ac-header {
   font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   padding: 4px 8px;
   font-weight: 700;
@@ -1225,7 +1275,8 @@ watch(() => props.tab?.id, (newId, oldId) => {
   transition: all 0.1s ease;
 }
 
-.ac-item:hover, .ac-item.active {
+.ac-item:hover,
+.ac-item.active {
   background: rgba(22, 217, 196, 0.1);
   color: var(--accent);
 }
@@ -1253,7 +1304,9 @@ watch(() => props.tab?.id, (newId, oldId) => {
   background: var(--results-bg);
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .results::-webkit-scrollbar {
@@ -1267,7 +1320,10 @@ watch(() => props.tab?.id, (newId, oldId) => {
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
-  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
   border-radius: 4px;
   padding: 0 6px;
   box-sizing: border-box;
@@ -1297,7 +1353,9 @@ watch(() => props.tab?.id, (newId, oldId) => {
   opacity: 0;
   margin-left: 6px;
   flex-shrink: 0;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 
 .row-hover-copy:hover {
@@ -1326,7 +1384,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
   text-align: left;
 }
 
-[data-theme="light"] .res-label {
+[data-theme='light'] .res-label {
   color: var(--muted);
 }
 
@@ -1339,7 +1397,9 @@ watch(() => props.tab?.id, (newId, oldId) => {
   font-family: 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .val-num {
@@ -1356,7 +1416,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 
 .negative-val .res-value,
 .negative-val .val-num {
-  color: var(--err, #E55353) !important;
+  color: var(--err, #e55353) !important;
 }
 
 /* Subtotal Row */
@@ -1415,7 +1475,7 @@ watch(() => props.tab?.id, (newId, oldId) => {
 }
 
 .err-val {
-  color: var(--err, #E55353);
+  color: var(--err, #e55353);
   font-size: 12px;
   opacity: 0.85;
 }
@@ -1568,8 +1628,12 @@ watch(() => props.tab?.id, (newId, oldId) => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Mobile & Tablet Optimizations */

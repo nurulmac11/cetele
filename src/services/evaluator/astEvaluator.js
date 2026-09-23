@@ -18,17 +18,65 @@ const UNIT_ALIASES = {
 // Functions callable from the notepad. Anything else in mathjs (evaluate, import, createUnit...)
 // is deliberately not reachable.
 const ALLOWED_FUNCTIONS = new Set([
-  'sqrt', 'cbrt', 'abs', 'sign', 'ceil', 'floor', 'round', 'fix',
-  'exp', 'log', 'log2', 'log10', 'pow', 'factorial', 'mod',
-  'min', 'max', 'sum', 'mean', 'median', 'mode', 'std', 'variance', 'prod', 'gcd', 'lcm',
-  'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sec', 'csc', 'cot',
-  'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh'
+  'sqrt',
+  'cbrt',
+  'abs',
+  'sign',
+  'ceil',
+  'floor',
+  'round',
+  'fix',
+  'exp',
+  'log',
+  'log2',
+  'log10',
+  'pow',
+  'factorial',
+  'mod',
+  'min',
+  'max',
+  'sum',
+  'mean',
+  'median',
+  'mode',
+  'std',
+  'variance',
+  'prod',
+  'gcd',
+  'lcm',
+  'sin',
+  'cos',
+  'tan',
+  'asin',
+  'acos',
+  'atan',
+  'atan2',
+  'sec',
+  'csc',
+  'cot',
+  'sinh',
+  'cosh',
+  'tanh',
+  'asinh',
+  'acosh',
+  'atanh'
 ])
 
 const FUNCTION_ALIASES = { ln: 'log', avg: 'mean', average: 'mean', var: 'variance' }
 
 // Functions whose result is in the same currency as their arguments
-const CURRENCY_PRESERVING_FUNCTIONS = new Set(['abs', 'ceil', 'floor', 'round', 'fix', 'min', 'max', 'sum', 'mean', 'median'])
+const CURRENCY_PRESERVING_FUNCTIONS = new Set([
+  'abs',
+  'ceil',
+  'floor',
+  'round',
+  'fix',
+  'min',
+  'max',
+  'sum',
+  'mean',
+  'median'
+])
 
 const MS_PER_DAY = 86400000
 
@@ -108,7 +156,7 @@ export function evaluateAST(node, ctx) {
       }
 
       let currentTimestamp = baseTime
-      for (const offset of (node.offsets || [])) {
+      for (const offset of node.offsets || []) {
         const sign = offset.op === '+' ? 1 : -1
         const amount = offset.amount * sign
         const unit = offset.unit.toLowerCase()
@@ -118,8 +166,13 @@ export function evaluateAST(node, ctx) {
         else if (unit.startsWith('week')) d.setDate(d.getDate() + amount * 7)
         else if (unit.startsWith('month')) d.setMonth(d.getMonth() + amount)
         else if (unit.startsWith('year')) d.setFullYear(d.getFullYear() + amount)
-        else if (unit.startsWith('hour')) { d.setHours(d.getHours() + amount); isTimeIncluded = true }
-        else if (unit.startsWith('min')) { d.setMinutes(d.getMinutes() + amount); isTimeIncluded = true }
+        else if (unit.startsWith('hour')) {
+          d.setHours(d.getHours() + amount)
+          isTimeIncluded = true
+        } else if (unit.startsWith('min')) {
+          d.setMinutes(d.getMinutes() + amount)
+          isTimeIncluded = true
+        }
 
         currentTimestamp = d.getTime()
       }
@@ -253,12 +306,23 @@ export function evaluateAST(node, ctx) {
         try {
           let unitResult
           switch (node.op) {
-            case '+': unitResult = math.add(lVal, rVal); break
-            case '-': unitResult = math.subtract(lVal, rVal); break
-            case '*': unitResult = math.multiply(lVal, rVal); break
-            case '/': unitResult = math.divide(lVal, rVal); break
-            case '^': unitResult = math.pow(lVal, rVal); break
-            default: return { error: 'Unsupported unit operation' }
+            case '+':
+              unitResult = math.add(lVal, rVal)
+              break
+            case '-':
+              unitResult = math.subtract(lVal, rVal)
+              break
+            case '*':
+              unitResult = math.multiply(lVal, rVal)
+              break
+            case '/':
+              unitResult = math.divide(lVal, rVal)
+              break
+            case '^':
+              unitResult = math.pow(lVal, rVal)
+              break
+            default:
+              return { error: 'Unsupported unit operation' }
           }
           return unitResult?.isUnit ? { value: unitResult, isUnit: true } : { value: unitResult, currency: null }
         } catch (e) {
@@ -279,12 +343,24 @@ export function evaluateAST(node, ctx) {
 
       let resVal = 0
       switch (node.op) {
-        case '+': resVal = lVal + rVal; break
-        case '-': resVal = lVal - rVal; break
-        case '*': resVal = lVal * rVal; break
-        case '/': resVal = rVal !== 0 ? lVal / rVal : NaN; break
-        case '^': resVal = Math.pow(lVal, rVal); break
-        case '%': resVal = lVal % rVal; break
+        case '+':
+          resVal = lVal + rVal
+          break
+        case '-':
+          resVal = lVal - rVal
+          break
+        case '*':
+          resVal = lVal * rVal
+          break
+        case '/':
+          resVal = rVal !== 0 ? lVal / rVal : NaN
+          break
+        case '^':
+          resVal = Math.pow(lVal, rVal)
+          break
+        case '%':
+          resVal = lVal % rVal
+          break
       }
       return { value: resVal, currency }
     }
@@ -296,9 +372,7 @@ export function evaluateAST(node, ctx) {
       if (isError(b)) return b
       if (p.isDate || b.isDate) return { error: 'Invalid date operation' }
       const percentRatio = p.isPercent ? p.value : p.value / 100
-      const resVal = node.kind === 'off'
-        ? b.value * (1 - percentRatio)
-        : b.value * percentRatio
+      const resVal = node.kind === 'off' ? b.value * (1 - percentRatio) : b.value * percentRatio
       return { value: resVal, currency: b.currency }
     }
 
@@ -309,7 +383,7 @@ export function evaluateAST(node, ctx) {
       if (isError(p)) return p
       if (p.isDate || b.isDate) return { error: 'Invalid date operation' }
       const percentRatio = p.isPercent ? p.value : p.value / 100
-      const factor = node.verb === 'increase' ? (1 + percentRatio) : (1 - percentRatio)
+      const factor = node.verb === 'increase' ? 1 + percentRatio : 1 - percentRatio
       return { value: b.value * factor, currency: b.currency }
     }
 
@@ -326,11 +400,11 @@ export function evaluateAST(node, ctx) {
       const args = node.args.map(evaluate)
       const firstError = args.find(isError)
       if (firstError) return firstError
-      if (args.some(a => a.isDate)) return { error: 'Invalid date operation' }
+      if (args.some((a) => a.isDate)) return { error: 'Invalid date operation' }
 
       // Bring every currency argument into the first argument's currency
-      const currency = args.find(a => a.currency)?.currency || null
-      const values = args.map(a => {
+      const currency = args.find((a) => a.currency)?.currency || null
+      const values = args.map((a) => {
         if (currency && a.currency && a.currency !== currency && typeof a.value === 'number') {
           const converted = convertCurrency(a.value, a.currency, currency)
           return converted === null ? a.value : converted
@@ -341,7 +415,7 @@ export function evaluateAST(node, ctx) {
       try {
         const res = math[name](...values)
         if (res?.isUnit) return { value: res, isUnit: true }
-        const numVal = typeof res === 'number' ? res : (typeof res?.toNumber === 'function' ? res.toNumber() : NaN)
+        const numVal = typeof res === 'number' ? res : typeof res?.toNumber === 'function' ? res.toNumber() : NaN
         if (Number.isNaN(numVal)) return { error: 'Result is not a real number' }
         return { value: numVal, currency: CURRENCY_PRESERVING_FUNCTIONS.has(name) ? currency : null }
       } catch (e) {

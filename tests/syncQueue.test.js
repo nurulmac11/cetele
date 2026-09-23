@@ -40,9 +40,8 @@ vi.mock('../src/services/supabaseClient.js', () => ({
 }))
 vi.mock('../src/services/localDb.js', () => ({ saveLocalTabs: async () => true }))
 
-const { syncTabsToCloud, throttledSyncTabsToCloud, deleteCloudTab, flushPendingSync } = await import(
-  '../src/services/syncService.js'
-)
+const { syncTabsToCloud, throttledSyncTabsToCloud, deleteCloudTab, flushPendingSync } =
+  await import('../src/services/syncService.js')
 
 const tab = (id, extra = {}) => ({ id, title: id, content: id, updatedAt: '2026-09-01T10:00:00.000Z', ...extra })
 
@@ -77,7 +76,8 @@ describe('Cloud sync queue', () => {
   })
 
   it('falls back to the old conflict key before the migration is applied', async () => {
-    upsertError = (options) => (options.onConflict === 'user_id,id' ? { code: '42P10', message: 'no constraint' } : null)
+    upsertError = (options) =>
+      options.onConflict === 'user_id,id' ? { code: '42P10', message: 'no constraint' } : null
     const tabs = [tab('a')]
     await syncTabsToCloud(tabs, 'user-1')
     expect(calls.map((c) => c.onConflict)).toEqual(['user_id,id', 'id'])

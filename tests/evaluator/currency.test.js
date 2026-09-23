@@ -115,7 +115,7 @@ salary to eur`
     expect(resCross.rendered[5].text).toContain('EUR')
 
     const allRendered = [...resFiat.rendered, ...resCrypto.rendered, ...resCross.rendered]
-    allRendered.forEach(item => {
+    allRendered.forEach((item) => {
       expect(item.text).not.toBe('—')
       expect(item.text).not.toBe('')
     })
@@ -123,16 +123,60 @@ salary to eur`
 
   it('exhaustively tests every possible currency, gold, and crypto conversion pair (2,401 combinations)', () => {
     const tokens = [
-      '$', '€', '£', '₺', '¥', '₹',
-      'USD', 'EUR', 'GBP', 'TRY', 'TL', 'CAD', 'AUD', 'JPY', 'INR', 'CHF',
-      'CNY', 'RMB', 'SAR', 'AED', 'RUB', 'BRL', 'SEK', 'NZD',
-      'gram gold', 'gram altin', 'altin', 'gold', 'ceyrek gold', 'ceyrek altin', 'ceyrek', 'oz gold', 'ounce gold', 'troy oz gold',
-      'btc', 'bitcoin', 'eth', 'ethereum', 'sol', 'solana', 'usdt', 'tether', 'bnb', 'xrp', 'doge', 'dogecoin', 'ada', 'cardano', 'avax'
+      '$',
+      '€',
+      '£',
+      '₺',
+      '¥',
+      '₹',
+      'USD',
+      'EUR',
+      'GBP',
+      'TRY',
+      'TL',
+      'CAD',
+      'AUD',
+      'JPY',
+      'INR',
+      'CHF',
+      'CNY',
+      'RMB',
+      'SAR',
+      'AED',
+      'RUB',
+      'BRL',
+      'SEK',
+      'NZD',
+      'gram gold',
+      'gram altin',
+      'altin',
+      'gold',
+      'ceyrek gold',
+      'ceyrek altin',
+      'ceyrek',
+      'oz gold',
+      'ounce gold',
+      'troy oz gold',
+      'btc',
+      'bitcoin',
+      'eth',
+      'ethereum',
+      'sol',
+      'solana',
+      'usdt',
+      'tether',
+      'bnb',
+      'xrp',
+      'doge',
+      'dogecoin',
+      'ada',
+      'cardano',
+      'avax'
     ]
 
     let totalTested = 0
-    tokens.forEach(from => {
-      tokens.forEach(to => {
+    tokens.forEach((from) => {
+      tokens.forEach((to) => {
         const line = ['$', '€', '£', '₺', '¥', '₹'].includes(from) ? `${from}100 to ${to}` : `100 ${from} to ${to}`
         const res = evaluateAll(line)
         const outputText = res.rendered[0]?.text

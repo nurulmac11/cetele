@@ -8,12 +8,20 @@
       </button>
 
       <div class="action-btn-row">
-        <button class="btn-action" title="Copy live shareable URL link for current tab to clipboard" @click="$emit('share-tab')">
+        <button
+          class="btn-action"
+          title="Copy live shareable URL link for current tab to clipboard"
+          @click="$emit('share-tab')"
+        >
           <Share2 class="icon-sm" />
           <span>Share Tab</span>
         </button>
 
-        <button class="btn-action" title="Copy document with calculated results implicitly appended as = result (Ctrl+Shift+C)" @click="$emit('copy-all')">
+        <button
+          class="btn-action"
+          title="Copy document with calculated results implicitly appended as = result (Ctrl+Shift+C)"
+          @click="$emit('copy-all')"
+        >
           <Copy class="icon-sm" />
           <span>Copy All (=)</span>
         </button>
@@ -62,12 +70,10 @@
       <div class="grp">
         <h3>Sections & Subtotals 📂</h3>
         <code @click="$emit('insert', '=== Income & Sales ===\nsalary = 4500\nsubtotal')">
-          === Section Title ===<br>
+          === Section Title ===<br />
           subtotal
         </code>
-        <code @click="$emit('insert', '--- Monthly Expenses ---\nrent = 1650\nsubtotal')">
-          --- Expenses ---
-        </code>
+        <code @click="$emit('insert', '--- Monthly Expenses ---\nrent = 1650\nsubtotal')"> --- Expenses --- </code>
       </div>
 
       <div class="grp">
@@ -96,8 +102,8 @@
       <div class="grp">
         <h3>Variables & Math</h3>
         <code @click="$emit('insert', 'price = 149.99\ntax = 0.08\nprice * (1 + tax)')">
-          price = 149.99<br>
-          tax = 0.08<br>
+          price = 149.99<br />
+          tax = 0.08<br />
           price * (1 + tax)
         </code>
       </div>
@@ -121,7 +127,9 @@
         <code @click="$emit('insert', 'today + 14 days')">today + 14 days</code>
         <code @click="$emit('insert', '// inline comment')">// comment</code>
         <code @click="$emit('insert', '/* multi-line comment */')">/* block comment */</code>
-        <code @click="$emit('insert', '&quot;&quot;&quot;\nPython multi-line comment\n&quot;&quot;&quot;')">&quot;&quot;&quot; Python multi-line &quot;&quot;&quot;</code>
+        <code @click="$emit('insert', '&quot;&quot;&quot;\nPython multi-line comment\n&quot;&quot;&quot;')"
+          >&quot;&quot;&quot; Python multi-line &quot;&quot;&quot;</code
+        >
       </div>
     </aside>
   </div>
@@ -244,7 +252,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   gap: 6px;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   font-weight: 700;
   color: var(--accent);
 }
@@ -357,7 +365,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 .sheet h2 {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   color: var(--paper-bright);
   margin: 0;
   font-weight: 700;

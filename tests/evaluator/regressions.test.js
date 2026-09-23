@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { evaluateAll } from '../../src/services/evaluator.js'
 import { RATES } from '../../src/services/evaluator/rates.js'
 
-const texts = (doc) => evaluateAll(doc).rendered.map(r => r.text)
+const texts = (doc) => evaluateAll(doc).rendered.map((r) => r.text)
 const first = (doc) => texts(doc)[0]
 
 describe('Evaluator Engine - Regressions', () => {
@@ -64,7 +64,7 @@ describe('Evaluator Engine - Regressions', () => {
 
   it('reports errors for unknown conversion targets and functions', () => {
     const res = evaluateAll('5 to foo\nfoo(3)\nsqrt(-1)')
-    expect(res.rendered.map(r => r.cls)).toEqual(['err', 'err', 'err'])
+    expect(res.rendered.map((r) => r.cls)).toEqual(['err', 'err', 'err'])
     expect(res.rendered[0].error).toContain('foo')
   })
 

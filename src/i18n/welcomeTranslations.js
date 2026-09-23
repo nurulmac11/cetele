@@ -6,7 +6,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
   { code: 'pt', name: 'Portuguese', nativeName: 'Português', flag: '🇵🇹' },
   { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
-  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語', flag: '🇯🇵' }
 ]
 
 export const WELCOME_TRANSLATIONS = {
@@ -60,7 +60,8 @@ export const WELCOME_TRANSLATIONS = {
       { type: 'text', value: ' que funciona como un ' },
       { type: 'purple', value: 'bloc de notas.' }
     ],
-    subheadline: 'Escribe tus cálculos de forma natural, mantén tus números organizados y ve cada resultado al instante.',
+    subheadline:
+      'Escribe tus cálculos de forma natural, mantén tus números organizados y ve cada resultado al instante.',
     steps: {
       step1Title: 'Escribe',
       step1Desc: 'Escribe tus números y ponles nombre.',
@@ -147,7 +148,8 @@ export const WELCOME_TRANSLATIONS = {
       { type: 'purple', value: 'Notizblock' },
       { type: 'text', value: ' funktioniert.' }
     ],
-    subheadline: 'Schreiben Sie Ihre Berechnungen ganz natürlich, halten Sie Ihre Zahlen übersichtlich und sehen Sie jedes Ergebnis sofort.',
+    subheadline:
+      'Schreiben Sie Ihre Berechnungen ganz natürlich, halten Sie Ihre Zahlen übersichtlich und sehen Sie jedes Ergebnis sofort.',
     steps: {
       step1Title: 'Schreiben',
       step1Desc: 'Schreiben Sie Ihre Zahlen und benennen Sie sie.',
@@ -190,7 +192,8 @@ export const WELCOME_TRANSLATIONS = {
       { type: 'text', value: ' qui fonctionne comme un ' },
       { type: 'purple', value: 'bloc-notes.' }
     ],
-    subheadline: 'Écrivez vos calculs naturellement, gardez vos chiffres organisés et voyez chaque résultat instantanément.',
+    subheadline:
+      'Écrivez vos calculs naturellement, gardez vos chiffres organisés et voyez chaque résultat instantanément.',
     steps: {
       step1Title: 'Écrivez',
       step1Desc: 'Saisissez vos chiffres et nommez-les.',
@@ -233,7 +236,8 @@ export const WELCOME_TRANSLATIONS = {
       { type: 'text', value: ' que funciona como um ' },
       { type: 'purple', value: 'bloco de notas.' }
     ],
-    subheadline: 'Escreva seus cálculos naturalmente, mantenha seus números organizados e veja cada resultado instantaneamente.',
+    subheadline:
+      'Escreva seus cálculos naturalmente, mantenha seus números organizados e veja cada resultado instantaneamente.',
     steps: {
       step1Title: 'Escreva',
       step1Desc: 'Escreva seus números e dê nomes a eles.',
@@ -276,7 +280,8 @@ export const WELCOME_TRANSLATIONS = {
       { type: 'text', value: ' che funziona come un ' },
       { type: 'purple', value: 'blocco note.' }
     ],
-    subheadline: "Scrivi i tuoi calcoli in modo naturale, mantieni i numeri organizzati e vedi ogni risultato all'istante.",
+    subheadline:
+      "Scrivi i tuoi calcoli in modo naturale, mantieni i numeri organizzati e vedi ogni risultato all'istante.",
     steps: {
       step1Title: 'Scrivi',
       step1Desc: 'Scrivi i tuoi numeri e dai loro un nome.',

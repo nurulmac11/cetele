@@ -17,7 +17,9 @@ function openDatabase() {
     return Promise.resolve(dbInstance)
   }
   if (dbInstance) {
-    try { dbInstance.close() } catch(e){}
+    try {
+      dbInstance.close()
+    } catch (e) {}
     dbInstance = null
   }
 
@@ -101,7 +103,7 @@ export async function saveLocalTabs(tabsArray) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_TABS, 'readwrite')
       const store = tx.objectStore(STORE_TABS)
-      
+
       store.clear().onsuccess = () => {
         tabsArray.forEach((tab, idx) => {
           store.put({
@@ -126,7 +128,7 @@ export async function deleteLocalTab(tabId) {
     const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
     if (raw) {
       const current = JSON.parse(raw)
-      const filtered = current.filter(t => t.id !== tabId)
+      const filtered = current.filter((t) => t.id !== tabId)
       localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(filtered))
     }
   } catch (e) {}
@@ -181,16 +183,17 @@ export async function saveTabToLibrary(savedItem) {
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const existing = current.find(i => 
-      (savedItem.id && String(i.id) === String(savedItem.id)) ||
-      (i.title === savedItem.title && i.content === savedItem.content)
+    const existing = current.find(
+      (i) =>
+        (savedItem.id && String(i.id) === String(savedItem.id)) ||
+        (i.title === savedItem.title && i.content === savedItem.content)
     )
     if (existing) {
       existingId = existing.id
     }
   } catch (e) {}
 
-  const finalId = existingId || ('saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4))
+  const finalId = existingId || 'saved-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4)
   const itemToSave = {
     id: String(finalId),
     title: savedItem.title || 'Saved Tab',
@@ -202,7 +205,7 @@ export async function saveTabToLibrary(savedItem) {
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const idx = current.findIndex(i => String(i.id) === String(itemToSave.id))
+    const idx = current.findIndex((i) => String(i.id) === String(itemToSave.id))
     if (idx >= 0) {
       current[idx] = itemToSave
     } else {
@@ -238,7 +241,7 @@ export async function saveAllSavedLibrary(libraryArray) {
       const tx = db.transaction(STORE_SAVED_TABS, 'readwrite')
       const store = tx.objectStore(STORE_SAVED_TABS)
       store.clear().onsuccess = () => {
-        libraryArray.forEach(item => store.put(item))
+        libraryArray.forEach((item) => store.put(item))
       }
       tx.oncomplete = () => resolve(true)
       tx.onerror = () => resolve(true)
@@ -252,7 +255,7 @@ export async function deleteSavedTabFromLibrary(id) {
   try {
     const currentRaw = localStorage.getItem(LOCAL_STORAGE_SAVED_TABS_KEY)
     const current = currentRaw ? JSON.parse(currentRaw) : []
-    const filtered = current.filter(i => String(i.id) !== String(id))
+    const filtered = current.filter((i) => String(i.id) !== String(id))
     localStorage.setItem(LOCAL_STORAGE_SAVED_TABS_KEY, JSON.stringify(filtered))
   } catch (e) {}
 

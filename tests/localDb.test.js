@@ -37,7 +37,13 @@ beforeEach(() => localStorage.clear())
 describe('Local database (localStorage fallback)', () => {
   it('saves and loads tabs, keeping their sync metadata', async () => {
     const tabs = [
-      { id: 'a', title: 'A', content: '1 + 1', updatedAt: '2026-09-01T10:00:00.000Z', syncedAt: '2026-09-01T10:00:00.000Z' },
+      {
+        id: 'a',
+        title: 'A',
+        content: '1 + 1',
+        updatedAt: '2026-09-01T10:00:00.000Z',
+        syncedAt: '2026-09-01T10:00:00.000Z'
+      },
       { id: 'b', title: 'B', content: '2 + 2' }
     ]
     await saveLocalTabs(tabs)
@@ -48,7 +54,10 @@ describe('Local database (localStorage fallback)', () => {
   })
 
   it('deletes a single tab', async () => {
-    await saveLocalTabs([{ id: 'a', content: '' }, { id: 'b', content: '' }])
+    await saveLocalTabs([
+      { id: 'a', content: '' },
+      { id: 'b', content: '' }
+    ])
     await deleteLocalTab('a')
     expect((await getLocalTabs()).map((t) => t.id)).toEqual(['b'])
   })

@@ -1,6 +1,13 @@
 <template>
   <div v-if="isOpen" class="modal-backdrop" @click.self="$emit('close')">
-    <div ref="dialogRef" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1">
+    <div
+      ref="dialogRef"
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+      tabindex="-1"
+    >
       <header class="modal-header">
         <div class="modal-title">
           <Settings class="icon" aria-hidden="true" />
@@ -13,18 +20,10 @@
 
       <!-- Navigation tabs -->
       <nav class="modal-tabs">
-        <button
-          class="modal-tab"
-          :class="{ active: activeTab === 'profile' }"
-          @click="activeTab = 'profile'"
-        >
+        <button class="modal-tab" :class="{ active: activeTab === 'profile' }" @click="activeTab = 'profile'">
           <User class="icon-sm" /> Profile & Preferences
         </button>
-        <button
-          class="modal-tab"
-          :class="{ active: activeTab === 'data' }"
-          @click="activeTab = 'data'"
-        >
+        <button class="modal-tab" :class="{ active: activeTab === 'data' }" @click="activeTab = 'data'">
           <HardDrive class="icon-sm" /> Local Database & Backup
         </button>
       </nav>
@@ -35,12 +34,7 @@
         <div v-if="activeTab === 'profile'" class="tab-panel">
           <div class="form-group">
             <label>Display Name</label>
-            <input
-              v-model="profileForm.displayName"
-              type="text"
-              class="form-input"
-              placeholder="e.g. Alex"
-            />
+            <input v-model="profileForm.displayName" type="text" class="form-input" placeholder="e.g. Alex" />
           </div>
 
           <div class="form-group">
@@ -64,16 +58,16 @@
             <div class="switch-row">
               <label for="decimalsToggle" class="switch-title">Decimals</label>
               <label class="switch">
-                <input
-                  id="decimalsToggle"
-                  v-model="profileForm.showDecimals"
-                  type="checkbox"
-                />
+                <input id="decimalsToggle" v-model="profileForm.showDecimals" type="checkbox" />
                 <span class="slider round"></span>
               </label>
             </div>
             <p class="form-hint">
-              {{ profileForm.showDecimals ? 'ON: Showing decimal places (e.g. 453,330.9424)' : 'OFF: Hiding decimal places and rounding to whole numbers (e.g. 453,331)' }}
+              {{
+                profileForm.showDecimals
+                  ? 'ON: Showing decimal places (e.g. 453,330.9424)'
+                  : 'OFF: Hiding decimal places and rounding to whole numbers (e.g. 453,331)'
+              }}
             </p>
           </div>
 
@@ -82,7 +76,8 @@
               <span class="badge-active">Offline / Local Mode</span>
             </div>
             <p class="account-info">
-              çetele runs completely locally on your machine. Your tabs and calculations are saved securely in your browser's IndexedDB / local database.
+              çetele runs completely locally on your machine. Your tabs and calculations are saved securely in your
+              browser's IndexedDB / local database.
             </p>
           </div>
         </div>
@@ -141,7 +136,11 @@ const props = defineProps({
 const emit = defineEmits(['close', 'save-profile', 'export-tabs', 'import-tabs', 'reset-local-data', 'toast'])
 
 const dialogRef = ref(null)
-useModalA11y(() => props.isOpen, dialogRef, () => emit('close'))
+useModalA11y(
+  () => props.isOpen,
+  dialogRef,
+  () => emit('close')
+)
 
 const activeTab = ref('profile')
 
@@ -152,14 +151,18 @@ const profileForm = ref({
   theme: props.userProfile.theme || 'dark'
 })
 
-watch(() => props.isOpen, (open) => {
-  if (open) {
-    profileForm.value.displayName = props.userProfile.displayName || ''
-    profileForm.value.defaultUnitSystem = props.userProfile.defaultUnitSystem || 'metric'
-    profileForm.value.showDecimals = props.userProfile.showDecimals !== undefined ? props.userProfile.showDecimals : true
-    profileForm.value.theme = props.userProfile.theme || 'dark'
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (open) {
+      profileForm.value.displayName = props.userProfile.displayName || ''
+      profileForm.value.defaultUnitSystem = props.userProfile.defaultUnitSystem || 'metric'
+      profileForm.value.showDecimals =
+        props.userProfile.showDecimals !== undefined ? props.userProfile.showDecimals : true
+      profileForm.value.theme = props.userProfile.theme || 'dark'
+    }
   }
-})
+)
 
 function handleFileImport(event) {
   const file = event.target.files?.[0]
@@ -287,10 +290,11 @@ function handleSaveAll() {
   color: var(--muted);
   margin-bottom: 6px;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
 }
 
-.form-input, .form-select {
+.form-input,
+.form-select {
   width: 100%;
   background: var(--item-bg);
   border: 1px solid var(--line);
@@ -303,7 +307,8 @@ function handleSaveAll() {
   transition: border-color 0.15s;
 }
 
-.form-input:focus, .form-select:focus {
+.form-input:focus,
+.form-select:focus {
   border-color: var(--accent);
 }
 
@@ -358,19 +363,19 @@ function handleSaveAll() {
   cursor: pointer;
   inset: 0;
   background-color: var(--line);
-  transition: .2s;
+  transition: 0.2s;
   border-radius: 24px;
 }
 
 .slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 18px;
   width: 18px;
   left: 3px;
   bottom: 3px;
   background-color: var(--muted-light);
-  transition: .2s;
+  transition: 0.2s;
   border-radius: 50%;
 }
 

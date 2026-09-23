@@ -28,22 +28,14 @@
             <Bookmark class="icon-sm" /> Saved Tabs
           </button>
 
-          <button
-            class="btn-nav"
-            :class="{ active: currentView === 'guide' }"
-            @click="$emit('switch-view', 'guide')"
-          >
+          <button class="btn-nav" :class="{ active: currentView === 'guide' }" @click="$emit('switch-view', 'guide')">
             <BookOpen class="icon-sm" /> Syntax Guide
           </button>
         </div>
 
         <!-- Mobile Navigation Menu Dropdown (Shown ONLY ON MOBILE <= 600px) -->
         <div class="mobile-nav-wrapper mobile-only">
-          <button
-            class="btn-mobile-nav-select"
-            title="Menu & Navigation"
-            @click="isMobileNavOpen = !isMobileNavOpen"
-          >
+          <button class="btn-mobile-nav-select" title="Menu & Navigation" @click="isMobileNavOpen = !isMobileNavOpen">
             <Calculator v-if="currentView === 'notepad'" class="icon-sm active-nav-icon" />
             <Bookmark v-else-if="currentView === 'library'" class="icon-sm active-nav-icon" />
             <BookOpen v-else-if="currentView === 'guide'" class="icon-sm active-nav-icon" />
@@ -54,11 +46,7 @@
           </button>
 
           <Teleport to="body">
-            <div
-              v-if="isMobileNavOpen"
-              class="mobile-dropdown-backdrop"
-              @click="isMobileNavOpen = false"
-            ></div>
+            <div v-if="isMobileNavOpen" class="mobile-dropdown-backdrop" @click="isMobileNavOpen = false"></div>
 
             <div v-if="isMobileNavOpen" class="mobile-nav-menu" @click.stop>
               <div class="mobile-nav-menu-header">Menu & Views</div>
@@ -91,18 +79,12 @@
 
               <div class="mobile-nav-menu-divider"></div>
 
-              <button
-                class="mobile-nav-menu-item"
-                @click="$emit('open-welcome'); isMobileNavOpen = false"
-              >
+              <button class="mobile-nav-menu-item" @click="openWelcomeFromMenu">
                 <HelpCircle class="icon-sm" />
                 <span>Quick Tour</span>
               </button>
 
-              <button
-                class="mobile-nav-menu-item"
-                @click="openMobileSettings"
-              >
+              <button class="mobile-nav-menu-item" @click="openMobileSettings">
                 <Settings class="icon-sm" />
                 <span>Settings</span>
               </button>
@@ -115,15 +97,15 @@
         <!-- Decimals Toggle Switch -->
         <div
           class="decimals-switch-box desktop-only"
-          :title="showDecimals ? 'Decimals ON (showing fractional values) · Alt+D' : 'Decimals OFF (rounding to integers) · Alt+D'"
+          :title="
+            showDecimals
+              ? 'Decimals ON (showing fractional values) · Alt+D'
+              : 'Decimals OFF (rounding to integers) · Alt+D'
+          "
         >
           <span class="switch-text">Decimals</span>
           <label class="toggle-switch">
-            <input
-              type="checkbox"
-              :checked="showDecimals"
-              @change="$emit('toggle-show-decimals')"
-            />
+            <input type="checkbox" :checked="showDecimals" @change="$emit('toggle-show-decimals')" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -142,7 +124,10 @@
         </button>
 
         <!-- Expand Calculation Area / Toggle Sidebar Button -->
-        <button :aria-label="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
+        <button
+          :aria-label="
+            showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'
+          "
           class="btn-icon desktop-only"
           :class="{ active: !showSidebar }"
           :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
@@ -153,7 +138,8 @@
         </button>
 
         <!-- Light / Dark Theme Toggle -->
-        <button :aria-label="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
+        <button
+          :aria-label="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
           class="btn-icon desktop-only"
           :title="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
           @click="$emit('toggle-theme')"
@@ -163,7 +149,8 @@
         </button>
 
         <!-- Quick Tour / Welcome Modal Button -->
-        <button aria-label="Quick Tour & Intro Guide"
+        <button
+          aria-label="Quick Tour & Intro Guide"
           class="btn-icon desktop-only"
           title="Quick Tour & Intro Guide"
           @click="$emit('open-welcome')"
@@ -171,12 +158,17 @@
           <HelpCircle class="icon" />
         </button>
 
-        <button class="btn-icon btn-settings desktop-only" title="Settings & Data Management (Ctrl+,)" @click="$emit('open-settings')">
+        <button
+          class="btn-icon btn-settings desktop-only"
+          title="Settings & Data Management (Ctrl+,)"
+          @click="$emit('open-settings')"
+        >
           <Settings class="icon" />
           <span class="btn-settings-text">Settings</span>
         </button>
       </div>
-    </div>    <!-- Bottom Bar: Tabs Strip (only shown in notepad view) -->
+    </div>
+    <!-- Bottom Bar: Tabs Strip (only shown in notepad view) -->
     <div v-if="currentView === 'notepad'" class="tabs-strip">
       <!-- Desktop & Tablet Tab Strip (100% Original Desktop HTML) -->
       <div class="tabs-desktop-strip desktop-tabs">
@@ -269,11 +261,7 @@
         <!-- Teleport mobile tab dropdown menu to body so no parent overflow clips it -->
         <Teleport to="body">
           <!-- Transparent Backdrop to dismiss dropdown on tap outside -->
-          <div
-            v-if="isMobileTabMenuOpen"
-            class="mobile-dropdown-backdrop"
-            @click="isMobileTabMenuOpen = false"
-          ></div>
+          <div v-if="isMobileTabMenuOpen" class="mobile-dropdown-backdrop" @click="isMobileTabMenuOpen = false"></div>
 
           <!-- Mobile Tab Dropdown Menu (Opens DOWNWARDS below header) -->
           <div v-if="isMobileTabMenuOpen" class="mobile-tab-dropdown-menu" @click.stop>
@@ -306,10 +294,20 @@
                       @keyup.esc="cancelRename"
                       @click.stop
                     />
-                    <button aria-label="Save" class="btn-mobile-rename-save" title="Save" @click.stop="saveRename(tab.id)">
+                    <button
+                      aria-label="Save"
+                      class="btn-mobile-rename-save"
+                      title="Save"
+                      @click.stop="saveRename(tab.id)"
+                    >
                       <Check class="icon-xs" />
                     </button>
-                    <button aria-label="Cancel" class="btn-mobile-rename-cancel" title="Cancel" @click.stop="cancelRename">
+                    <button
+                      aria-label="Cancel"
+                      class="btn-mobile-rename-cancel"
+                      title="Cancel"
+                      @click.stop="cancelRename"
+                    >
                       <X class="icon-xs" />
                     </button>
                   </div>
@@ -321,11 +319,7 @@
                   </div>
 
                   <div class="dropdown-item-actions">
-                    <button
-                      class="btn-dropdown-action"
-                      title="Rename"
-                      @click.stop="startRename(tab)"
-                    >
+                    <button class="btn-dropdown-action" title="Rename" @click.stop="startRename(tab)">
                       <Edit3 class="icon-xs" />
                       <span>Rename</span>
                     </button>
@@ -342,7 +336,7 @@
               </div>
             </div>
 
-            <button class="btn-dropdown-create-new" @click="$emit('create-tab'); isMobileTabMenuOpen = false;">
+            <button class="btn-dropdown-create-new" @click="createTabFromMenu">
               <Plus class="icon-sm" />
               <span>Create New Notepad Tab</span>
             </button>
@@ -355,7 +349,24 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { BookOpen, Calculator, Bookmark, Settings, Plus, X, Edit3, Sun, Moon, Cloud, Maximize2, Minimize2, Folder, ChevronDown, Check, HelpCircle } from '@lucide/vue'
+import {
+  BookOpen,
+  Calculator,
+  Bookmark,
+  Settings,
+  Plus,
+  X,
+  Edit3,
+  Sun,
+  Moon,
+  Cloud,
+  Maximize2,
+  Minimize2,
+  Folder,
+  ChevronDown,
+  Check,
+  HelpCircle
+} from '@lucide/vue'
 
 const props = defineProps({
   tabs: { type: Array, required: true },
@@ -400,8 +411,8 @@ function openMobileSettings() {
 }
 
 const activeTabTitle = computed(() => {
-  const t = props.tabs.find(x => x.id === props.activeTabId)
-  return t ? (t.title || 'Untitled') : 'Untitled'
+  const t = props.tabs.find((x) => x.id === props.activeTabId)
+  return t ? t.title || 'Untitled' : 'Untitled'
 })
 
 function selectMobileTab(id) {
@@ -422,6 +433,16 @@ function startRename(tab) {
     focusTarget(editInputRef)
     focusTarget(mobileEditInputRef)
   })
+}
+
+function openWelcomeFromMenu() {
+  emit('open-welcome')
+  isMobileNavOpen.value = false
+}
+
+function createTabFromMenu() {
+  emit('create-tab')
+  isMobileTabMenuOpen.value = false
 }
 
 // Arrow keys move focus between tabs in the tab strip (select with Enter or Space)
@@ -520,7 +541,7 @@ function onDragEnd() {
   padding: 4px 8px;
   border-radius: 6px;
   font-weight: 700;
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
 }
 
 .brand-text h1 {
@@ -616,19 +637,19 @@ function onDragEnd() {
   inset: 0;
   background-color: var(--item-bg);
   border: 1px solid var(--line);
-  transition: .2s ease;
+  transition: 0.2s ease;
   border-radius: 20px;
 }
 
 .toggle-slider:before {
   position: absolute;
-  content: "";
+  content: '';
   height: 12px;
   width: 12px;
   left: 2px;
   bottom: 2px;
   background-color: var(--muted);
-  transition: .2s ease;
+  transition: 0.2s ease;
   border-radius: 50%;
 }
 
@@ -757,7 +778,7 @@ function onDragEnd() {
   font-weight: 600;
 }
 
-.tab-item[draggable="true"] {
+.tab-item[draggable='true'] {
   cursor: grab;
 }
 

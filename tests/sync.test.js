@@ -36,19 +36,19 @@ describe('mergeCloudTabs', () => {
   it('uses the cloud copy when the local copy has no unsynced edits', () => {
     const local = [{ id: 'a', content: 'old', updatedAt: T0, syncedAt: T0 }]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'new', T1)])
-    expect(merged.map(t => t.content)).toEqual(['new'])
+    expect(merged.map((t) => t.content)).toEqual(['new'])
   })
 
   it('keeps a local edit that is newer than the cloud copy', () => {
     const local = [{ id: 'a', content: 'local edit', updatedAt: T2, syncedAt: T0 }]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'cloud', T1)])
-    expect(merged.map(t => t.content)).toEqual(['local edit'])
+    expect(merged.map((t) => t.content)).toEqual(['local edit'])
   })
 
   it('prefers the cloud copy when it is newer than an unsynced local edit', () => {
     const local = [{ id: 'a', content: 'local edit', updatedAt: T1, syncedAt: T0 }]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'cloud', T2)])
-    expect(merged.map(t => t.content)).toEqual(['cloud'])
+    expect(merged.map((t) => t.content)).toEqual(['cloud'])
   })
 
   it('drops a synced local tab that was deleted on another device', () => {
@@ -57,19 +57,19 @@ describe('mergeCloudTabs', () => {
       { id: 'gone', content: 'deleted elsewhere', updatedAt: T0, syncedAt: T0 }
     ]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'a')])
-    expect(merged.map(t => t.id)).toEqual(['a'])
+    expect(merged.map((t) => t.id)).toEqual(['a'])
   })
 
   it('keeps a deleted-elsewhere tab that has unsynced local edits', () => {
     const local = [{ id: 'gone', content: 'edited offline', updatedAt: T2, syncedAt: T0 }]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'a')])
-    expect(merged.map(t => t.id)).toEqual(['a', 'gone'])
+    expect(merged.map((t) => t.id)).toEqual(['a', 'gone'])
   })
 
   it('keeps tabs created while logged out, such as an opened share link', () => {
     const local = [{ id: 'tab-shared-1', content: 'shared', updatedAt: T0 }]
     const merged = mergeCloudTabs(local, [cloudTab('a', 'a')])
-    expect(merged.map(t => t.id)).toEqual(['a', 'tab-shared-1'])
+    expect(merged.map((t) => t.id)).toEqual(['a', 'tab-shared-1'])
   })
 
   it('drops disposable never-synced tabs when the account already has tabs', () => {
@@ -79,6 +79,6 @@ describe('mergeCloudTabs', () => {
     ]
     const isDisposable = (t) => t.id === 'tab-1' && t.content === 'example'
     const merged = mergeCloudTabs(local, [cloudTab('a', 'a')], isDisposable)
-    expect(merged.map(t => t.id)).toEqual(['a', 'mine'])
+    expect(merged.map((t) => t.id)).toEqual(['a', 'mine'])
   })
 })

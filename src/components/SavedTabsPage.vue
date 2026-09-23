@@ -27,7 +27,7 @@
             aria-label="Search saved tabs"
             placeholder="Search saved tabs by title or content..."
           />
-          <button aria-label="Clear search" v-if="searchQuery" class="btn-clear-search" @click="searchQuery = ''">
+          <button v-if="searchQuery" aria-label="Clear search" class="btn-clear-search" @click="searchQuery = ''">
             <X class="icon-xs" />
           </button>
         </div>
@@ -43,18 +43,15 @@
           <Bookmark class="empty-icon" />
           <h3>No Saved Tabs Found</h3>
           <p v-if="searchQuery">No saved tabs match your search query "{{ searchQuery }}".</p>
-          <p v-else>You haven't saved any tabs to your library yet. Click <b>Save to Library</b> in the top header while working on a tab to save it here!</p>
-          <button class="btn-primary" @click="$emit('switch-to-notepad')">
-            Go to Calculator Workspace
-          </button>
+          <p v-else>
+            You haven't saved any tabs to your library yet. Click <b>Save to Library</b> in the top header while working
+            on a tab to save it here!
+          </p>
+          <button class="btn-primary" @click="$emit('switch-to-notepad')">Go to Calculator Workspace</button>
         </div>
 
         <div v-else class="cards-grid">
-          <div
-            v-for="item in filteredLibrary"
-            :key="item.id"
-            class="library-card"
-          >
+          <div v-for="item in filteredLibrary" :key="item.id" class="library-card">
             <div class="card-header">
               <div class="card-title-wrap">
                 <FileText class="icon-sm card-icon" />
@@ -63,11 +60,11 @@
               <span class="badge-lines">{{ item.lineCount || getLineCount(item.content) }} lines</span>
             </div>
 
-            <div class="card-meta">
-              Saved on {{ formatDate(item.savedAt) }}
-            </div>
+            <div class="card-meta">Saved on {{ formatDate(item.savedAt) }}</div>
 
-            <pre class="code-preview" title="Preview this document" @click="openPreview(item)">{{ getPreviewText(item.content) }}</pre>
+            <pre class="code-preview" title="Preview this document" @click="openPreview(item)">{{
+              getPreviewText(item.content)
+            }}</pre>
 
             <div class="card-actions">
               <button
@@ -86,11 +83,7 @@
                 <Eye class="icon-xs" /> Preview
               </button>
 
-              <button
-                class="btn-action"
-                title="Copy full text to clipboard"
-                @click="copyContent(item.content)"
-              >
+              <button class="btn-action" title="Copy full text to clipboard" @click="copyContent(item.content)">
                 <Copy class="icon-xs" /> Copy
               </button>
 
@@ -133,12 +126,7 @@
         </header>
 
         <div class="preview-body">
-          <div
-            v-for="(line, idx) in previewLines"
-            :key="idx"
-            class="preview-row"
-            :class="previewRendered[idx]?.cls"
-          >
+          <div v-for="(line, idx) in previewLines" :key="idx" class="preview-row" :class="previewRendered[idx]?.cls">
             <span class="preview-ln">{{ idx + 1 }}</span>
             <span class="preview-src">{{ line || ' ' }}</span>
             <span class="preview-res">{{ getResultText(previewRendered[idx]) }}</span>
@@ -153,7 +141,11 @@
             <button class="btn-action" title="Copy full text to clipboard" @click="copyContent(previewItem.content)">
               <Copy class="icon-xs" /> Copy
             </button>
-            <button class="btn-action primary" title="Open and reload this document as an active tab" @click="loadFromPreview">
+            <button
+              class="btn-action primary"
+              title="Open and reload this document as an active tab"
+              @click="loadFromPreview"
+            >
               <ExternalLink class="icon-xs" /> Open as Tab
             </button>
           </div>
@@ -182,9 +174,8 @@ const searchQuery = ref('')
 const filteredLibrary = computed(() => {
   if (!searchQuery.value.trim()) return props.library
   const q = searchQuery.value.toLowerCase()
-  return props.library.filter((item) =>
-    item.title.toLowerCase().includes(q) ||
-    (item.content || '').toLowerCase().includes(q)
+  return props.library.filter(
+    (item) => item.title.toLowerCase().includes(q) || (item.content || '').toLowerCase().includes(q)
   )
 })
 
@@ -253,11 +244,14 @@ function formatDate(isoStr) {
 }
 
 function copyContent(text) {
-  navigator.clipboard.writeText(text || '').then(() => {
-    emit('toast', 'Content copied to clipboard')
-  }).catch(() => {
-    emit('toast', 'Could not copy: clipboard access was blocked')
-  })
+  navigator.clipboard
+    .writeText(text || '')
+    .then(() => {
+      emit('toast', 'Content copied to clipboard')
+    })
+    .catch(() => {
+      emit('toast', 'Could not copy: clipboard access was blocked')
+    })
 }
 
 async function confirmDelete(id, title) {
@@ -729,12 +723,30 @@ async function confirmDelete(id, title) {
 }
 
 @media (max-width: 600px) {
-  .preview-backdrop { padding: 0; }
-  .preview-card { max-height: 100vh; height: 100%; border-radius: 0; }
-  .preview-row { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; }
+  .preview-backdrop {
+    padding: 0;
+  }
+  .preview-card {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+  .preview-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
 }
 
-.icon-sm { width: 15px; height: 15px; }
-.icon-xs { width: 12px; height: 12px; }
-.icon { width: 20px; height: 20px; }
+.icon-sm {
+  width: 15px;
+  height: 15px;
+}
+.icon-xs {
+  width: 12px;
+  height: 12px;
+}
+.icon {
+  width: 20px;
+  height: 20px;
+}
 </style>

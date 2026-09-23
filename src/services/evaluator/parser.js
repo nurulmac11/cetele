@@ -31,7 +31,11 @@ export class Parser {
     if (tok.type === 'SECTION_HEADER') return { type: 'SectionHeader', title: tok.value }
 
     // Check for Variable Assignment: identifier = expr (or keyword/date/subtotal/total = expr)
-    if (['IDENT', 'KEYWORD', 'DATE_KEYWORD', 'SUBTOTAL', 'TOTAL'].includes(tok.type) && this.tokens[this.pos + 1]?.type === 'OPERATOR' && this.tokens[this.pos + 1]?.value === '=') {
+    if (
+      ['IDENT', 'KEYWORD', 'DATE_KEYWORD', 'SUBTOTAL', 'TOTAL'].includes(tok.type) &&
+      this.tokens[this.pos + 1]?.type === 'OPERATOR' &&
+      this.tokens[this.pos + 1]?.value === '='
+    ) {
       const varName = this.consume().value
       this.consume() // '='
       const expr = this.parseExpression()
@@ -84,7 +88,12 @@ export class Parser {
         this.consume()
         const targetTok = this.peek()
         let targetUnit = ''
-        if (targetTok.type === 'CURRENCY_CODE' || targetTok.type === 'CURRENCY_SYMBOL' || targetTok.type === 'IDENT' || targetTok.type === 'DATE_UNIT') {
+        if (
+          targetTok.type === 'CURRENCY_CODE' ||
+          targetTok.type === 'CURRENCY_SYMBOL' ||
+          targetTok.type === 'IDENT' ||
+          targetTok.type === 'DATE_UNIT'
+        ) {
           targetUnit = this.consume().value
         }
         left = { type: 'Conversion', expr: left, targetUnit }
@@ -132,14 +141,14 @@ export class Parser {
     const tok = this.peek()
     if (tok.type !== 'OPERATOR' || tok.value !== '%') return false
     const after = this.tokens[this.pos + 1]
-    const isModuloOperand = after && (
-      after.type === 'NUMBER' ||
-      after.type === 'IDENT' ||
-      after.type === 'LINE_REF' ||
-      after.type === 'CURRENCY_SYMBOL' ||
-      after.type === 'CURRENCY_CODE' ||
-      (after.type === 'OPERATOR' && after.value === '(')
-    )
+    const isModuloOperand =
+      after &&
+      (after.type === 'NUMBER' ||
+        after.type === 'IDENT' ||
+        after.type === 'LINE_REF' ||
+        after.type === 'CURRENCY_SYMBOL' ||
+        after.type === 'CURRENCY_CODE' ||
+        (after.type === 'OPERATOR' && after.value === '('))
     return !isModuloOperand
   }
 
@@ -188,7 +197,11 @@ export class Parser {
         if (MULTIPLIERS[multKey]) {
           const lookahead2 = this.tokens[this.pos + 1]
           // If 'm' is followed by 'to' or 'in' (e.g. 500 m to km), leave 'm' for unit conversion
-          const isUnitConversionFollowup = multKey === 'm' && lookahead2 && (lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in'))
+          const isUnitConversionFollowup =
+            multKey === 'm' &&
+            lookahead2 &&
+            lookahead2.type === 'KEYWORD' &&
+            (lookahead2.value === 'to' || lookahead2.value === 'in')
           if (!isUnitConversionFollowup) {
             this.consume() // consume multiplier token 'k', 'm', 'b', or 't'
             if (multKey === 'm') metresAmount = amount
@@ -220,9 +233,7 @@ export class Parser {
           return { type: 'UnitNumber', amount, unit }
         }
       }
-      return metresAmount !== null
-        ? { type: 'Number', value: amount, metresAmount }
-        : { type: 'Number', value: amount }
+      return metresAmount !== null ? { type: 'Number', value: amount, metresAmount } : { type: 'Number', value: amount }
     }
 
     // Date Expression (e.g. today + 2 weeks, now - 1 hour, start + 2 weeks - 1 day)
@@ -231,9 +242,13 @@ export class Parser {
       const lookaheadNum = this.tokens[this.pos + 2]
       const lookaheadUnit = this.tokens[this.pos + 3]
 
-      const isDateOffsetFollowup = lookaheadOp && (lookaheadOp.value === '+' || lookaheadOp.value === '-') &&
-                                   lookaheadNum && lookaheadNum.type === 'NUMBER' &&
-                                   lookaheadUnit && lookaheadUnit.type === 'DATE_UNIT'
+      const isDateOffsetFollowup =
+        lookaheadOp &&
+        (lookaheadOp.value === '+' || lookaheadOp.value === '-') &&
+        lookaheadNum &&
+        lookaheadNum.type === 'NUMBER' &&
+        lookaheadUnit &&
+        lookaheadUnit.type === 'DATE_UNIT'
 
       if (tok.type === 'DATE_KEYWORD' || isDateOffsetFollowup) {
         const baseName = this.consume().value
