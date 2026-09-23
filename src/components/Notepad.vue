@@ -15,11 +15,11 @@
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
         >
-          <button
+          <button :aria-label="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
             v-if="item.isSection"
             class="btn-fold"
-            @click.stop="toggleSectionCollapse(item.origIdx)"
             :title="collapsedSections[item.origIdx] ? 'Expand section' : 'Collapse section'"
+            @click.stop="toggleSectionCollapse(item.origIdx)"
           >
             <ChevronRight v-if="collapsedSections[item.origIdx]" class="icon-fold" />
             <ChevronDown v-else class="icon-fold" />
@@ -48,6 +48,7 @@
           ref="inputRef"
           v-model="tabContent"
           class="input-area"
+          aria-label="Calculations: type one expression per line"
           :readonly="hasCollapsedSections"
           spellcheck="false"
           autocomplete="off"
@@ -179,8 +180,8 @@
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' / ')">/</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' % ')">%</button>
       <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol('#')">#line</button>
-      <button class="btn-helper icon-btn" @mousedown.prevent @click="handleUndo" title="Undo"><RotateCcw class="icon-xs" /></button>
-      <button class="btn-helper icon-btn" @mousedown.prevent @click="handleRedo" title="Redo"><RotateCw class="icon-xs" /></button>
+      <button aria-label="Undo" class="btn-helper icon-btn" title="Undo" @mousedown.prevent @click="handleUndo"><RotateCcw class="icon-xs" /></button>
+      <button aria-label="Redo" class="btn-helper icon-btn" title="Redo" @mousedown.prevent @click="handleRedo"><RotateCw class="icon-xs" /></button>
     </div>
 
     <!-- Status Bar -->
@@ -203,8 +204,8 @@
         <button
           class="btn-expand-area desktop-only"
           :class="{ expanded: !showSidebar }"
-          @click="$emit('toggle-sidebar')"
           :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar'"
+          @click="$emit('toggle-sidebar')"
         >
           <Maximize2 v-if="showSidebar" class="icon-xs" />
           <Minimize2 v-else class="icon-xs" />
@@ -224,9 +225,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { evaluateAll, ratesUpdatedAt } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X, Copy, Maximize2, Minimize2 } from '@lucide/vue'
+import { highlightDocument } from '../services/highlighter.js'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Copy, Maximize2, Minimize2 } from '@lucide/vue'
 
 // Letters in any script, so Turkish variable names (maaş, ödeme) are recognised
 const IDENT_PATTERN = '[\\p{L}_][\\p{L}\\p{N}_]*'
@@ -314,7 +316,7 @@ function getLineLeftLabel(rawLine) {
     return ''
   }
 
-  if (clean.includes(' to ') || clean.includes(' in ') || /[\+\-\*\/\%#]/.test(clean)) {
+  if (clean.includes(' to ') || clean.includes(' in ') || /[+\-*/%#]/.test(clean)) {
     return clean
   }
 
@@ -333,173 +335,7 @@ const collapsedSections = ref({})
 const hoveredLineIndex = ref(null)
 const backdropRef = ref(null)
 
-const KEYWORDS = new Set([
-  'subtotal', 'total', 'prev', 'to', 'in', 'of', 'off', 'increase', 'decrease', 'by',
-  'min', 'max', 'sqrt', 'abs', 'round', 'floor', 'ceil', 'log', 'sin', 'cos', 'tan', 'count', 'sum', 'avg', 'average',
-  'today', 'now',
-  'days', 'day', 'weeks', 'week', 'months', 'month', 'years', 'year', 'hours', 'hour', 'mins', 'min', 'minutes', 'minute', 'sec', 'second', 'seconds',
-  'pi', 'e'
-])
-
-const CURRENCY_CRYPTO_GOLD = new Set([
-  'usd', 'eur', 'gbp', 'try', 'tl', 'cad', 'aud', 'chf', 'jpy', 'cny', 'rub', 'inr', 'zar', 'krw', 'sgd', 'hkd', 'nzd', 'sek', 'nok', 'mxn', 'brl',
-  'dollar', 'dollars', 'euro', 'euros', 'pound', 'pounds', 'lira', 'tlira', 'yen', 'rupee', 'rmb',
-  'btc', 'eth', 'sol', 'usdt', 'bnb', 'xrp', 'doge', 'ada', 'avax',
-  'gold', 'altin', 'altın', 'ceyrek', 'çeyrek', 'oz', 'ounce', 'ounces', 'troy', 'gram', 'xau'
-])
-
-const MEASUREMENT_UNITS = new Set([
-  'km', 'mile', 'miles', 'm', 'cm', 'mm', 'ft', 'inch', 'inches', 'kg', 'g', 'lbs', 'lb', 'celcius', 'fahrenheit'
-])
-
-function tokenizeCodePart(code) {
-  if (!code) return []
-
-  const tokens = []
-  const regex = /(?:\$[0-9]+(?:\.[0-9]+)?[kmbT]?|[0-9]+(?:\.[0-9]+)?[kmbT]?%?|#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\$|€|£|[\p{L}_][\p{L}\p{N}_]*|[\+\-\*\/=\(\)%])/giu
-
-  let lastIndex = 0
-  let match
-
-  while ((match = regex.exec(code)) !== null) {
-    const text = match[0]
-    const idx = match.index
-
-    if (idx > lastIndex) {
-      tokens.push({ cls: 'tok-code', text: code.slice(lastIndex, idx) })
-    }
-
-    const lower = text.toLowerCase()
-    let cls = 'tok-code'
-
-    if (text === '$' || text === '€' || text === '£' || text.startsWith('$')) {
-      cls = 'tok-currency'
-    } else if (/^#[0-9]+$/.test(text) || /^[Ll][0-9]+$/.test(text) || /^[Ll]ine[0-9]+$/i.test(text)) {
-      cls = 'tok-number'
-    } else if (/^[0-9]+(?:\.[0-9]+)?[kmbT]?%?$/.test(text)) {
-      cls = 'tok-number'
-    } else if (KEYWORDS.has(lower)) {
-      cls = 'tok-keyword'
-    } else if (CURRENCY_CRYPTO_GOLD.has(lower)) {
-      cls = 'tok-currency'
-    } else if (MEASUREMENT_UNITS.has(lower)) {
-      cls = 'tok-unit'
-    } else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(text)) {
-      cls = 'tok-variable'
-    } else if (/[\+\-\*\/\=\(\)%]/.test(text)) {
-      cls = 'tok-op'
-    }
-
-    tokens.push({ cls, text })
-    lastIndex = idx + text.length
-  }
-
-  if (lastIndex < code.length) {
-    tokens.push({ cls: 'tok-code', text: code.slice(lastIndex) })
-  }
-
-  return tokens.length > 0 ? tokens : [{ cls: 'tok-code', text: code }]
-}
-
-const formattedEditorLines = computed(() => {
-  const text = tabContent.value || ''
-  const lines = text.split('\n')
-  const result = []
-
-  let inComment = false
-  let delim = null
-
-  lines.forEach((line) => {
-    const trimmed = line.trim()
-
-    if (inComment) {
-      const closingStr = delim === '/*' ? '*/' : delim
-      if (line.includes(closingStr)) {
-        inComment = false
-        delim = null
-      }
-      result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
-      return
-    }
-
-    let open = null
-    if (trimmed.startsWith('"""')) open = '"""'
-    else if (trimmed.startsWith("'''")) open = "'''"
-    else if (trimmed.startsWith('/*')) open = '/*'
-
-    if (open) {
-      const rest = trimmed.slice(open.length)
-      const closeStr = open === '/*' ? '*/' : open
-      if (rest.includes(closeStr)) {
-        result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
-        return
-      } else {
-        inComment = true
-        delim = open
-        result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
-        return
-      }
-    }
-
-    if (trimmed.startsWith('//')) {
-      result.push({ tokens: [{ cls: 'tok-comment', text: line }] })
-      return
-    }
-
-    const secMatch = line.match(/^(\s*)(={3,}|-{3,})\s*(.*?)\s*(={3,}|-{3,})(\s*)$/)
-    if (secMatch) {
-      result.push({
-        tokens: [
-          { cls: 'tok-code', text: secMatch[1] },
-          { cls: 'tok-header-line', text: secMatch[2] + ' ' },
-          { cls: 'tok-header-title', text: secMatch[3] },
-          { cls: 'tok-header-line', text: ' ' + secMatch[4] },
-          { cls: 'tok-code', text: secMatch[5] }
-        ]
-      })
-      return
-    }
-
-    const secStartMatch = line.match(/^(\s*)(={3,}|-{3,})\s*(.*)$/)
-    if (secStartMatch) {
-      result.push({
-        tokens: [
-          { cls: 'tok-code', text: secStartMatch[1] },
-          { cls: 'tok-header-line', text: secStartMatch[2] + ' ' },
-          { cls: 'tok-header-title', text: secStartMatch[3] }
-        ]
-      })
-      return
-    }
-
-    const commentMatch = line.match(/(\/\*[\s\S]*?\*\/|\/\/.*|"""[\s\S]*?"""|'''[\s\S]*?''')/)
-    if (commentMatch) {
-      const commentIdx = commentMatch.index
-      const codePart = line.slice(0, commentIdx)
-      const commentPart = line.slice(commentIdx)
-      result.push({
-        tokens: [
-          ...tokenizeCodePart(codePart),
-          { cls: 'tok-comment', text: commentPart }
-        ]
-      })
-      return
-    }
-
-    result.push({ tokens: tokenizeCodePart(line) })
-  })
-
-  return result
-})
-
-const sectionHeadersMap = computed(() => {
-  const map = new Map()
-  const secs = evaluation.value.sections || []
-  secs.forEach(sec => {
-    map.set(sec.headerIdx, sec)
-  })
-  return map
-})
+const formattedEditorLines = computed(() => highlightDocument(tabContent.value || ''))
 
 const collapsedLineIndices = computed(() => {
   const set = new Set()
@@ -519,12 +355,6 @@ const hasCollapsedSections = computed(() => collapsedLineIndices.value.size > 0)
 
 function toggleSectionCollapse(headerIdx) {
   collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
-}
-
-function getSectionCollapsedSummary(sec) {
-  if (!sec) return ''
-  const formattedSub = sec.subtotalText
-  return `▶ ${sec.title} — Subtotal: ${formattedSub} (${sec.count} lines hidden)`
 }
 
 const props = defineProps({
@@ -652,10 +482,6 @@ function redo() {
 // Evaluation output
 const evaluation = computed(() => {
   return evaluateAll(props.tab?.content || '', { disableFloat: props.disableFloat })
-})
-
-const lineCount = computed(() => {
-  return tabContent.value.split('\n').length
 })
 
 const formattedTotal = computed(() => evaluation.value.sumText)
@@ -895,13 +721,7 @@ function handleKeyDown(e) {
 
   if (e.key === 'Tab') {
     e.preventDefault()
-    const textarea = inputRef.value
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    tabContent.value = tabContent.value.substring(0, start) + '  ' + tabContent.value.substring(end)
-    setTimeout(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + 2
-    }, 0)
+    insertTabIndent()
   }
 }
 

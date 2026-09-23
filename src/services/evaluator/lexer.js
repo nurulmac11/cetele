@@ -51,6 +51,9 @@ export class Lexer {
     this.input = input || ''
     this.pos = 0
     this.length = this.input.length
+    // Comment ranges within the line ({ start, end }), for syntax highlighting.
+    // Inline comments produce no token, so the parser never sees them.
+    this.comments = []
   }
 
   peek(offset = 0) {
@@ -79,7 +82,21 @@ export class Lexer {
       }
     }
 
+    // Each loop pass emits at most one token; record its source range as start/end
+    let passStart = 0
+    let countBefore = 0
+    const markPassToken = () => {
+      const last = tokens[tokens.length - 1]
+      if (tokens.length > countBefore && last.start === undefined) {
+        last.start = passStart
+        last.end = this.pos
+      }
+    }
+
     while (this.pos < this.length) {
+      markPassToken()
+      passStart = this.pos
+      countBefore = tokens.length
       const ch = this.peek()
 
       if (isWhitespace(ch)) {
@@ -90,6 +107,7 @@ export class Lexer {
       // Single line comments //
       if (ch === '/' && this.peek(1) === '/') {
         const commentText = this.input.slice(this.pos)
+        this.comments.push({ start: this.pos, end: this.length })
         // If this comment is standalone on line, emit COMMENT token
         if (tokens.length === 0) {
           tokens.push({ type: 'COMMENT', value: commentText })
@@ -111,6 +129,7 @@ export class Lexer {
         if (closeIdx !== -1) {
           const commentContent = this.input.slice(this.pos, closeIdx)
           this.pos = closeIdx + delim.length
+          this.comments.push({ start: passStart, end: this.pos })
           const restOfLine = this.input.slice(this.pos).trim()
           
           // Emit COMMENT token ONLY if it is a standalone comment line (no preceding or trailing code)
@@ -122,6 +141,7 @@ export class Lexer {
         } else {
           const commentContent = this.input.slice(this.pos)
           this.pos = this.length
+          this.comments.push({ start: passStart, end: this.length })
           if (tokens.length === 0) {
             tokens.push({ type: 'COMMENT', value: commentContent })
           }
@@ -277,6 +297,7 @@ export class Lexer {
       this.consume()
     }
 
+    markPassToken()
     tokens.push({ type: 'EOF', value: '' })
     return tokens
   }
