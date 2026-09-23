@@ -375,7 +375,7 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(20px);
-  background-color: #080F1A;
+  background-color: var(--on-accent);
 }
 
 .account-card {
@@ -479,7 +479,7 @@ input:checked + .slider:before {
 
 .btn-primary {
   background: var(--accent);
-  color: #080F1A;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 13px;
   padding: 7px 16px;

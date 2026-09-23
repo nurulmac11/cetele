@@ -165,7 +165,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
   justify-content: center;
   gap: 8px;
   background: var(--accent);
-  color: #080F1A;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 13.5px;
   padding: 10px 16px;

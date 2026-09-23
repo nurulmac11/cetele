@@ -625,7 +625,7 @@ function onDragEnd() {
 
 .toggle-switch input:checked + .toggle-slider:before {
   transform: translateX(16px);
-  background-color: #080F1A;
+  background-color: var(--on-accent);
 }
 
 /* Cloud Sync Button */

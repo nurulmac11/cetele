@@ -428,7 +428,7 @@ function confirmDelete(id, title) {
 
 .btn-primary {
   background: var(--accent);
-  color: #080F1A;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 13px;
   padding: 9px 18px;
@@ -559,7 +559,7 @@ function confirmDelete(id, title) {
   font-weight: 600;
 }
 .btn-action.primary:hover {
-  color: #080F1A;
+  color: var(--on-accent);
   background: var(--accent);
 }
 

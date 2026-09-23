@@ -11,6 +11,8 @@
   --item-bg: #162337;
   --editor-bg: #0c1421;
   --gutter-bg: #162233;
+  --results-bg: #0D1725;
+  --on-accent: #080F1A;
 
   /* Subtle Borders */
   --line: #1D3046;
@@ -56,43 +58,46 @@
 
 /* Light Theme Overrides */
 [data-theme="light"] {
-  --bg: #F4F7FA;
-  --panel: #FFFFFF;
-  --panel-solid: #FFFFFF;
-  --panel-hover: #F8FAFC;
-  --panel-active: #E2E8F0;
-  --card-bg: #FFFFFF;
-  --item-bg: #F1F5F9;
-  --editor-bg: #FFFFFF;
-  --gutter-bg: #F1F5F9;
-  --line: #CBD5E1;
-  --line-soft: #E2E8F0;
-  --line-hover: #94A3B8;
-  --paper: #1E293B;
-  --paper-bright: #0F172A;
-  --muted: #64748B;
-  --muted-light: #475569;
-  --accent: #0D9488;
-  --accent-bright: #0F766E;
-  --accent-hover: #0F766E;
-  --accent-glow: rgba(13, 148, 136, 0.08);
-  --accent-dim: rgba(13, 148, 136, 0.2);
-  --var-color: #0D9488;
-  --var-glow: rgba(13, 148, 136, 0.08);
-  --var-dim: rgba(13, 148, 136, 0.2);
-  --result-color: #0D9488;
-  --result-glow: rgba(13, 148, 136, 0.08);
-  --syn-variable: #0D9488;
-  --syn-number: #D97706;
-  --syn-currency: #D97706;
-  --syn-comment: #64748B;
-  --syn-keyword: #7C3AED;
-  --syn-unit: #475569;
-  --purple-soft: #7C3AED;
-  --amber: #D97706;
-  --err: #DC2626;
-  --shadow-lg: 0 12px 28px -6px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.04);
+  /* Soft, low-glare palette: muted blue-gray surfaces instead of pure white */
+  --bg: #DCE2E9;
+  --panel: #EBEFF3;
+  --panel-solid: #EBEFF3;
+  --panel-hover: #E2E7ED;
+  --panel-active: #D3DBE4;
+  --card-bg: #F0F3F6;
+  --item-bg: #E1E7EE;
+  --editor-bg: #F3F5F8;
+  --gutter-bg: #E4E9EF;
+  --results-bg: #E9EDF2;
+  --line: #B9C4D0;
+  --line-soft: #D0D8E1;
+  --line-hover: #8A99AB;
+  --paper: #1F2937;
+  --paper-bright: #111827;
+  --muted: #536276;
+  --muted-light: #3F4D5F;
+  --accent: #0F766E;
+  --accent-bright: #0D5F58;
+  --accent-hover: #0D5F58;
+  --accent-glow: rgba(15, 118, 110, 0.10);
+  --accent-dim: rgba(15, 118, 110, 0.22);
+  --on-accent: #FFFFFF;
+  --var-color: #0F766E;
+  --var-glow: rgba(15, 118, 110, 0.10);
+  --var-dim: rgba(15, 118, 110, 0.22);
+  --result-color: #0F766E;
+  --result-glow: rgba(15, 118, 110, 0.10);
+  --syn-variable: #0F766E;
+  --syn-number: #B45309;
+  --syn-currency: #A16207;
+  --syn-comment: #6B7A8C;
+  --syn-keyword: #6D28D9;
+  --syn-unit: #4B5A6C;
+  --purple-soft: #6D28D9;
+  --amber: #B45309;
+  --err: #C62828;
+  --shadow-lg: 0 14px 30px -8px rgba(15, 23, 42, 0.16);
+  --shadow-md: 0 6px 16px -4px rgba(15, 23, 42, 0.10);
 }
 
 * {
@@ -126,9 +131,9 @@ body {
 [data-theme="light"] body {
   background-color: var(--bg);
   background:
-    radial-gradient(1100px 650px at 15% 10%, rgba(13, 148, 136, 0.08) 0%, transparent 65%),
-    radial-gradient(950px 750px at 85% 85%, rgba(20, 184, 166, 0.05) 0%, transparent 70%),
-    #F4F7FA;
+    radial-gradient(1100px 650px at 15% 10%, rgba(15, 118, 110, 0.06) 0%, transparent 65%),
+    radial-gradient(950px 750px at 85% 85%, rgba(109, 40, 217, 0.03) 0%, transparent 70%),
+    #DCE2E9;
   background-attachment: fixed;
 }
 
