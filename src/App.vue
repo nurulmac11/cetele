@@ -56,6 +56,7 @@
     <SavedTabsPage
       v-else-if="currentView === 'library'"
       :library="savedLibrary"
+      :disable-float="!userProfile.showDecimals"
       @switch-to-notepad="currentView = 'notepad'"
       @load-as-tab="handleLoadSavedTabAsTab"
       @delete-saved-tab="handleDeleteSavedTabFromLibrary"

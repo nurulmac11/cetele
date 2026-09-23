@@ -66,7 +66,7 @@
               Saved on {{ formatDate(item.savedAt) }}
             </div>
 
-            <pre class="code-preview" @click="$emit('load-as-tab', item)">{{ getPreviewText(item.content) }}</pre>
+            <pre class="code-preview" @click="openPreview(item)" title="Preview this document">{{ getPreviewText(item.content) }}</pre>
 
             <div class="card-actions">
               <button
@@ -75,6 +75,14 @@
                 title="Open and reload this document as an active tab"
               >
                 <ExternalLink class="icon-xs" /> Open as Tab
+              </button>
+
+              <button
+                class="btn-action"
+                @click="openPreview(item)"
+                title="Preview this document with results without opening it as a tab"
+              >
+                <Eye class="icon-xs" /> Preview
               </button>
 
               <button
@@ -97,15 +105,64 @@
         </div>
       </div>
     </div>
+
+    <!-- Read-only Preview Modal -->
+    <div v-if="previewItem" class="preview-backdrop" @click.self="closePreview">
+      <div class="preview-card" role="dialog" aria-modal="true" :aria-label="`Preview of ${previewItem.title}`">
+        <header class="preview-header">
+          <div class="card-title-wrap">
+            <FileText class="icon-sm card-icon" />
+            <div class="preview-title-block">
+              <h3 class="preview-title">{{ previewItem.title }}</h3>
+              <span class="card-meta">
+                Saved on {{ formatDate(previewItem.savedAt) }} · {{ previewLines.length }} lines · Read-only preview
+              </span>
+            </div>
+          </div>
+          <button class="btn-close" @click="closePreview" title="Close preview (Esc)">
+            <X class="icon-sm" />
+          </button>
+        </header>
+
+        <div class="preview-body">
+          <div
+            v-for="(line, idx) in previewLines"
+            :key="idx"
+            class="preview-row"
+            :class="previewRendered[idx]?.cls"
+          >
+            <span class="preview-ln">{{ idx + 1 }}</span>
+            <span class="preview-src">{{ line || ' ' }}</span>
+            <span class="preview-res">{{ getResultText(previewRendered[idx]) }}</span>
+          </div>
+        </div>
+
+        <footer class="preview-footer">
+          <div class="preview-total">
+            Total: <b>{{ previewTotal }}</b>
+          </div>
+          <div class="card-actions">
+            <button class="btn-action" @click="copyContent(previewItem.content)" title="Copy full text to clipboard">
+              <Copy class="icon-xs" /> Copy
+            </button>
+            <button class="btn-action primary" @click="loadFromPreview" title="Open and reload this document as an active tab">
+              <ExternalLink class="icon-xs" /> Open as Tab
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { Bookmark, ArrowLeft, Search, X, FileText, ExternalLink, Copy, Trash2 } from '@lucide/vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { Bookmark, ArrowLeft, Search, X, FileText, ExternalLink, Copy, Trash2, Eye } from '@lucide/vue'
+import { evaluateAll, formatValue } from '../services/evaluator.js'
 
 const props = defineProps({
-  library: { type: Array, default: () => [] }
+  library: { type: Array, default: () => [] },
+  disableFloat: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['switch-to-notepad', 'load-as-tab', 'delete-saved-tab'])
@@ -120,6 +177,48 @@ const filteredLibrary = computed(() => {
     (item.content || '').toLowerCase().includes(q)
   )
 })
+
+const previewItem = ref(null)
+
+const previewLines = computed(() => (previewItem.value?.content || '').split('\n'))
+
+const previewEvaluation = computed(() => {
+  if (!previewItem.value) return null
+  return evaluateAll(previewItem.value.content || '', { disableFloat: props.disableFloat })
+})
+
+const previewRendered = computed(() => previewEvaluation.value?.rendered || [])
+
+const previewTotal = computed(() => {
+  if (!previewEvaluation.value) return ''
+  return formatValue(previewEvaluation.value.sum, { disableFloat: props.disableFloat })
+})
+
+function getResultText(res) {
+  if (!res || res.cls === 'empty' || res.cls === 'comment' || res.cls === 'section-header') return ''
+  return res.text || ''
+}
+
+function openPreview(item) {
+  previewItem.value = item
+}
+
+function closePreview() {
+  previewItem.value = null
+}
+
+function loadFromPreview() {
+  const item = previewItem.value
+  closePreview()
+  if (item) emit('load-as-tab', item)
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape' && previewItem.value) closePreview()
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 function getLineCount(content) {
   return (content || '').split('\n').length
@@ -432,6 +531,7 @@ function confirmDelete(id, title) {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   margin-top: 4px;
 }
 
@@ -467,6 +567,159 @@ function confirmDelete(id, title) {
   color: var(--err);
   border-color: rgba(229, 83, 83, 0.25);
   background: rgba(229, 83, 83, 0.1);
+}
+
+/* Preview Modal */
+.preview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 14, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.preview-card {
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 760px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--card-bg);
+}
+
+.preview-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.preview-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--paper-bright);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-close {
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+}
+.btn-close:hover {
+  color: var(--paper);
+  background: var(--item-bg);
+}
+
+.preview-body {
+  flex: 1;
+  overflow: auto;
+  background: var(--editor-bg);
+  padding: 10px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.preview-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 0 16px 0 0;
+}
+.preview-row:hover {
+  background: var(--item-bg);
+}
+
+.preview-ln {
+  text-align: right;
+  color: var(--muted);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.preview-src {
+  color: var(--paper);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview-res {
+  color: var(--accent);
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.preview-row.comment .preview-src {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.preview-row.section-header .preview-src {
+  color: var(--paper-bright);
+  font-weight: 700;
+}
+
+.preview-row.subtotal-line .preview-res {
+  font-weight: 700;
+}
+
+.preview-row.err .preview-res {
+  color: var(--err);
+  font-weight: 400;
+}
+
+.preview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--card-bg);
+  flex-wrap: wrap;
+}
+
+.preview-footer .card-actions {
+  margin-top: 0;
+}
+
+.preview-total {
+  font-size: 13px;
+  color: var(--muted);
+}
+.preview-total b {
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@media (max-width: 600px) {
+  .preview-backdrop { padding: 0; }
+  .preview-card { max-height: 100vh; height: 100%; border-radius: 0; }
+  .preview-row { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; }
 }
 
 .icon-sm { width: 15px; height: 15px; }
