@@ -155,6 +155,11 @@ count                  // 2
 
 ---
 
+### Version History
+Every tab keeps earlier versions on your device: one when you start editing (at most every 5 minutes while you type), and one before the tab is cleared, restored, replaced by an import, or updated by cloud sync. Open **History** in the sidebar or search "history" with **`Ctrl + K`** to preview a version with its results and restore it. Restoring saves the current text as a version first, so it can be undone.
+
+---
+
 ## 6. Shareable Links (URL Hash Sharing)
 
 Click **Share Tab** in the sidebar to generate a live shareable link:

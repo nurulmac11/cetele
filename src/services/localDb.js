@@ -1,19 +1,25 @@
 // Local IndexedDB database service with localStorage fallback for Çetele
 
 const DB_NAME = 'CeteleLocalDB'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_TABS = 'tabs'
 const STORE_SAVED_TABS = 'saved_tabs'
 const STORE_SETTINGS = 'settings'
+const STORE_VERSIONS = 'tab_versions'
 
 const LOCAL_STORAGE_TABS_KEY = 'cetele_local_tabs'
 const LOCAL_STORAGE_SAVED_TABS_KEY = 'cetele_saved_tabs'
 const LOCAL_STORAGE_SETTINGS_KEY = 'cetele_local_settings'
+const LOCAL_STORAGE_VERSIONS_KEY = 'cetele_tab_versions'
+
+// Versions kept per tab. The localStorage fallback keeps fewer, since its space is small.
+export const MAX_VERSIONS_PER_TAB = 50
+const MAX_FALLBACK_VERSIONS_PER_TAB = 15
 
 let dbInstance = null
 
 function openDatabase() {
-  if (dbInstance && dbInstance.objectStoreNames.contains(STORE_SAVED_TABS)) {
+  if (dbInstance && dbInstance.objectStoreNames.contains(STORE_VERSIONS)) {
     return Promise.resolve(dbInstance)
   }
   if (dbInstance) {
@@ -42,6 +48,10 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
         db.createObjectStore(STORE_SETTINGS, { keyPath: 'key' })
+      }
+      if (!db.objectStoreNames.contains(STORE_VERSIONS)) {
+        const versionsStore = db.createObjectStore(STORE_VERSIONS, { keyPath: 'id' })
+        versionsStore.createIndex('tabId', 'tabId', { unique: false })
       }
     }
 
@@ -327,14 +337,103 @@ export async function clearLocalDatabase() {
   localStorage.removeItem(LOCAL_STORAGE_TABS_KEY)
   localStorage.removeItem(LOCAL_STORAGE_SAVED_TABS_KEY)
   localStorage.removeItem(LOCAL_STORAGE_SETTINGS_KEY)
+  localStorage.removeItem(LOCAL_STORAGE_VERSIONS_KEY)
 
   try {
     const db = await openDatabase()
-    const tx = db.transaction([STORE_TABS, STORE_SAVED_TABS, STORE_SETTINGS], 'readwrite')
+    const tx = db.transaction([STORE_TABS, STORE_SAVED_TABS, STORE_SETTINGS, STORE_VERSIONS], 'readwrite')
     tx.objectStore(STORE_TABS).clear()
     tx.objectStore(STORE_SAVED_TABS).clear()
     tx.objectStore(STORE_SETTINGS).clear()
+    tx.objectStore(STORE_VERSIONS).clear()
   } catch (e) {
     // ignore
   }
+}
+
+// ----------------------------------------------------
+// TAB VERSION HISTORY
+// ----------------------------------------------------
+
+function readFallbackVersions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_STORAGE_VERSIONS_KEY) || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (e) {
+    return {}
+  }
+}
+
+function writeFallbackVersions(byTab) {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_VERSIONS_KEY, JSON.stringify(byTab))
+  } catch (e) {
+    console.warn('Could not store version history:', e)
+  }
+}
+
+function newestFirst(a, b) {
+  return (b.createdAt || '').localeCompare(a.createdAt || '')
+}
+
+/**
+ * Stores a snapshot of a tab and drops the oldest beyond MAX_VERSIONS_PER_TAB.
+ * @param {{ id: string, tabId: string, title: string, content: string, createdAt: string, reason: string }} version
+ */
+export async function addTabVersion(version) {
+  try {
+    const db = await openDatabase()
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_VERSIONS, 'readwrite')
+      const store = tx.objectStore(STORE_VERSIONS)
+      store.put(version)
+      const request = store.index('tabId').getAll(version.tabId)
+      request.onsuccess = () => {
+        const extra = (request.result || []).sort(newestFirst).slice(MAX_VERSIONS_PER_TAB)
+        extra.forEach((old) => store.delete(old.id))
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch (err) {
+    const byTab = readFallbackVersions()
+    byTab[version.tabId] = [version, ...(byTab[version.tabId] || [])]
+      .sort(newestFirst)
+      .slice(0, MAX_FALLBACK_VERSIONS_PER_TAB)
+    writeFallbackVersions(byTab)
+  }
+}
+
+// A tab's versions, newest first
+export async function getTabVersions(tabId) {
+  try {
+    const db = await openDatabase()
+    return await new Promise((resolve, reject) => {
+      const request = db
+        .transaction(STORE_VERSIONS, 'readonly')
+        .objectStore(STORE_VERSIONS)
+        .index('tabId')
+        .getAll(tabId)
+      request.onsuccess = () => resolve((request.result || []).sort(newestFirst))
+      request.onerror = () => reject(request.error)
+    })
+  } catch (err) {
+    return (readFallbackVersions()[tabId] || []).sort(newestFirst)
+  }
+}
+
+// Removes all version history (sign-out, local data reset)
+export async function clearTabVersions() {
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_VERSIONS_KEY)
+  } catch (e) {}
+  try {
+    const db = await openDatabase()
+    await new Promise((resolve) => {
+      const tx = db.transaction(STORE_VERSIONS, 'readwrite')
+      tx.objectStore(STORE_VERSIONS).clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    })
+  } catch (e) {}
 }

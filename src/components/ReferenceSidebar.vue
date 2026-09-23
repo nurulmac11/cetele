@@ -25,6 +25,15 @@
           <Copy class="icon-sm" />
           <span>Copy All (=)</span>
         </button>
+
+        <button
+          class="btn-action"
+          title="Earlier versions of this tab, saved on this device"
+          @click="$emit('open-history')"
+        >
+          <History class="icon-sm" />
+          <span>History</span>
+        </button>
       </div>
     </div>
 
@@ -136,13 +145,13 @@
 </template>
 
 <script setup>
-import { BookmarkPlus, Share2, Copy, Variable } from '@lucide/vue'
+import { BookmarkPlus, Share2, Copy, Variable, History } from '@lucide/vue'
 
 defineProps({
   declaredVariables: { type: Array, default: () => [] }
 })
 
-defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
+defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all', 'open-history'])
 </script>
 
 <style scoped>
@@ -195,6 +204,7 @@ defineEmits(['insert', 'open-guide-page', 'save-tab', 'share-tab', 'copy-all'])
 
 .action-btn-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

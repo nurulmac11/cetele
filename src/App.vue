@@ -50,6 +50,7 @@
         @save-tab="handleSaveActiveTabToLibrary"
         @share-tab="handleShareActiveTab"
         @copy-all="copyAllWithResults"
+        @open-history="isHistoryOpen = true"
       />
     </main>
 
@@ -142,6 +143,16 @@
       @toast="showToast"
     />
 
+    <!-- Version history of the active tab -->
+    <TabHistoryModal
+      :is-open="isHistoryOpen"
+      :tab="activeTab"
+      :disable-float="!userProfile.showDecimals"
+      @close="isHistoryOpen = false"
+      @restore="restoreTabVersion"
+      @toast="showToast"
+    />
+
     <!-- Ctrl+K: search all tabs and run commands -->
     <CommandPalette
       :is-open="isPaletteOpen"
@@ -172,6 +183,8 @@ import AuthModal from './components/AuthModal.vue'
 import WelcomeModal from './components/WelcomeModal.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import CommandPalette from './components/CommandPalette.vue'
+import TabHistoryModal from './components/TabHistoryModal.vue'
+import { snapshotTab, clearVersionHistory, VERSION_REASONS } from './services/versionService.js'
 import {
   Plus,
   RotateCcw,
@@ -186,7 +199,8 @@ import {
   BookOpen,
   Library,
   Cloud,
-  HelpCircle
+  HelpCircle,
+  History
 } from '@lucide/vue'
 import { askConfirm } from './services/confirmService.js'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
@@ -334,7 +348,9 @@ async function handleUserUpdated(newUser, session, event) {
       handleCloudFetch(newUser.id)
     }
   } else if (prevUser && !newUser) {
-    // User signed out: revert active tabs to default guest state and reset saved tabs library
+    // User signed out: revert active tabs to default guest state and reset saved tabs library.
+    // Version history goes too, so the next person on this device can't read it.
+    clearVersionHistory()
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     activeTabId.value = defaultTabs[0].id
     savedLibrary.value = []
@@ -360,6 +376,13 @@ async function pullFromCloud(userId) {
   if (cloudTabs && currentUser.value?.id === userId) {
     lastCloudFetchAt = Date.now()
     const merged = mergeCloudTabs(tabs.value, cloudTabs, isUntouchedDefaultTab)
+    // Keep local text that the cloud copy is about to replace
+    for (const tab of merged) {
+      const local = tabs.value.find((t) => t.id === tab.id)
+      if (local && local !== tab && local.content !== tab.content) {
+        snapshotTab(local, VERSION_REASONS.cloud, { force: true })
+      }
+    }
     if (merged.length > 0) {
       // Preserve current activeTabId if it survived the merge
       const targetActiveId = merged.some((t) => t.id === activeTabId.value) ? activeTabId.value : merged[0].id
@@ -562,6 +585,8 @@ function reorderTabs(newTabsList) {
 
 function updateActiveTabContent(newContent) {
   if (activeTab.value) {
+    // Keeps the text from before this editing burst (at most every 5 minutes)
+    snapshotTab(activeTab.value, VERSION_REASONS.edit)
     activeTab.value.content = newContent
     markEdited(activeTab.value)
     triggerSave()
@@ -578,6 +603,7 @@ async function clearActiveTab() {
     danger: true
   })
   if (!confirmed) return
+  await snapshotTab(tab, VERSION_REASONS.clear, { force: true })
   tab.content = ''
   markEdited(tab)
   triggerSave()
@@ -713,6 +739,23 @@ async function copyAllWithResults() {
   showToast(copied ? 'Copied all inputs with results (= result)!' : 'Could not copy: clipboard access was blocked')
 }
 
+// --- Version history ---
+
+const isHistoryOpen = ref(false)
+
+async function restoreTabVersion(version) {
+  const tab = activeTab.value
+  if (!tab || !version) return
+  // Save the current text first, so a restore can be undone from the same list
+  await snapshotTab(tab, VERSION_REASONS.restore, { force: true })
+  tab.content = version.content
+  markEdited(tab)
+  triggerSave()
+  isHistoryOpen.value = false
+  currentView.value = 'notepad'
+  showToast(`Restored the version from ${new Date(version.createdAt).toLocaleString()}`)
+}
+
 // --- Command palette (Ctrl/Cmd+K) ---
 
 const paletteCommands = computed(() => [
@@ -740,6 +783,13 @@ const paletteCommands = computed(() => [
     run: handleShareActiveTab
   },
   { id: 'save', label: 'Save tab to library', icon: markRaw(Bookmark), run: handleSaveActiveTabToLibrary },
+  {
+    id: 'history',
+    label: 'Version history of this tab',
+    keywords: 'versions restore undo backup',
+    icon: markRaw(History),
+    run: () => (isHistoryOpen.value = true)
+  },
   { id: 'clear', label: 'Clear this tab', keywords: 'delete empty', icon: markRaw(Eraser), run: clearActiveTab },
   {
     id: 'decimals',
@@ -936,6 +986,8 @@ async function importTabs(importedArray) {
     showToast('No tabs found in this backup')
     return
   }
+  // The import replaces every tab; keep what they held
+  await Promise.all(tabs.value.map((t) => snapshotTab(t, VERSION_REASONS.import, { force: true })))
 
   const usedIds = new Set()
   const now = new Date().toISOString()
@@ -970,6 +1022,7 @@ async function resetLocalData() {
   })
   if (confirmed) {
     await clearLocalDatabase()
+    await clearVersionHistory()
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     savedLibrary.value = []
     activeTabId.value = defaultTabs[0].id

@@ -168,7 +168,8 @@ When changing a default text, add the previous text to `LEGACY_DEFAULT_TAB_CONTE
 Çetele supports zero-login offline usage while providing real-time cloud synchronization for authenticated users.
 
 1. **Local Database (`src/services/localDb.js`)**:
-   - Primary: **IndexedDB** (`CeteleLocalDB` version 2) with stores for `tabs`, `saved_tabs`, and `settings`.
+   - Primary: **IndexedDB** (`CeteleLocalDB` version 3) with stores for `tabs`, `saved_tabs`, `settings` and `tab_versions`.
+   - **Version history** (`src/services/versionService.js`, UI in `TabHistoryModal.vue`): `snapshotTab(tab, reason, { force })` saves a tab's text *before* it changes. Automatic snapshots happen at the start of an editing burst and at most every 5 minutes; forced ones before clear, restore, import and cloud-sync replacement. Duplicates and empty text are skipped, 50 versions are kept per tab (15 in the localStorage fallback), and history is cleared on sign-out and local reset. It is local to the device (not synced). Call `snapshotTab(..., { force: true })` before adding any new action that overwrites tab text.
    - Fallback: `localStorage` (`cetele_local_tabs`, `cetele_saved_tabs`, `cetele_local_settings`).
 
 2. **Cloud Synchronization (`src/services/syncService.js`)**:
