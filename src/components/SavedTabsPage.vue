@@ -158,14 +158,14 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Bookmark, ArrowLeft, Search, X, FileText, ExternalLink, Copy, Trash2, Eye } from '@lucide/vue'
-import { evaluateAll, formatValue } from '../services/evaluator.js'
+import { evaluateAll } from '../services/evaluator.js'
 
 const props = defineProps({
   library: { type: Array, default: () => [] },
   disableFloat: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['switch-to-notepad', 'load-as-tab', 'delete-saved-tab'])
+const emit = defineEmits(['switch-to-notepad', 'load-as-tab', 'delete-saved-tab', 'toast'])
 
 const searchQuery = ref('')
 
@@ -191,7 +191,7 @@ const previewRendered = computed(() => previewEvaluation.value?.rendered || [])
 
 const previewTotal = computed(() => {
   if (!previewEvaluation.value) return ''
-  return formatValue(previewEvaluation.value.sum, { disableFloat: props.disableFloat })
+  return previewEvaluation.value.sumText
 })
 
 function getResultText(res) {
@@ -248,8 +248,10 @@ function formatDate(isoStr) {
 
 function copyContent(text) {
   navigator.clipboard.writeText(text || '').then(() => {
-    alert('Content copied to clipboard!')
-  }).catch(() => {})
+    emit('toast', 'Content copied to clipboard')
+  }).catch(() => {
+    emit('toast', 'Could not copy: clipboard access was blocked')
+  })
 }
 
 function confirmDelete(id, title) {

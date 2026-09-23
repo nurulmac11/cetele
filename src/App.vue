@@ -60,6 +60,7 @@
       @switch-to-notepad="currentView = 'notepad'"
       @load-as-tab="handleLoadSavedTabAsTab"
       @delete-saved-tab="handleDeleteSavedTabFromLibrary"
+      @toast="showToast"
     />
 
     <!-- View Mode 3: Dedicated Full Syntax Guide Page -->
@@ -125,6 +126,7 @@
       @export-tabs="exportTabs"
       @import-tabs="importTabs"
       @reset-local-data="resetLocalData"
+      @toast="showToast"
     />
 
     <!-- Optional Supabase Auth Modal -->
@@ -242,18 +244,19 @@ function isUntouchedDefaultTab(tab) {
 }
 
 const activeTab = computed(() => {
+  if (!Array.isArray(tabs.value)) return null
+  return tabs.value.find((t) => t.id === activeTabId.value) || tabs.value[0] || null
+})
+
+// Keep state valid: there is always at least one tab, and activeTabId points at one of them
+watch([tabs, activeTabId], () => {
   if (!Array.isArray(tabs.value) || tabs.value.length === 0) {
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     activeTabId.value = defaultTabs[0].id
-  }
-  const found = tabs.value.find((t) => t.id === activeTabId.value)
-  if (found) return found
-  if (tabs.value[0]) {
+  } else if (!tabs.value.some((t) => t.id === activeTabId.value)) {
     activeTabId.value = tabs.value[0].id
-    return tabs.value[0]
   }
-  return null
-})
+}, { immediate: true })
 
 // Apply Theme Attribute
 function applyTheme(themeName) {
@@ -374,7 +377,7 @@ async function initLocalData() {
     }
 
     // Check if opened via a Share URL
-    const sharedDoc = decodeSharePayload()
+    const sharedDoc = await decodeSharePayload()
     if (sharedDoc) {
       const newId = 'tab-shared-' + Date.now()
       const newTab = {
@@ -534,22 +537,35 @@ function clearActiveTab() {
   }
 }
 
-// Share Active Tab
-function handleShareActiveTab() {
-  if (!activeTab.value) return
-  const shareUrl = encodeSharePayload(activeTab.value)
-  if (!shareUrl) return
+// Copies text, falling back to a hidden textarea where the Clipboard API is blocked
+async function copyText(text) {
   try {
-    navigator.clipboard.writeText(shareUrl)
+    await navigator.clipboard.writeText(text)
+    return true
   } catch (e) {
     const textInput = document.createElement('textarea')
-    textInput.value = shareUrl
+    textInput.value = text
     document.body.appendChild(textInput)
     textInput.select()
-    document.execCommand('copy')
+    let copied = false
+    try {
+      copied = document.execCommand('copy')
+    } catch (err) {}
     document.body.removeChild(textInput)
+    return copied
   }
-  showToast('Live shareable link copied to clipboard!')
+}
+
+// Share Active Tab
+async function handleShareActiveTab() {
+  if (!activeTab.value) return
+  const shareUrl = await encodeSharePayload(activeTab.value)
+  if (!shareUrl) {
+    showToast('Could not create a share link')
+    return
+  }
+  const copied = await copyText(shareUrl)
+  showToast(copied ? 'Share link copied to clipboard' : 'Could not copy the share link: clipboard access was blocked')
 }
 
 // Saved Library Actions
@@ -644,22 +660,14 @@ function toggleSidebar() {
 async function copyAllWithResults() {
   if (!activeTab.value) return
   const fullFormattedText = getFormattedCopyAllText(activeTab.value.content, { disableFloat: !userProfile.value.showDecimals })
-  try {
-    await navigator.clipboard.writeText(fullFormattedText)
-  } catch (e) {
-    const textInput = document.createElement('textarea')
-    textInput.value = fullFormattedText
-    document.body.appendChild(textInput)
-    textInput.select()
-    document.execCommand('copy')
-    document.body.removeChild(textInput)
-  }
-  showToast('Copied all inputs with results (= result)!')
+  const copied = await copyText(fullFormattedText)
+  showToast(copied ? 'Copied all inputs with results (= result)!' : 'Could not copy: clipboard access was blocked')
 }
 
 // Global Keyboard Shortcuts
 function handleGlobalShortcuts(e) {
-  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  const platform = typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '') : ''
+  const isMac = /mac|iphone|ipad/i.test(platform)
   const modifier = isMac ? e.metaKey : e.ctrlKey
 
   const targetTag = e.target ? e.target.tagName.toUpperCase() : ''
@@ -751,18 +759,33 @@ function exportTabs() {
 }
 
 async function importTabs(importedArray) {
-  if (Array.isArray(importedArray) && importedArray.length > 0) {
-    tabs.value = importedArray.map((t, idx) => ({
-      id: t.id || 'tab-' + Date.now() + '-' + idx,
-      title: t.title || `Tab ${idx + 1}`,
-      content: t.content || '',
+  const valid = Array.isArray(importedArray)
+    ? importedArray.filter((t) => t && typeof t === 'object' && typeof t.content === 'string')
+    : []
+  if (valid.length === 0) {
+    showToast('No tabs found in this backup')
+    return
+  }
+
+  const usedIds = new Set()
+  const now = new Date().toISOString()
+  tabs.value = valid.map((t, idx) => {
+    let id = typeof t.id === 'string' && t.id ? t.id : ''
+    if (!id || usedIds.has(id)) id = 'tab-' + Date.now() + '-' + idx + '-' + Math.random().toString(36).slice(2, 6)
+    usedIds.add(id)
+    return {
+      id,
+      title: typeof t.title === 'string' && t.title.trim() ? t.title : `Tab ${idx + 1}`,
+      content: t.content,
       position: idx,
       isActive: idx === 0,
-      updatedAt: new Date().toISOString()
-    }))
-    activeTabId.value = tabs.value[0].id
-    triggerSave()
-  }
+      updatedAt: now
+    }
+  })
+  activeTabId.value = tabs.value[0].id
+  triggerSave()
+  const skipped = importedArray.length - valid.length
+  showToast(`Imported ${valid.length} tab${valid.length === 1 ? '' : 's'}${skipped ? ` (skipped ${skipped} invalid)` : ''}`)
 }
 
 async function resetLocalData() {

@@ -137,7 +137,7 @@ const props = defineProps({
   userProfile: { type: Object, default: () => ({}) }
 })
 
-const emit = defineEmits(['close', 'save-profile', 'export-tabs', 'import-tabs', 'reset-local-data'])
+const emit = defineEmits(['close', 'save-profile', 'export-tabs', 'import-tabs', 'reset-local-data', 'toast'])
 
 const activeTab = ref('profile')
 
@@ -166,15 +166,16 @@ function handleFileImport(event) {
       const parsed = JSON.parse(e.target.result)
       if (Array.isArray(parsed)) {
         emit('import-tabs', parsed)
-        alert('Tabs imported successfully!')
       } else {
-        alert('Invalid backup file format.')
+        emit('toast', 'This file is not a çetele backup (expected a list of tabs)')
       }
     } catch (err) {
-      alert('Error parsing JSON backup file.')
+      emit('toast', 'Could not read the backup: the file is not valid JSON')
     }
   }
   reader.readAsText(file)
+  // Allow importing the same file again
+  event.target.value = ''
 }
 
 function handleSaveAll() {
