@@ -1090,7 +1090,7 @@ watch(() => props.tab?.id, () => {
 .gutter {
   width: 42px;
   flex: none;
-  background: #162233;
+  background: var(--gutter-bg);
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
   font-size: 13.5px;

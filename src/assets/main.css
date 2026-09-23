@@ -10,6 +10,7 @@
   --card-bg: #111D2D;
   --item-bg: #162337;
   --editor-bg: #0c1421;
+  --gutter-bg: #162233;
 
   /* Subtle Borders */
   --line: #1D3046;
@@ -63,6 +64,7 @@
   --card-bg: #FFFFFF;
   --item-bg: #F1F5F9;
   --editor-bg: #FFFFFF;
+  --gutter-bg: #F1F5F9;
   --line: #CBD5E1;
   --line-soft: #E2E8F0;
   --line-hover: #94A3B8;
