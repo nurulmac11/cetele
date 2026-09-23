@@ -93,7 +93,7 @@
               'highlighted-line': hoveredLineIndex === item.origIdx
             }
           ]"
-          :title="evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : ''"
+          :title="evaluation.rendered[item.origIdx]?.error || (evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : '')"
           @click="copyResult(evaluation.rendered[item.origIdx], item.origIdx)"
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
@@ -107,7 +107,7 @@
               <span class="sec-toggle-icon">{{ item.isCollapsed ? '▸' : '▾' }}</span>
               <span class="sec-title-text">{{ item.sec?.title || evaluation.rendered[item.origIdx]?.text }}</span>
               <span v-if="item.isCollapsed" class="sec-collapsed-subtotal">
-                — {{ formatValue(item.sec?.subtotal, { disableFloat: props.disableFloat }) }}
+                — {{ item.sec?.subtotalText }}
               </span>
             </div>
           </template>
@@ -136,8 +136,8 @@
 
           <!-- Error Row -->
           <template v-else-if="evaluation.rendered[item.origIdx]?.cls === 'err'">
-            <div class="res-row err-row">
-              <span class="res-label">{{ getLineLeftLabel(item.lineText) }}</span>
+            <div class="res-row err-row" :title="evaluation.rendered[item.origIdx]?.error || ''">
+              <span class="res-label">{{ rowDetails[k].label }}</span>
               <span class="res-value err-val">{{ evaluation.rendered[item.origIdx]?.text || '—' }}</span>
             </div>
           </template>
@@ -146,16 +146,16 @@
           <template v-else-if="evaluation.rendered[item.origIdx]?.text">
             <div
               class="res-row"
-              :class="{ 'negative-val': getRowDetails(item).isNegative }"
+              :class="{ 'negative-val': rowDetails[k].isNegative }"
             >
-              <span class="res-label" :title="getRowDetails(item).label">{{ getRowDetails(item).label }}</span>
+              <span class="res-label" :title="rowDetails[k].label">{{ rowDetails[k].label }}</span>
               <span class="res-value">
-                <template v-if="getRowDetails(item).unitPart">
-                  <span class="val-num">{{ getRowDetails(item).numPart }}</span>
-                  <span class="val-unit">{{ getRowDetails(item).unitPart }}</span>
+                <template v-if="rowDetails[k].unitPart">
+                  <span class="val-num">{{ rowDetails[k].numPart }}</span>
+                  <span class="val-unit">{{ rowDetails[k].unitPart }}</span>
                 </template>
                 <template v-else>
-                  {{ getRowDetails(item).valueText }}
+                  {{ rowDetails[k].valueText }}
                 </template>
               </span>
               <Copy class="row-hover-copy" />
@@ -194,6 +194,8 @@
 
       <div class="status-center desktop-only">
         <span>direct lines: <b>#1, L1, line1</b></span>
+        <span class="sep">•</span>
+        <span :title="ratesTitle">rates: <b>{{ ratesAgeText }}</b></span>
       </div>
 
       <div class="status-right">
@@ -222,9 +224,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { evaluateAll, formatValue } from '../services/evaluator.js'
-import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X, Copy } from '@lucide/vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { evaluateAll, ratesUpdatedAt } from '../services/evaluator.js'
+import { HardDrive, Loader2, AlertCircle, ChevronDown, ChevronRight, RotateCcw, RotateCw, Variable, X, Copy, Maximize2, Minimize2 } from '@lucide/vue'
+
+// Letters in any script, so Turkish variable names (maaş, ödeme) are recognised
+const IDENT_PATTERN = '[\\p{L}_][\\p{L}\\p{N}_]*'
+const ASSIGNMENT_RE = new RegExp(`^(${IDENT_PATTERN})\\s*=\\s*(.+)$`, 'u')
+
+// Splits "12 miles" / "$1,200" / "0.5 gram gold" into the number and its unit label
+const RESULT_UNIT_RE = /^([-+]?[$€£₺¥₹]?[-+]?[\d.,]+(?:e[-+]?\d+)?)\s+(\S.*)$/i
 
 function getRowDetails(item) {
   if (!item) return {}
@@ -238,7 +247,7 @@ function getRowDetails(item) {
       type: 'section',
       isCollapsed: item.isCollapsed,
       title: sec ? sec.title : (res.title || res.text || ''),
-      subtotalText: sec ? formatValue(sec.subtotal, { disableFloat: props.disableFloat }) : ''
+      subtotalText: sec ? sec.subtotalText : ''
     }
   }
 
@@ -267,13 +276,14 @@ function getRowDetails(item) {
   }
 
   const label = getLineLeftLabel(rawLine)
-  const isNegative = typeof res.text === 'string' && (res.text.startsWith('-') || res.text.includes('-'))
+  const isNegative = typeof res.text === 'string' && /^[$€£₺¥₹]?-/.test(res.text)
 
   let numPart = res.text
   let unitPart = ''
 
-  if (typeof res.text === 'string') {
-    const m = res.text.match(/^(.*?)\s*([A-Z]{2,4}|TL|USD|EUR|GBP|BTC|ETH|SOL|GRAM|CEYREK)$/i)
+  // Dates have their own format; only split number + unit results
+  if (typeof res.text === 'string' && res.cls !== 'date') {
+    const m = res.text.match(RESULT_UNIT_RE)
     if (m) {
       numPart = m[1]
       unitPart = m[2]
@@ -295,7 +305,7 @@ function getLineLeftLabel(rawLine) {
   const clean = rawLine.replace(/(\/\*[\s\S]*?\*\/|\/\/.*|"""[\s\S]*?"""|'''[\s\S]*?''')/g, '').trim()
   if (!clean) return ''
 
-  const assignMatch = clean.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
+  const assignMatch = clean.match(ASSIGNMENT_RE)
   if (assignMatch) {
     return assignMatch[1]
   }
@@ -346,7 +356,7 @@ function tokenizeCodePart(code) {
   if (!code) return []
 
   const tokens = []
-  const regex = /(?:\$[0-9]+(?:\.[0-9]+)?[kmbT]?|[0-9]+(?:\.[0-9]+)?[kmbT]?%?|#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\$|€|£|\b[a-zA-Z_][a-zA-Z0-9_]*\b|[\+\-\*\/\=\(\)%])/gi
+  const regex = /(?:\$[0-9]+(?:\.[0-9]+)?[kmbT]?|[0-9]+(?:\.[0-9]+)?[kmbT]?%?|#[0-9]+|\b[Ll][0-9]+\b|\b[Ll]ine[0-9]+\b|\$|€|£|[\p{L}_][\p{L}\p{N}_]*|[\+\-\*\/=\(\)%])/giu
 
   let lastIndex = 0
   let match
@@ -374,7 +384,7 @@ function tokenizeCodePart(code) {
       cls = 'tok-currency'
     } else if (MEASUREMENT_UNITS.has(lower)) {
       cls = 'tok-unit'
-    } else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(text)) {
+    } else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(text)) {
       cls = 'tok-variable'
     } else if (/[\+\-\*\/\=\(\)%]/.test(text)) {
       cls = 'tok-op'
@@ -504,7 +514,8 @@ const collapsedLineIndices = computed(() => {
   return set
 })
 
-const hasCollapsedSections = computed(() => Object.values(collapsedSections.value).some(Boolean))
+// Only folds on sections that exist in this document count
+const hasCollapsedSections = computed(() => collapsedLineIndices.value.size > 0)
 
 function toggleSectionCollapse(headerIdx) {
   collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
@@ -512,7 +523,7 @@ function toggleSectionCollapse(headerIdx) {
 
 function getSectionCollapsedSummary(sec) {
   if (!sec) return ''
-  const formattedSub = formatValue(sec.subtotal, { disableFloat: props.disableFloat })
+  const formattedSub = sec.subtotalText
   return `▶ ${sec.title} — Subtotal: ${formattedSub} (${sec.count} lines hidden)`
 }
 
@@ -558,7 +569,7 @@ const visibleLines = computed(() => {
     const sec = secs.find(s => s.headerIdx === origIdx)
     if (sec && collapsedSections.value[origIdx]) {
       const hiddenCount = sec.endIdx - sec.headerIdx
-      const formattedSub = formatValue(sec.subtotal, { disableFloat: props.disableFloat })
+      const formattedSub = sec.subtotalText
       result.push({
         origIdx,
         lineText: `${lineText} // [▶ ${hiddenCount} lines folded | Subtotal: ${formattedSub}]`,
@@ -647,9 +658,26 @@ const lineCount = computed(() => {
   return tabContent.value.split('\n').length
 })
 
-const formattedTotal = computed(() => {
-  return formatValue(evaluation.value.sum, { disableFloat: props.disableFloat })
+const formattedTotal = computed(() => evaluation.value.sumText)
+
+// Row display data, computed once per render instead of per template binding
+const rowDetails = computed(() => visibleLines.value.map(getRowDetails))
+
+// How old the exchange rates are
+const nowTick = ref(Date.now())
+let nowTimer = null
+const ratesAgeText = computed(() => {
+  if (!ratesUpdatedAt.value) return 'offline defaults'
+  const minutes = Math.floor((nowTick.value - ratesUpdatedAt.value) / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
 })
+const ratesTitle = computed(() => ratesUpdatedAt.value
+  ? `Exchange rates updated ${new Date(ratesUpdatedAt.value).toLocaleString()}`
+  : 'Live rates have not loaded yet; using built-in approximate rates')
 
 const saveStateClass = computed(() => {
   if (props.saveStatus === 'saving') return 'saving'
@@ -666,11 +694,12 @@ const saveStatusText = computed(() => {
 // Extract declared variables from document
 const declaredVariablesMap = computed(() => {
   const map = new Map()
-  const lines = tabContent.value.split('\n')
+  // Use the full document: line indexes must match evaluation.rendered even when sections are folded
+  const lines = (props.tab?.content || '').split('\n')
   const scope = evaluation.value
 
   lines.forEach((l, idx) => {
-    const m = l.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)
+    const m = l.trim().match(ASSIGNMENT_RE)
     if (m) {
       const varName = m[1]
       if (!['prev', 'total', 'pi', 'e'].includes(varName)) {
@@ -1052,6 +1081,7 @@ defineExpose({
 })
 
 onMounted(() => {
+  nowTimer = setInterval(() => { nowTick.value = Date.now() }, 60000)
   if (typeof window !== 'undefined') {
     window.scrollTo(0, 0)
   }
@@ -1059,11 +1089,30 @@ onMounted(() => {
   recordHistoryNow(tabContent.value)
 })
 
-watch(() => props.tab?.id, () => {
-  // Reset history stack when active tab changes
-  historyStack.value = []
-  historyIndex.value = -1
-  recordHistoryNow(tabContent.value)
+onUnmounted(() => {
+  clearInterval(nowTimer)
+})
+
+// Undo history for tabs that aren't shown, so switching tabs doesn't lose it
+const historyByTab = new Map()
+
+watch(() => props.tab?.id, (newId, oldId) => {
+  // Folds are per document; carrying them over could lock another tab read-only
+  collapsedSections.value = {}
+
+  clearTimeout(historyDebounceTimer)
+  if (oldId) historyByTab.set(oldId, { stack: historyStack.value, index: historyIndex.value })
+  const saved = newId ? historyByTab.get(newId) : null
+  if (saved) {
+    historyStack.value = saved.stack
+    historyIndex.value = saved.index
+    // Content may have changed elsewhere (cloud sync, import) while the tab was hidden
+    recordHistoryNow(tabContent.value)
+  } else {
+    historyStack.value = []
+    historyIndex.value = -1
+    recordHistoryNow(tabContent.value)
+  }
 })
 </script>
 
