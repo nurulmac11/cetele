@@ -207,7 +207,7 @@ export async function fetchLiveExchangeRates() {
 }
 
 // Gate background fetching on browser window environment and non-test mode
-if (typeof window !== 'undefined' && (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test')) {
+if (typeof window !== 'undefined' && import.meta.env?.MODE !== 'test') {
   fetchLiveExchangeRates()
 }
 

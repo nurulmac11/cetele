@@ -58,7 +58,7 @@ export function formatValueWithSymbol(val, symbol, options = {}) {
   const isGoldOrCrypto = ['GRAM_GOLD', 'CEYREK_GOLD', 'XAU', 'BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX'].includes(symbol)
   const effectiveOptions = isGoldOrCrypto ? { ...options, disableFloat: false } : options
 
-  let formattedNum = ''
+  let formattedNum
   if (typeof val === 'number') {
     const abs = Math.abs(val)
     if (isGoldOrCrypto) {
