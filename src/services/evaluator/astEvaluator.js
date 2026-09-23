@@ -29,9 +29,7 @@ const UNIT_ALIASES = {
   // Speeds
   mph: 'mi/h',
   kph: 'km/h',
-  kmh: 'km/h',
-  knot: 'knots',
-  kn: 'knots'
+  kmh: 'km/h'
 }
 
 // Functions callable from the notepad. Anything else in mathjs (evaluate, import, createUnit...)
@@ -169,6 +167,11 @@ const DISPLAY_CODES = {
   '₹': 'INR'
 }
 
+// Records that the line being evaluated reads another line (for highlighting references)
+function noteDependency(ctx, lineIdx) {
+  if (ctx.deps && lineIdx !== null && lineIdx !== undefined) ctx.deps.add(lineIdx)
+}
+
 function startOfToday() {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -253,9 +256,11 @@ export function evaluateAST(node, ctx) {
         baseTime = Date.now()
         isTimeIncluded = true
       } else if (baseName === 'prev' && ctx.prevDate) {
+        noteDependency(ctx, ctx.prevLine)
         baseTime = ctx.prev
         isTimeIncluded = ctx.prevDate.isTime
       } else if (ctx.scopeDates[baseName]) {
+        noteDependency(ctx, ctx.varLines?.[baseName])
         baseTime = ctx.scopeDates[baseName].timestamp
         isTimeIncluded = ctx.scopeDates[baseName].isTime
       } else {
@@ -347,6 +352,7 @@ export function evaluateAST(node, ctx) {
       if (idx < 0 || idx >= ctx.lineResults.length || val === null || val === undefined) {
         return { error: 'Invalid line reference' }
       }
+      noteDependency(ctx, idx)
       const lineDate = ctx.lineDates[idx]
       if (lineDate) return dateResult(val, lineDate.isTime)
       return { value: val, currency: ctx.lineCurrencies[idx] || null, isUnit: !!val?.isUnit }
@@ -355,15 +361,18 @@ export function evaluateAST(node, ctx) {
     case 'Identifier': {
       const name = node.name.toLowerCase()
       if (name === 'prev') {
+        noteDependency(ctx, ctx.prevLine)
         if (ctx.prevDate) return dateResult(ctx.prev, ctx.prevDate.isTime)
         return { value: ctx.prev || 0, currency: ctx.prevCurrency || null, isUnit: !!ctx.prev?.isUnit }
       }
       if (name === 'total') return { value: ctx.sum || 0, currency: ctx.sumCurrency || null }
       if (ctx.scope[name] !== undefined) {
+        noteDependency(ctx, ctx.varLines?.[name])
         const value = ctx.scope[name]
         return { value, currency: ctx.varCurrencies[name] || null, isUnit: !!value?.isUnit }
       }
       if (ctx.scopeDates[name]) {
+        noteDependency(ctx, ctx.varLines?.[name])
         return dateResult(ctx.scopeDates[name].timestamp, ctx.scopeDates[name].isTime)
       }
       if (RESERVED_KEYWORDS.has(name) || typeof math[name] === 'function') {

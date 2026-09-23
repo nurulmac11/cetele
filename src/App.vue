@@ -22,6 +22,7 @@
       @open-auth="isAuthModalOpen = true"
       @open-welcome="isWelcomeModalOpen = true"
       @toggle-sidebar="toggleSidebar"
+      @open-palette="isPaletteOpen = true"
     />
 
     <!-- View Mode 1: Main Notepad Workspace -->
@@ -141,6 +142,18 @@
       @toast="showToast"
     />
 
+    <!-- Ctrl+K: search all tabs and run commands -->
+    <CommandPalette
+      :is-open="isPaletteOpen"
+      :commands="paletteCommands"
+      :tabs="tabs"
+      :active-tab-id="activeTabId"
+      @close="isPaletteOpen = false"
+      @run-command="runPaletteCommand"
+      @select-tab="openTabFromPalette"
+      @go-to-line="goToLineFromPalette"
+    />
+
     <!-- In-app confirmation dialog (see services/confirmService.js) -->
     <ConfirmDialog />
 
@@ -150,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, markRaw } from 'vue'
 import Header from './components/Header.vue'
 import Notepad from './components/Notepad.vue'
 import ReferenceSidebar from './components/ReferenceSidebar.vue'
@@ -158,6 +171,23 @@ import SettingsModal from './components/SettingsModal.vue'
 import AuthModal from './components/AuthModal.vue'
 import WelcomeModal from './components/WelcomeModal.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import CommandPalette from './components/CommandPalette.vue'
+import {
+  Plus,
+  RotateCcw,
+  Copy,
+  Share2,
+  Bookmark,
+  Eraser,
+  Hash,
+  SunMoon,
+  PanelRight,
+  Settings,
+  BookOpen,
+  Library,
+  Cloud,
+  HelpCircle
+} from '@lucide/vue'
 import { askConfirm } from './services/confirmService.js'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
 import SavedTabsPage from './components/SavedTabsPage.vue'
@@ -226,6 +256,7 @@ const currentUser = ref(null)
 const userProfile = ref({ showDecimals: true, theme: 'dark' })
 const saveStatus = ref('saved') // 'saved' | 'saving' | 'error'
 const toastMessage = ref('')
+const isPaletteOpen = ref(false)
 
 const notepadRef = ref(null)
 let saveDebounceTimer = null
@@ -679,6 +710,113 @@ async function copyAllWithResults() {
   showToast(copied ? 'Copied all inputs with results (= result)!' : 'Could not copy: clipboard access was blocked')
 }
 
+// --- Command palette (Ctrl/Cmd+K) ---
+
+const paletteCommands = computed(() => [
+  { id: 'new-tab', label: 'New tab', hint: 'Alt+N', icon: markRaw(Plus), run: createTab },
+  {
+    id: 'reopen-tab',
+    label: 'Reopen closed tab',
+    hint: 'Alt+Shift+T',
+    keywords: 'restore undo',
+    icon: markRaw(RotateCcw),
+    run: () => reopenLastClosedTab() || showToast('No closed tabs to reopen')
+  },
+  {
+    id: 'copy-all',
+    label: 'Copy all lines with results',
+    hint: 'Ctrl+Shift+C',
+    icon: markRaw(Copy),
+    run: copyAllWithResults
+  },
+  {
+    id: 'share',
+    label: 'Copy share link for this tab',
+    keywords: 'url',
+    icon: markRaw(Share2),
+    run: handleShareActiveTab
+  },
+  { id: 'save', label: 'Save tab to library', icon: markRaw(Bookmark), run: handleSaveActiveTabToLibrary },
+  { id: 'clear', label: 'Clear this tab', keywords: 'delete empty', icon: markRaw(Eraser), run: clearActiveTab },
+  {
+    id: 'decimals',
+    label: userProfile.value.showDecimals ? 'Hide decimals' : 'Show decimals',
+    hint: 'Alt+D',
+    keywords: 'decimals round integers',
+    icon: markRaw(Hash),
+    run: toggleShowDecimals
+  },
+  {
+    id: 'theme',
+    label: userProfile.value.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+    keywords: 'dark light mode',
+    icon: markRaw(SunMoon),
+    run: toggleTheme
+  },
+  {
+    id: 'sidebar',
+    label: showSidebar.value ? 'Hide sidebar' : 'Show sidebar',
+    hint: 'Ctrl+B',
+    keywords: 'reference expand',
+    icon: markRaw(PanelRight),
+    run: toggleSidebar
+  },
+  {
+    id: 'settings',
+    label: 'Open settings',
+    hint: 'Ctrl+,',
+    keywords: 'import export backup',
+    icon: markRaw(Settings),
+    run: () => (isSettingsOpen.value = true)
+  },
+  {
+    id: 'guide',
+    label: 'Open syntax guide',
+    keywords: 'help docs',
+    icon: markRaw(BookOpen),
+    run: () => (currentView.value = 'guide')
+  },
+  {
+    id: 'library',
+    label: 'Open saved library',
+    keywords: 'saved',
+    icon: markRaw(Library),
+    run: () => (currentView.value = 'library')
+  },
+  {
+    id: 'account',
+    label: 'Cloud sync & account',
+    keywords: 'login sign',
+    icon: markRaw(Cloud),
+    run: () => (isAuthModalOpen.value = true)
+  },
+  {
+    id: 'tour',
+    label: 'Quick tour',
+    keywords: 'welcome intro',
+    icon: markRaw(HelpCircle),
+    run: () => (isWelcomeModalOpen.value = true)
+  }
+])
+
+function runPaletteCommand(id) {
+  paletteCommands.value.find((c) => c.id === id)?.run()
+}
+
+function openTabFromPalette(id) {
+  currentView.value = 'notepad'
+  selectTab(id)
+}
+
+async function goToLineFromPalette({ tabId, line }) {
+  currentView.value = 'notepad'
+  selectTab(tabId)
+  // Wait for the notepad to mount (if another view was open) and to show the tab
+  await nextTick()
+  await nextTick()
+  notepadRef.value?.goToLine(line)
+}
+
 // Global Keyboard Shortcuts
 // Browsers don't let pages take over Ctrl/Cmd+N, Ctrl/Cmd+T or Ctrl/Cmd+Shift+T, and Ctrl/Cmd+D is the
 // bookmark shortcut, so tab and decimal actions use Alt (Option on Mac). Alt combos are matched by
@@ -692,6 +830,13 @@ function handleGlobalShortcuts(e) {
 
   const targetTag = e.target?.tagName ? e.target.tagName.toUpperCase() : ''
   const isInput = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || e.target?.isContentEditable
+
+  // Ctrl/Cmd+K: command palette (works while typing too)
+  if (modifier && !e.shiftKey && !e.altKey && key === 'k') {
+    e.preventDefault()
+    isPaletteOpen.value = !isPaletteOpen.value
+    return
+  }
 
   // Alt+Shift+T: reopen last closed tab
   if (altOnly && e.shiftKey && e.code === 'KeyT') {

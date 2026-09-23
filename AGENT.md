@@ -234,6 +234,9 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 - Ask for confirmation with `askConfirm({ title, message, details, confirmLabel, danger })` from `src/services/confirmService.js` (resolves to `true`/`false`). Never use `alert()`/`confirm()`; use toasts for messages.
 - Every modal calls `useModalA11y(isOpen, dialogRef, onClose)` from `src/composables/useModalA11y.js`: it moves focus in, traps Tab, closes on Escape (topmost dialog only) and restores focus. Give the dialog element `role="dialog"`, `aria-modal="true"`, a label and `tabindex="-1"`.
 - Icon-only buttons need an `aria-label`. The tab strip uses `role="tablist"`/`role="tab"` (arrow keys move focus, Enter/Space select, F2 renames).
+- Each rendered line carries `deps` (line indexes it reads through `#N`, variables, date variables or `prev`); `noteDependency` in `astEvaluator.js` records them. The notepad highlights the deps of the hovered line or the line being edited, and `#N` buttons / Alt+click insert references.
+- Autocomplete comes from `src/services/completions.js` (variables, functions, currencies, units, keywords; units and currencies first after a number or `to`/`in`). Tab accepts; Enter accepts only after arrowing, so Enter still starts a new line. Tests check every suggested unit and function evaluates.
+- The Ctrl/Cmd+K palette (`CommandPalette.vue`, search in `src/services/paletteSearch.js`) lists commands defined in `paletteCommands` in `App.vue`; add new app actions there. Jumping to a line uses `Notepad.goToLine()`.
 - Syntax highlighting (`src/services/highlighter.js`) is built from the evaluator's `Lexer` tokens, so colours match evaluation. Its tokens must join back to the exact line text, or the coloured layer drifts from the textarea (`tests/highlighter.test.js` checks this).
 
 ## 🚦 Developer Workflow & Commands

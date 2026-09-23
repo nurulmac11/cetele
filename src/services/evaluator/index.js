@@ -72,6 +72,10 @@ export function evaluateAll(text, options = {}) {
     sum: 0,
     sumCurrency: null,
     rates: RATES,
+    // Which line set each variable and prev, and the lines the current line reads
+    varLines: {},
+    prevLine: null,
+    deps: null,
     options
   }
   const rendered = []
@@ -84,6 +88,8 @@ export function evaluateAll(text, options = {}) {
   const sections = []
 
   function pushLine(entry, value = null, currency = null, date = null) {
+    if (ctx.deps?.size) entry.deps = [...ctx.deps].sort((a, b) => a - b)
+    ctx.deps = null
     rendered.push(entry)
     ctx.lineResults.push(value)
     ctx.lineCurrencies.push(currency)
@@ -107,6 +113,7 @@ export function evaluateAll(text, options = {}) {
   let activeCommentDelimiter = null
 
   lines.forEach((raw, lineIdx) => {
+    ctx.deps = new Set()
     let lineToProcess = raw
     let trimmedRaw = raw.trim()
 
@@ -190,6 +197,7 @@ export function evaluateAll(text, options = {}) {
           currency
         )
         ctx.prev = value
+        ctx.prevLine = lineIdx
         ctx.prevCurrency = currency
         ctx.prevDate = null
         sectionSum = createSum()
@@ -208,6 +216,7 @@ export function evaluateAll(text, options = {}) {
           valueCurrency
         )
         ctx.prev = value
+        ctx.prevLine = lineIdx
         ctx.prevCurrency = valueCurrency
         ctx.prevDate = null
         return
@@ -240,6 +249,7 @@ export function evaluateAll(text, options = {}) {
         const date = { isTime: evalRes.isTimeIncluded }
         if (varName) {
           ctx.scopeDates[varName] = { timestamp: evalRes.value, isTime: evalRes.isTimeIncluded }
+          ctx.varLines[varName] = lineIdx
           delete ctx.scope[varName]
           delete ctx.varCurrencies[varName]
         }
@@ -247,6 +257,7 @@ export function evaluateAll(text, options = {}) {
         const formattedDate = evalRes.isTimeIncluded ? fmtDateTime(dObj) : fmtDate(dObj)
         pushLine({ cls: 'date', text: formattedDate }, evalRes.value, null, date)
         ctx.prev = evalRes.value
+        ctx.prevLine = lineIdx
         ctx.prevCurrency = null
         ctx.prevDate = date
         return
@@ -257,6 +268,7 @@ export function evaluateAll(text, options = {}) {
 
       if (varName) {
         ctx.scope[varName] = val
+        ctx.varLines[varName] = lineIdx
         delete ctx.scopeDates[varName]
         if (curr) ctx.varCurrencies[varName] = curr
         else delete ctx.varCurrencies[varName]
@@ -274,6 +286,7 @@ export function evaluateAll(text, options = {}) {
       )
       if (val !== null) {
         ctx.prev = val
+        ctx.prevLine = lineIdx
         ctx.prevCurrency = curr
         ctx.prevDate = null
       }

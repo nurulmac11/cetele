@@ -200,6 +200,14 @@
             <span class="sc-desc">Copy All text with implicit results (= result)</span>
           </div>
           <div class="shortcut-item">
+            <span class="sc-key">Ctrl + K</span>
+            <span class="sc-desc">Search lines in every tab, switch tabs, or run a command</span>
+          </div>
+          <div class="shortcut-item">
+            <span class="sc-key">Alt + click</span>
+            <span class="sc-desc">Click a result with Alt to insert a reference to its line (#5)</span>
+          </div>
+          <div class="shortcut-item">
             <span class="sc-key">Alt + N</span>
             <span class="sc-desc">New tab (Option + N on Mac)</span>
           </div>

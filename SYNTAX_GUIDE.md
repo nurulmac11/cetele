@@ -144,6 +144,9 @@ count                  // 2
 | **`Ctrl + Z`** / **`Cmd + Z`** | **Undo** last typing or insertion step |
 | **`Ctrl + Shift + Z`** / **`Ctrl + Y`** | **Redo** last undone step |
 | **`Ctrl + Shift + C`** / **`Cmd + Shift + C`** | **Copy All** text with implicit calculated answers appended (`= result`) |
+| **`Ctrl + K`** / **`Cmd + K`** | **Search** lines in every tab, switch tabs, or run any command |
+| **`Alt + click`** a result (or its **`#N`** button) | Insert a **reference** to that line (`#5`) at the cursor |
+| **`Tab`** / **`↑ ↓` then `Enter`** | Accept an **autocomplete** suggestion (variables, functions, currencies, units) |
 | **`Alt + N`** (**`Option + N`** on Mac) | Create **New Notepad Tab** |
 | **`Alt + Shift + T`** | **Reopen** the last closed tab (also **`Ctrl + Z`** when the editor isn't focused) |
 | **`Alt + D`** (**`Option + D`** on Mac) | Toggle **Decimals** ON / OFF |

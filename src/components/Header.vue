@@ -79,6 +79,11 @@
 
               <div class="mobile-nav-menu-divider"></div>
 
+              <button class="mobile-nav-menu-item" @click="openPaletteFromMenu">
+                <Search class="icon-sm" />
+                <span>Search tabs & commands</span>
+              </button>
+
               <button class="mobile-nav-menu-item" @click="openWelcomeFromMenu">
                 <HelpCircle class="icon-sm" />
                 <span>Quick Tour</span>
@@ -135,6 +140,18 @@
         >
           <Maximize2 v-if="showSidebar" class="icon" />
           <Minimize2 v-else class="icon" />
+        </button>
+
+        <!-- Command palette: search every tab and run commands -->
+        <button
+          class="btn-search desktop-only"
+          aria-label="Search tabs and commands"
+          title="Search lines in all tabs, switch tabs or run a command (Ctrl+K)"
+          @click="$emit('open-palette')"
+        >
+          <Search class="icon-sm" />
+          <span>Search</span>
+          <kbd>Ctrl K</kbd>
         </button>
 
         <!-- Light / Dark Theme Toggle -->
@@ -365,7 +382,8 @@ import {
   Folder,
   ChevronDown,
   Check,
-  HelpCircle
+  HelpCircle,
+  Search
 } from '@lucide/vue'
 
 const props = defineProps({
@@ -379,6 +397,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
+  'open-palette',
   'select-tab',
   'create-tab',
   'close-tab',
@@ -433,6 +452,11 @@ function startRename(tab) {
     focusTarget(editInputRef)
     focusTarget(mobileEditInputRef)
   })
+}
+
+function openPaletteFromMenu() {
+  emit('open-palette')
+  isMobileNavOpen.value = false
 }
 
 function openWelcomeFromMenu() {
@@ -1267,5 +1291,34 @@ function onDragEnd() {
   .tabs-strip {
     padding: 6px 12px 0;
   }
+}
+/* Search button that opens the command palette */
+.btn-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--item-bg);
+  color: var(--muted-light);
+  font-size: 12.5px;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.btn-search:hover {
+  border-color: var(--line-hover);
+  color: var(--paper-bright);
+}
+
+.btn-search kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
 }
 </style>

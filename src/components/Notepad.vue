@@ -9,7 +9,9 @@
           class="g-num"
           :class="{
             'is-section': item.isSection,
-            'highlighted-line': hoveredLineIndex === item.origIdx
+            'highlighted-line': hoveredLineIndex === item.origIdx,
+            'is-ref-target': refTargets.has(item.origIdx),
+            'line-flash': flashLineIndex === item.origIdx
           }"
           @click="item.isSection && toggleSectionCollapse(item.origIdx)"
           @mouseenter="hoveredLineIndex = item.origIdx"
@@ -33,7 +35,15 @@
       <div class="input-wrapper">
         <!-- Editor Syntax Highlighting Backdrop Layer -->
         <div ref="backdropRef" class="editor-backdrop" aria-hidden="true">
-          <div v-for="(line, idx) in formattedEditorLines" :key="idx" class="backdrop-line">
+          <div
+            v-for="(line, idx) in formattedEditorLines"
+            :key="idx"
+            class="backdrop-line"
+            :class="{
+              'is-ref-target': refTargets.has(visibleLines[idx]?.origIdx),
+              'line-flash': flashLineIndex === visibleLines[idx]?.origIdx
+            }"
+          >
             <template v-for="(token, tIdx) in line.tokens" :key="tIdx">
               <span :class="token.cls">{{ token.text }}</span>
             </template>
@@ -58,28 +68,36 @@
             hasCollapsedSections ? 'Expand folded sections before editing to keep their hidden lines intact.' : ''
           "
           @scroll="syncScroll"
+          @focus="isEditorFocused = true"
+          @blur="isEditorFocused = false"
           @keydown="handleKeyDown"
           @keyup="updateCursorState"
           @click="updateCursorState"
           @input="updateCursorState"
         ></textarea>
 
-        <!-- Variable Autocomplete Overlay -->
+        <!-- Autocomplete: variables, functions, currencies, units, keywords -->
         <div
           v-if="showAutocomplete && autocompleteSuggestions.length > 0"
           class="autocomplete-menu"
           :style="autocompleteStyle"
+          role="listbox"
+          aria-label="Suggestions"
         >
-          <div class="ac-header">Variables</div>
+          <div class="ac-header">Tab to insert · ↑↓ then Enter</div>
           <div
             v-for="(item, idx) in autocompleteSuggestions"
-            :key="item.name"
+            :key="item.kind + item.insert"
             class="ac-item"
+            role="option"
+            :aria-selected="idx === autocompleteIndex"
             :class="{ active: idx === autocompleteIndex }"
-            @mousedown.prevent="applyAutocomplete(item.name)"
+            :title="item.detail"
+            @mousedown.prevent="applyAutocomplete(item)"
           >
-            <span class="ac-name">{{ item.name }}</span>
-            <span class="ac-val">{{ item.val }}</span>
+            <span class="ac-kind" :class="`ac-kind-${item.kind}`">{{ item.kind }}</span>
+            <span class="ac-name">{{ item.label }}</span>
+            <span class="ac-val">{{ item.detail }}</span>
           </div>
         </div>
       </div>
@@ -94,19 +112,26 @@
             evaluation.rendered[item.origIdx]?.cls,
             {
               copied: copiedIndex === item.origIdx,
-              'highlighted-line': hoveredLineIndex === item.origIdx
+              'highlighted-line': hoveredLineIndex === item.origIdx,
+              'is-ref-target': refTargets.has(item.origIdx),
+              'line-flash': flashLineIndex === item.origIdx
             }
           ]"
           :title="
             evaluation.rendered[item.origIdx]?.error ||
             [
               evaluation.rendered[item.origIdx]?.note,
-              evaluation.rendered[item.origIdx]?.text ? 'Click to copy ' + evaluation.rendered[item.origIdx].text : ''
+              evaluation.rendered[item.origIdx]?.text
+                ? 'Click to copy ' +
+                  evaluation.rendered[item.origIdx].text +
+                  ' · Alt+click to insert #' +
+                  (item.origIdx + 1)
+                : ''
             ]
               .filter(Boolean)
               .join(' · ')
           "
-          @click="copyResult(evaluation.rendered[item.origIdx], item.origIdx)"
+          @click="onResultClick($event, item.origIdx)"
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
         >
@@ -145,6 +170,14 @@
             <div class="res-row subtotal-row">
               <span class="res-label subtotal-label">subtotal</span>
               <span class="res-value subtotal-value">{{ evaluation.rendered[item.origIdx]?.text }}</span>
+              <button
+                class="row-insert-ref"
+                :title="`Insert a reference to line ${item.origIdx + 1} at the cursor`"
+                :aria-label="`Insert reference to line ${item.origIdx + 1}`"
+                @click.stop="insertReference(item.origIdx)"
+              >
+                #{{ item.origIdx + 1 }}
+              </button>
               <Copy class="row-hover-copy" />
             </div>
           </template>
@@ -181,6 +214,14 @@
                 :aria-label="evaluation.rendered[item.origIdx].note"
                 >*</span
               >
+              <button
+                class="row-insert-ref"
+                :title="`Insert a reference to line ${item.origIdx + 1} at the cursor`"
+                :aria-label="`Insert reference to line ${item.origIdx + 1}`"
+                @click.stop="insertReference(item.origIdx)"
+              >
+                #{{ item.origIdx + 1 }}
+              </button>
               <Copy class="row-hover-copy" />
             </div>
           </template>
@@ -260,6 +301,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { evaluateAll, ratesUpdatedAt } from '../services/evaluator.js'
 import { highlightDocument } from '../services/highlighter.js'
+import { getCompletions } from '../services/completions.js'
 import {
   HardDrive,
   Loader2,
@@ -395,6 +437,70 @@ const collapsedLineIndices = computed(() => {
 
 // Only folds on sections that exist in this document count
 const hasCollapsedSections = computed(() => collapsedLineIndices.value.size > 0)
+
+// --- Line references: highlight what the current line reads, insert #N from a result ---
+
+const isEditorFocused = ref(false)
+const flashLineIndex = ref(null)
+let flashTimer = null
+
+// Line under the text cursor while the editor has focus
+const caretLineIndex = computed(() => {
+  if (!isEditorFocused.value) return null
+  // The textarea shows folded text, so map its row back to the document line
+  const row = tabContent.value.slice(0, cursorPosition.value).split('\n').length - 1
+  return visibleLines.value[row]?.origIdx ?? null
+})
+
+// Lines read by the hovered line, or by the line being edited
+const refTargets = computed(() => {
+  const focusIdx = hoveredLineIndex.value ?? caretLineIndex.value
+  const deps = focusIdx === null ? null : evaluation.value.rendered[focusIdx]?.deps
+  return new Set(deps || [])
+})
+
+function onResultClick(event, lineIdx) {
+  if (event.altKey) {
+    insertReference(lineIdx)
+    return
+  }
+  copyResult(evaluation.value.rendered[lineIdx], lineIdx)
+}
+
+function insertReference(lineIdx) {
+  if (hasCollapsedSections.value) return
+  const textarea = inputRef.value
+  const pos = textarea ? textarea.selectionStart || 0 : tabContent.value.length
+  const before = tabContent.value.slice(0, pos)
+  const needsSpace = before.length > 0 && !/[\s(]$/.test(before)
+  insertInlineSymbol(`${needsSpace ? ' ' : ''}#${lineIdx + 1}`)
+}
+
+// Moves the cursor to a line, scrolls it into view and briefly highlights it
+function goToLine(lineIdx) {
+  const textarea = inputRef.value
+  if (!textarea) return
+  if (collapsedLineIndices.value.has(lineIdx)) collapsedSections.value = {}
+
+  const lines = (props.tab?.content || '').split('\n')
+  const idx = Math.max(0, Math.min(lineIdx, lines.length - 1))
+  const start = lines.slice(0, idx).reduce((sum, line) => sum + line.length + 1, 0)
+
+  nextTick(() => {
+    textarea.focus({ preventScroll: true })
+    textarea.setSelectionRange(start + lines[idx].length, start + lines[idx].length)
+    cursorPosition.value = start + lines[idx].length
+    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 26
+    textarea.scrollTop = Math.max(0, idx * lineHeight - textarea.clientHeight / 3)
+    syncScroll()
+
+    flashLineIndex.value = idx
+    clearTimeout(flashTimer)
+    flashTimer = setTimeout(() => {
+      flashLineIndex.value = null
+    }, 1600)
+  })
+}
 
 function toggleSectionCollapse(headerIdx) {
   collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
@@ -604,21 +710,12 @@ watch(
   { immediate: true }
 )
 
-// Autocomplete suggestions (active when word length >= 3)
-const autocompleteSuggestions = computed(() => {
-  if (!currentPrefix.value || currentPrefix.value.length < 3) return []
-
-  const pref = currentPrefix.value.toLowerCase()
-  const list = []
-
-  declaredVariablesMap.value.forEach((val, name) => {
-    if (name.toLowerCase().startsWith(pref) && name.toLowerCase() !== pref) {
-      list.push({ name, val })
-    }
-  })
-
-  return list
-})
+// Autocomplete: variables, functions, currencies, units and keywords for the word being typed
+const autocompleteContext = ref('')
+const autocompleteNavigated = ref(false)
+const autocompleteSuggestions = computed(() =>
+  getCompletions(currentPrefix.value, autocompleteContext.value, declaredVariablesList.value)
+)
 
 const autocompletePos = ref({ top: 40, left: 10 })
 
@@ -688,10 +785,14 @@ function updateCursorState() {
   cursorPosition.value = pos
 
   const textBefore = tabContent.value.slice(0, pos)
-  const match = textBefore.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/)
+  const match = textBefore.match(/([\p{L}_][\p{L}\p{N}_]*)$/u)
   if (match) {
+    const wasShowing = showAutocomplete.value && currentPrefix.value
     currentPrefix.value = match[1]
-    if (currentPrefix.value.length >= 3 && autocompleteSuggestions.value.length > 0) {
+    const lineStart = textBefore.lastIndexOf('\n') + 1
+    autocompleteContext.value = textBefore.slice(lineStart, textBefore.length - match[1].length)
+    if (!wasShowing) autocompleteNavigated.value = false
+    if (autocompleteSuggestions.value.length > 0) {
       showAutocomplete.value = true
       autocompletePos.value = getCaretCoordinates()
       if (autocompleteIndex.value >= autocompleteSuggestions.value.length) {
@@ -706,23 +807,26 @@ function updateCursorState() {
   }
 }
 
-function applyAutocomplete(varName) {
-  if (!inputRef.value || !varName || !currentPrefix.value) return
+function applyAutocomplete(item) {
+  if (!inputRef.value || !item || !currentPrefix.value) return
 
   const pos = inputRef.value.selectionStart
   const startPos = pos - currentPrefix.value.length
   const current = tabContent.value
 
-  const newText = current.substring(0, startPos) + varName + current.substring(pos)
-  tabContent.value = newText
+  recordHistoryNow(current)
+  tabContent.value = current.substring(0, startPos) + item.insert + current.substring(pos)
 
   showAutocomplete.value = false
+  autocompleteNavigated.value = false
   currentPrefix.value = ''
 
   setTimeout(() => {
     inputRef.value.focus({ preventScroll: true })
-    const newPos = startPos + varName.length
+    // Functions put the cursor between the brackets
+    const newPos = startPos + item.insert.length + (item.caretOffset || 0)
     inputRef.value.selectionStart = inputRef.value.selectionEnd = newPos
+    recordHistoryNow(tabContent.value)
   }, 0)
 }
 
@@ -750,22 +854,29 @@ function handleKeyDown(e) {
   if (showAutocomplete.value && autocompleteSuggestions.value.length > 0) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
+      autocompleteNavigated.value = true
       autocompleteIndex.value = (autocompleteIndex.value + 1) % autocompleteSuggestions.value.length
       return
     }
     if (e.key === 'ArrowUp') {
       e.preventDefault()
+      autocompleteNavigated.value = true
       autocompleteIndex.value =
         (autocompleteIndex.value - 1 + autocompleteSuggestions.value.length) % autocompleteSuggestions.value.length
       return
     }
-    if (e.key === 'Tab' || e.key === 'Enter') {
+    // Tab always accepts. Enter only accepts after choosing with the arrow keys, so typing
+    // "5 km" and pressing Enter still starts a new line instead of inserting "km/h".
+    if (e.key === 'Tab' || (e.key === 'Enter' && autocompleteNavigated.value)) {
       e.preventDefault()
       const selected = autocompleteSuggestions.value[autocompleteIndex.value]
       if (selected) {
-        applyAutocomplete(selected.name)
+        applyAutocomplete(selected)
       }
       return
+    }
+    if (e.key === 'Enter') {
+      showAutocomplete.value = false
     }
     if (e.key === 'Escape') {
       showAutocomplete.value = false
@@ -955,7 +1066,8 @@ function insertTextAtCursor(textToInsert) {
 }
 
 defineExpose({
-  insertTextAtCursor
+  insertTextAtCursor,
+  goToLine
 })
 
 onMounted(() => {
@@ -1089,6 +1201,56 @@ watch(
 
 .highlighted-line {
   background: rgba(22, 217, 196, 0.05) !important;
+}
+
+/* Lines read by the line being edited or hovered (#3, a variable's line, prev) */
+.is-ref-target {
+  background: color-mix(in srgb, var(--syn-number) 12%, transparent) !important;
+  box-shadow: inset 2px 0 0 var(--syn-number);
+}
+
+/* Brief highlight after jumping to a line from the command palette */
+.line-flash {
+  animation: line-flash 1.6s ease-out;
+}
+
+@keyframes line-flash {
+  0%,
+  40% {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line-flash {
+    animation: none;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
+
+.row-insert-ref {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 1px 5px;
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.r:hover .row-insert-ref,
+.row-insert-ref:focus-visible {
+  opacity: 0.8;
+}
+
+.row-insert-ref:hover {
+  opacity: 1;
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .r.section-header {
@@ -1261,8 +1423,9 @@ watch(
   border: 1px solid var(--line-hover);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
-  width: 220px;
-  max-height: 200px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: 240px;
   overflow-y: auto;
   padding: 4px;
 }
@@ -1281,7 +1444,7 @@ watch(
 .ac-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   padding: 6px 10px;
   border-radius: 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -1305,6 +1468,39 @@ watch(
 .ac-val {
   font-size: 11.5px;
   color: var(--muted);
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ac-name {
+  flex-shrink: 0;
+}
+
+/* Kind badge, coloured like the syntax highlighter */
+.ac-kind {
+  flex-shrink: 0;
+  width: 58px;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ac-kind-variable {
+  color: var(--syn-variable);
+}
+.ac-kind-function,
+.ac-kind-keyword {
+  color: var(--syn-keyword);
+}
+.ac-kind-currency {
+  color: var(--syn-currency);
+}
+.ac-kind-unit {
+  color: var(--syn-unit);
 }
 
 .results {
@@ -1714,7 +1910,8 @@ watch(
     justify-content: flex-end;
   }
 
-  .row-hover-copy {
+  .row-hover-copy,
+  .row-insert-ref {
     display: none !important;
   }
 }
