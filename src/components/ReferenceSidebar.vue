@@ -2,18 +2,18 @@
   <div class="sidebar-column">
     <!-- Action Box containing Save, Share & Copy All -->
     <div class="save-card">
-      <button class="btn-save-main" @click="$emit('save-tab')" title="Save current active tab to your Saved Library">
+      <button class="btn-save-main" title="Save current active tab to your Saved Library" @click="$emit('save-tab')">
         <BookmarkPlus class="icon" />
         <span>Save Tab to Library</span>
       </button>
 
       <div class="action-btn-row">
-        <button class="btn-action" @click="$emit('share-tab')" title="Copy live shareable URL link for current tab to clipboard">
+        <button class="btn-action" title="Copy live shareable URL link for current tab to clipboard" @click="$emit('share-tab')">
           <Share2 class="icon-sm" />
           <span>Share Tab</span>
         </button>
 
-        <button class="btn-action" @click="$emit('copy-all')" title="Copy document with calculated results implicitly appended as = result (Ctrl+Shift+C)">
+        <button class="btn-action" title="Copy document with calculated results implicitly appended as = result (Ctrl+Shift+C)" @click="$emit('copy-all')">
           <Copy class="icon-sm" />
           <span>Copy All (=)</span>
         </button>
@@ -35,8 +35,8 @@
           v-for="v in declaredVariables"
           :key="v.name"
           class="var-item"
-          @click="$emit('insert', v.name)"
           :title="'Click to insert variable ' + v.name"
+          @click="$emit('insert', v.name)"
         >
           <span class="var-name">{{ v.name }}</span>
           <span class="var-eq">=</span>
@@ -54,7 +54,7 @@
     <aside class="sheet">
       <div class="sheet-header">
         <h2>Syntax Reference</h2>
-        <button class="btn-guide-link" @click="$emit('open-guide-page')" title="Open full syntax guide page">
+        <button class="btn-guide-link" title="Open full syntax guide page" @click="$emit('open-guide-page')">
           Full Guide →
         </button>
       </div>

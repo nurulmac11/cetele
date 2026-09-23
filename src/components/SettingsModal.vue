@@ -1,12 +1,12 @@
 <template>
   <div v-if="isOpen" class="modal-backdrop" @click.self="$emit('close')">
-    <div class="modal-card">
+    <div ref="dialogRef" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1">
       <header class="modal-header">
         <div class="modal-title">
-          <Settings class="icon" />
-          <span>Settings</span>
+          <Settings class="icon" aria-hidden="true" />
+          <span id="settings-title">Settings</span>
         </div>
-        <button class="btn-close" @click="$emit('close')">
+        <button class="btn-close" aria-label="Close settings" @click="$emit('close')">
           <X class="icon" />
         </button>
       </header>
@@ -131,6 +131,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { Settings, X, User, HardDrive, Download, Upload, RotateCcw } from '@lucide/vue'
+import { useModalA11y } from '../composables/useModalA11y.js'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
@@ -138,6 +139,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save-profile', 'export-tabs', 'import-tabs', 'reset-local-data', 'toast'])
+
+const dialogRef = ref(null)
+useModalA11y(() => props.isOpen, dialogRef, () => emit('close'))
 
 const activeTab = ref('profile')
 

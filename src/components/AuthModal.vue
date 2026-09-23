@@ -1,13 +1,13 @@
 <template>
   <div v-if="isOpen" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-card">
+    <div ref="dialogRef" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-title" tabindex="-1">
       <!-- Modal Header -->
       <div class="modal-header">
         <div class="modal-title">
-          <Cloud class="icon-accent" />
-          <h3>Cloud Sync & Accounts</h3>
+          <Cloud class="icon-accent" aria-hidden="true" />
+          <h3 id="auth-title">Cloud Sync & Accounts</h3>
         </div>
-        <button class="btn-close" @click="$emit('close')">
+        <button class="btn-close" aria-label="Close" @click="$emit('close')">
           <X class="icon-sm" />
         </button>
       </div>
@@ -48,7 +48,7 @@
             <p class="sync-desc">Your tabs are automatically backed up to Supabase when modified.</p>
           </div>
 
-          <button class="btn-danger" @click="handleSignOut" :disabled="loading">
+          <button class="btn-danger" :disabled="loading" @click="handleSignOut">
             <LogOut class="icon-xs" /> Sign Out
           </button>
         </div>
@@ -63,7 +63,7 @@
             {{ errorMsg }}
           </div>
 
-          <button class="btn-google" @click="handleGoogleLogin" :disabled="loading">
+          <button class="btn-google" :disabled="loading" @click="handleGoogleLogin">
             <svg class="google-icon" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -83,6 +83,8 @@
 import { ref, computed, watch } from 'vue'
 import { checkIsSupabaseConfigured } from '../services/supabaseClient.js'
 import { signInWithGoogle, signOut, flushPendingSync, hasUnsyncedEdits } from '../services/syncService.js'
+import { askConfirm } from '../services/confirmService.js'
+import { useModalA11y } from '../composables/useModalA11y.js'
 import { Cloud, X, AlertTriangle, UserCheck, CloudCheck, LogOut, Loader2 } from '@lucide/vue'
 
 const props = defineProps({
@@ -92,6 +94,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'user-updated', 'toast'])
+
+const dialogRef = ref(null)
+useModalA11y(() => props.isOpen, dialogRef, () => emit('close'))
 
 const isConfigured = computed(() => checkIsSupabaseConfigured())
 const loading = ref(false)
@@ -121,11 +126,16 @@ async function handleSignOut() {
     await flushPendingSync()
     const unsyncedTabs = props.tabs.filter(hasUnsyncedEdits)
     if (unsyncedTabs.length > 0) {
-      const names = unsyncedTabs.map((t) => `• ${t.title || 'Untitled'}`).join('\n')
-      const proceed = confirm(
-        `These tabs have changes that couldn't be uploaded to the cloud (you may be offline):\n\n${names}\n\n` +
-        'Signing out now will permanently lose these changes. Sign out anyway?'
-      )
+      const proceed = await askConfirm({
+        title: 'Sign out and lose unsynced changes?',
+        message:
+          "These tabs have changes that couldn't be uploaded to the cloud (you may be offline). " +
+          'Signing out now will permanently lose these changes.',
+        details: unsyncedTabs.map((t) => t.title || 'Untitled'),
+        confirmLabel: 'Sign out anyway',
+        cancelLabel: 'Stay signed in',
+        danger: true
+      })
       if (!proceed) return
     }
     await signOut()

@@ -24,9 +24,10 @@
             v-model="searchQuery"
             type="text"
             class="search-input"
+            aria-label="Search saved tabs"
             placeholder="Search saved tabs by title or content..."
           />
-          <button v-if="searchQuery" class="btn-clear-search" @click="searchQuery = ''">
+          <button aria-label="Clear search" v-if="searchQuery" class="btn-clear-search" @click="searchQuery = ''">
             <X class="icon-xs" />
           </button>
         </div>
@@ -66,37 +67,37 @@
               Saved on {{ formatDate(item.savedAt) }}
             </div>
 
-            <pre class="code-preview" @click="openPreview(item)" title="Preview this document">{{ getPreviewText(item.content) }}</pre>
+            <pre class="code-preview" title="Preview this document" @click="openPreview(item)">{{ getPreviewText(item.content) }}</pre>
 
             <div class="card-actions">
               <button
                 class="btn-action primary"
-                @click="$emit('load-as-tab', item)"
                 title="Open and reload this document as an active tab"
+                @click="$emit('load-as-tab', item)"
               >
                 <ExternalLink class="icon-xs" /> Open as Tab
               </button>
 
               <button
                 class="btn-action"
-                @click="openPreview(item)"
                 title="Preview this document with results without opening it as a tab"
+                @click="openPreview(item)"
               >
                 <Eye class="icon-xs" /> Preview
               </button>
 
               <button
                 class="btn-action"
-                @click="copyContent(item.content)"
                 title="Copy full text to clipboard"
+                @click="copyContent(item.content)"
               >
                 <Copy class="icon-xs" /> Copy
               </button>
 
               <button
                 class="btn-action danger"
-                @click="confirmDelete(item.id, item.title)"
                 title="Delete this saved tab"
+                @click="confirmDelete(item.id, item.title)"
               >
                 <Trash2 class="icon-xs" /> Delete
               </button>
@@ -108,7 +109,14 @@
 
     <!-- Read-only Preview Modal -->
     <div v-if="previewItem" class="preview-backdrop" @click.self="closePreview">
-      <div class="preview-card" role="dialog" aria-modal="true" :aria-label="`Preview of ${previewItem.title}`">
+      <div
+        ref="previewRef"
+        class="preview-card"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`Preview of ${previewItem.title}`"
+        tabindex="-1"
+      >
         <header class="preview-header">
           <div class="card-title-wrap">
             <FileText class="icon-sm card-icon" />
@@ -119,7 +127,7 @@
               </span>
             </div>
           </div>
-          <button class="btn-close" @click="closePreview" title="Close preview (Esc)">
+          <button aria-label="Close preview (Esc)" class="btn-close" title="Close preview (Esc)" @click="closePreview">
             <X class="icon-sm" />
           </button>
         </header>
@@ -142,10 +150,10 @@
             Total: <b>{{ previewTotal }}</b>
           </div>
           <div class="card-actions">
-            <button class="btn-action" @click="copyContent(previewItem.content)" title="Copy full text to clipboard">
+            <button class="btn-action" title="Copy full text to clipboard" @click="copyContent(previewItem.content)">
               <Copy class="icon-xs" /> Copy
             </button>
-            <button class="btn-action primary" @click="loadFromPreview" title="Open and reload this document as an active tab">
+            <button class="btn-action primary" title="Open and reload this document as an active tab" @click="loadFromPreview">
               <ExternalLink class="icon-xs" /> Open as Tab
             </button>
           </div>
@@ -156,9 +164,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed } from 'vue'
 import { Bookmark, ArrowLeft, Search, X, FileText, ExternalLink, Copy, Trash2, Eye } from '@lucide/vue'
 import { evaluateAll } from '../services/evaluator.js'
+import { askConfirm } from '../services/confirmService.js'
+import { useModalA11y } from '../composables/useModalA11y.js'
 
 const props = defineProps({
   library: { type: Array, default: () => [] },
@@ -213,12 +223,8 @@ function loadFromPreview() {
   if (item) emit('load-as-tab', item)
 }
 
-function handleKeydown(e) {
-  if (e.key === 'Escape' && previewItem.value) closePreview()
-}
-
-onMounted(() => window.addEventListener('keydown', handleKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
+const previewRef = ref(null)
+useModalA11y(() => Boolean(previewItem.value), previewRef, closePreview)
 
 function getLineCount(content) {
   return (content || '').split('\n').length
@@ -254,10 +260,14 @@ function copyContent(text) {
   })
 }
 
-function confirmDelete(id, title) {
-  if (confirm(`Are you sure you want to delete "${title}" from your saved library?`)) {
-    emit('delete-saved-tab', id)
-  }
+async function confirmDelete(id, title) {
+  const confirmed = await askConfirm({
+    title: 'Delete saved tab?',
+    message: `"${title}" will be removed from your saved library.`,
+    confirmLabel: 'Delete',
+    danger: true
+  })
+  if (confirmed) emit('delete-saved-tab', id)
 }
 </script>
 

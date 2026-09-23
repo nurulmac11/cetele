@@ -158,8 +158,20 @@
             <span class="sc-desc">Copy All text with implicit results (= result)</span>
           </div>
           <div class="shortcut-item">
+            <span class="sc-key">Alt + N</span>
+            <span class="sc-desc">New tab (Option + N on Mac)</span>
+          </div>
+          <div class="shortcut-item">
+            <span class="sc-key">Alt + Shift + T</span>
+            <span class="sc-desc">Reopen the last closed tab</span>
+          </div>
+          <div class="shortcut-item">
+            <span class="sc-key">Alt + D</span>
+            <span class="sc-desc">Toggle decimals (Option + D on Mac)</span>
+          </div>
+          <div class="shortcut-item">
             <span class="sc-key">Share Tab</span>
-            <span class="sc-desc">Copy live URL hash link (`cetele.online/#doc=...`)</span>
+            <span class="sc-desc">Copy a share link with the tab compressed into the URL (`cetele.online/#z=...`)</span>
           </div>
         </div>
       </section>

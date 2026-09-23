@@ -2,17 +2,17 @@
   <Teleport to="body">
     <Transition name="welcome-fade">
       <div v-if="isOpen" class="welcome-overlay" @click.self="handleClose">
-        <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div ref="dialogRef" class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
           <!-- Top Right Controls (Language Selector + Close Button) -->
           <div class="header-top-actions">
             <!-- Language Selector Dropdown -->
-            <div class="lang-selector-wrapper" ref="langDropdownRef">
+            <div ref="langDropdownRef" class="lang-selector-wrapper">
               <button
                 class="btn-lang-toggle"
-                @click="toggleLangMenu"
                 :aria-expanded="isLangMenuOpen"
                 aria-haspopup="true"
                 title="Change language"
+                @click="toggleLangMenu"
               >
                 <Globe class="icon-globe" />
                 <span class="lang-flag">{{ activeLangMeta.flag }}</span>
@@ -27,8 +27,8 @@
                     :key="lang.code"
                     class="lang-option"
                     :class="{ 'is-selected': lang.code === currentLang }"
-                    @click="selectLanguage(lang.code)"
                     role="menuitem"
+                    @click="selectLanguage(lang.code)"
                   >
                     <span class="option-flag">{{ lang.flag }}</span>
                     <span class="option-name">{{ lang.nativeName }}</span>
@@ -41,9 +41,9 @@
             <!-- Close Button -->
             <button
               class="btn-close"
-              @click="handleClose"
               :title="t.actions.closeTooltip"
               :aria-label="t.actions.closeAria"
+              @click="handleClose"
             >
               <X class="icon-close" />
             </button>
@@ -221,6 +221,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useModalA11y } from '../composables/useModalA11y.js'
 import { X, Folder, Bookmark, Zap, ArrowRight, Globe, ChevronDown } from '@lucide/vue'
 import {
   SUPPORTED_LANGUAGES,
@@ -274,16 +275,15 @@ function handleTryYourself() {
   emit('try-yourself')
 }
 
-function handleKeyDown(e) {
-  if (!props.isOpen) return
-  if (e.key === 'Escape') {
-    if (isLangMenuOpen.value) {
-      isLangMenuOpen.value = false
-    } else {
-      handleClose()
-    }
+// Escape closes the language menu first, then the dialog
+const dialogRef = ref(null)
+useModalA11y(() => props.isOpen, dialogRef, () => {
+  if (isLangMenuOpen.value) {
+    isLangMenuOpen.value = false
+  } else {
+    handleClose()
   }
-}
+})
 
 function handleClickOutside(e) {
   if (langDropdownRef.value && !langDropdownRef.value.contains(e.target)) {
@@ -292,12 +292,10 @@ function handleClickOutside(e) {
 }
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyDown)
   window.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
   window.removeEventListener('click', handleClickOutside)
 })
 </script>

@@ -139,6 +139,9 @@
       @toast="showToast"
     />
 
+    <!-- In-app confirmation dialog (see services/confirmService.js) -->
+    <ConfirmDialog />
+
     <!-- Welcome / Onboarding Tour Popup Modal -->
     <WelcomeModal
       :is-open="isWelcomeModalOpen"
@@ -156,6 +159,8 @@ import ReferenceSidebar from './components/ReferenceSidebar.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import AuthModal from './components/AuthModal.vue'
 import WelcomeModal from './components/WelcomeModal.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
+import { askConfirm } from './services/confirmService.js'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
 import SavedTabsPage from './components/SavedTabsPage.vue'
 import { EXAMPLE_TEXT, getFormattedCopyAllText } from './services/evaluator.js'
@@ -526,15 +531,20 @@ function updateActiveTabContent(newContent) {
   }
 }
 
-function clearActiveTab() {
-  if (activeTab.value) {
-    if (confirm('Are you sure you want to clear all text in this tab?')) {
-      activeTab.value.content = ''
-      markEdited(activeTab.value)
-      triggerSave()
-      showToast('Tab cleared')
-    }
-  }
+async function clearActiveTab() {
+  const tab = activeTab.value
+  if (!tab) return
+  const confirmed = await askConfirm({
+    title: 'Clear this tab?',
+    message: `All text in "${tab.title}" will be removed.`,
+    confirmLabel: 'Clear tab',
+    danger: true
+  })
+  if (!confirmed) return
+  tab.content = ''
+  markEdited(tab)
+  triggerSave()
+  showToast('Tab cleared')
 }
 
 // Copies text, falling back to a hidden textarea where the Clipboard API is blocked
@@ -665,23 +675,42 @@ async function copyAllWithResults() {
 }
 
 // Global Keyboard Shortcuts
+// Browsers don't let pages take over Ctrl/Cmd+N, Ctrl/Cmd+T or Ctrl/Cmd+Shift+T, and Ctrl/Cmd+D is the
+// bookmark shortcut, so tab and decimal actions use Alt (Option on Mac). Alt combos are matched by
+// e.code because Option changes e.key on macOS (Option+N types a dead key).
 function handleGlobalShortcuts(e) {
-  const platform = typeof navigator !== 'undefined' ? (navigator.userAgentData?.platform || navigator.platform || '') : ''
+  const platform = typeof navigator !== 'undefined' ? navigator.userAgentData?.platform || navigator.platform || '' : ''
   const isMac = /mac|iphone|ipad/i.test(platform)
   const modifier = isMac ? e.metaKey : e.ctrlKey
+  const altOnly = e.altKey && !e.ctrlKey && !e.metaKey
+  const key = (e.key || '').toLowerCase()
 
-  const targetTag = e.target ? e.target.tagName.toUpperCase() : ''
+  const targetTag = e.target?.tagName ? e.target.tagName.toUpperCase() : ''
   const isInput = targetTag === 'INPUT' || targetTag === 'TEXTAREA' || e.target?.isContentEditable
 
-  // Ctrl+Shift+T / Cmd+Shift+T: Always reopen last closed tab
-  if (modifier && e.shiftKey && (e.key === 'T' || e.key === 't')) {
+  // Alt+Shift+T: reopen last closed tab
+  if (altOnly && e.shiftKey && e.code === 'KeyT') {
     e.preventDefault()
     reopenLastClosedTab()
     return
   }
 
-  // Ctrl+Z / Cmd+Z: Reopen closed tab when focus is outside text input/textarea
-  if (modifier && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+  // Alt+N: new tab
+  if (altOnly && !e.shiftKey && e.code === 'KeyN') {
+    e.preventDefault()
+    createTab()
+    return
+  }
+
+  // Alt+D: toggle decimals
+  if (altOnly && !e.shiftKey && e.code === 'KeyD') {
+    e.preventDefault()
+    toggleShowDecimals()
+    return
+  }
+
+  // Ctrl/Cmd+Z outside the editor: reopen the last closed tab
+  if (modifier && !e.shiftKey && !e.altKey && key === 'z') {
     if (!isInput && closedTabsStack.value.length > 0) {
       e.preventDefault()
       reopenLastClosedTab()
@@ -689,25 +718,13 @@ function handleGlobalShortcuts(e) {
     }
   }
 
-  if (modifier && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+  if (modifier && e.shiftKey && key === 'c') {
     e.preventDefault()
     copyAllWithResults()
     return
   }
 
-  if (modifier && (e.key === 'n' || e.key === 'N')) {
-    e.preventDefault()
-    createTab()
-    return
-  }
-
-  if (modifier && (e.key === 'd' || e.key === 'D')) {
-    e.preventDefault()
-    toggleShowDecimals()
-    return
-  }
-
-  if (modifier && (e.key === 'b' || e.key === 'B')) {
+  if (modifier && !e.shiftKey && key === 'b') {
     e.preventDefault()
     toggleSidebar()
     return
@@ -789,7 +806,13 @@ async function importTabs(importedArray) {
 }
 
 async function resetLocalData() {
-  if (confirm('Are you sure you want to reset your local database to defaults?')) {
+  const confirmed = await askConfirm({
+    title: 'Reset local data?',
+    message: 'All tabs and your saved library on this device will be replaced with the example tabs. This cannot be undone.',
+    confirmLabel: 'Reset data',
+    danger: true
+  })
+  if (confirmed) {
     await clearLocalDatabase()
     tabs.value = JSON.parse(JSON.stringify(defaultTabs))
     savedLibrary.value = []

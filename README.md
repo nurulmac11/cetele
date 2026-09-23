@@ -23,8 +23,9 @@
 - 🗂️ **Offline Multi-Tab Persistence**: All tabs auto-save locally to IndexedDB & `localStorage`. Zero logins or cloud accounts needed.
 - ☀️/🌙 **Dark & Light Themes**: Cyberpunk Dark (default) and Clean Light Mode.
 - ⌨️ **Keyboard Shortcuts**:
-  - `Ctrl+N` / `Cmd+N`: New Tab
-  - `Ctrl+D` / `Cmd+D`: Toggle Decimals
+  - `Alt+N` (`Option+N` on Mac): New Tab
+  - `Alt+Shift+T`: Reopen last closed tab
+  - `Alt+D` (`Option+D` on Mac): Toggle Decimals
   - `Ctrl+Shift+C` / `Cmd+Shift+C`: Copy All with Results
   - `Ctrl+,` / `Cmd+,`: Open Settings Modal
 

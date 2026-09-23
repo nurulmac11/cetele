@@ -83,7 +83,7 @@ Use this index to quickly locate the exact files, key functions, and test suites
 | **Magnitude Multipliers** | `src/services/evaluator/lexer.js` | Shorthand magnitude multiplier suffixes (`k`, `m`, `b`, `t` / `K`, `M`, `B`, `T`). | `tests/evaluator/multipliers.test.js` |
 | **Date & Physical Unit Math** | `src/services/evaluator/lexer.js`<br>`src/services/evaluator/astEvaluator.js` | Date arithmetic (`today + 2 weeks - 1 day`), physical unit conversions (`12 km to miles`). | `tests/evaluator/date_units.test.js` |
 | **Notepad Editor & Autocomplete** | `src/components/Notepad.vue` | Textarea sync scrolling, line gutter, evaluation result column, variable autocomplete menu, fold toggles. | — |
-| **Tab Management & Navigation** | `src/App.vue`<br>`src/components/Header.vue` | Reactive `tabs` array, `closedTabsStack`, drag-and-drop tab reordering, mobile view dropdown menu (`mobile-nav-wrapper`), mobile tab rename inline form (`mobile-dropdown-rename-form`), global keyboard shortcuts (`Ctrl+N`, `Ctrl+Z`, `Ctrl+Shift+C`). | — |
+| **Tab Management & Navigation** | `src/App.vue`<br>`src/components/Header.vue` | Reactive `tabs` array, `closedTabsStack`, drag-and-drop tab reordering, mobile view dropdown menu (`mobile-nav-wrapper`), mobile tab rename inline form (`mobile-dropdown-rename-form`), global keyboard shortcuts (`Alt+N`, `Alt+Shift+T`, `Ctrl+Shift+C`). | — |
 | **Offline Storage (IndexedDB)** | `src/services/localDb.js` | `CeteleLocalDB` (IndexedDB stores for `tabs`, `saved_tabs`, `settings`) with `localStorage` fallback. | `tests/services.test.js` |
 | **Cloud Synchronization** | `src/services/syncService.js`<br>`supabase/schema.sql` | Supabase auth integration, `throttledSyncTabsToCloud`, Row-Level Security (RLS) policies. | — |
 | **Document Sharing** | `src/services/shareService.js` | Deflate-compressed, base64url payload in the URL hash (`#z=...`); legacy `#doc=...` links still open. | `tests/services.test.js` |
@@ -206,11 +206,11 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 
 | Shortcut | Action | Scope / Condition |
 | :--- | :--- | :--- |
-| `Ctrl + N` / `Cmd + N` | Create new tab | Global |
+| `Alt + N` (`Option + N`) | Create new tab | Global |
 | `Ctrl + Z` / `Cmd + Z` | Reopen last closed tab | Outside text input/textarea |
-| `Ctrl + Shift + T` / `Cmd + Shift + T` | Reopen last closed tab | Global |
+| `Alt + Shift + T` | Reopen last closed tab | Global |
 | `Ctrl + Shift + C` / `Cmd + Shift + C` | Copy all lines with evaluated results (`= result`) | Global |
-| `Ctrl + D` / `Cmd + D` | Toggle decimal formatting | Global |
+| `Alt + D` (`Option + D`) | Toggle decimal formatting | Global |
 | `Ctrl + B` / `Cmd + B` | Toggle reference sidebar | Global |
 | `Ctrl + ,` / `Cmd + ,` | Open Settings modal | Global |
 
@@ -223,6 +223,13 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 - **Theme**: an inline script in `index.html` applies the saved theme before first paint.
 - **Headers** (`vercel.json`): security headers plus a `Content-Security-Policy-Report-Only` policy. Adding a new external host (API, CDN, font) means adding it to the CSP. Editing the inline script in `index.html` changes its hash; `tests/deployConfig.test.js` fails until the new hash is in `vercel.json`.
 
+## ♿ Dialogs & Accessibility
+
+- Ask for confirmation with `askConfirm({ title, message, details, confirmLabel, danger })` from `src/services/confirmService.js` (resolves to `true`/`false`). Never use `alert()`/`confirm()`; use toasts for messages.
+- Every modal calls `useModalA11y(isOpen, dialogRef, onClose)` from `src/composables/useModalA11y.js`: it moves focus in, traps Tab, closes on Escape (topmost dialog only) and restores focus. Give the dialog element `role="dialog"`, `aria-modal="true"`, a label and `tabindex="-1"`.
+- Icon-only buttons need an `aria-label`. The tab strip uses `role="tablist"`/`role="tab"` (arrow keys move focus, Enter/Space select, F2 renames).
+- Syntax highlighting (`src/services/highlighter.js`) is built from the evaluator's `Lexer` tokens, so colours match evaluation. Its tokens must join back to the exact line text, or the coloured layer drifts from the textarea (`tests/highlighter.test.js` checks this).
+
 ## 🚦 Developer Workflow & Commands
 
 ### Running Locally
@@ -230,6 +237,13 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 npm run dev
 ```
 Starts Vite dev server at `http://localhost:3000`.
+
+### Lint & Format
+```bash
+npm run lint           # ESLint (eslint.config.js)
+npm run format         # Prettier: rewrite files
+npm run format:check   # Prettier: check only (runs in CI)
+```
 
 ### Executing Unit Tests
 ```bash
@@ -259,7 +273,8 @@ npm run preview
    - All feature additions must function offline using fallback rates and IndexedDB / `localStorage`. Cloud sync with Supabase should enhance, never block, core notepad calculations.
 3. **Tab & State Preservation**:
    - When fetching or updating tabs via `handleCloudFetch`, always preserve the active tab selection (`activeTabId`) if present.
-   - Keep `closedTabsStack` functional so users can restore accidentally closed tabs using `Ctrl + Z` or `Ctrl + Shift + T`.
+   - Keep `closedTabsStack` functional so users can restore accidentally closed tabs using `Ctrl + Z` or `Alt + Shift + T`.
+   - Don't bind browser-reserved shortcuts (`Ctrl/Cmd + N`, `T`, `W`, `Shift + T`) or common browser ones (`Ctrl/Cmd + D`); pages can't reliably intercept them. Match Alt combos with `e.code`, since Option changes `e.key` on macOS.
 4. **No Unhandled Errors in UI**:
    - Syntax or math errors in the notepad editor should gracefully render an error symbol (`—`) in the result gutter rather than throwing unhandled exceptions.
 5. **Verification Requirement**:

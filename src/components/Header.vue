@@ -41,8 +41,8 @@
         <div class="mobile-nav-wrapper mobile-only">
           <button
             class="btn-mobile-nav-select"
-            @click="isMobileNavOpen = !isMobileNavOpen"
             title="Menu & Navigation"
+            @click="isMobileNavOpen = !isMobileNavOpen"
           >
             <Calculator v-if="currentView === 'notepad'" class="icon-sm active-nav-icon" />
             <Bookmark v-else-if="currentView === 'library'" class="icon-sm active-nav-icon" />
@@ -115,7 +115,7 @@
         <!-- Decimals Toggle Switch -->
         <div
           class="decimals-switch-box desktop-only"
-          :title="showDecimals ? 'Decimals ON (showing fractional values)' : 'Decimals OFF (rounding to integers)'"
+          :title="showDecimals ? 'Decimals ON (showing fractional values) · Alt+D' : 'Decimals OFF (rounding to integers) · Alt+D'"
         >
           <span class="switch-text">Decimals</span>
           <label class="toggle-switch">
@@ -132,8 +132,8 @@
         <button
           class="btn-cloud-pill"
           :class="{ 'user-active': user }"
-          @click="$emit('open-auth')"
           :title="user ? `Cloud Sync Active (${user.email})` : 'Sign in to sync tabs across devices'"
+          @click="$emit('open-auth')"
         >
           <Cloud class="icon-sm" />
           <span v-if="user" class="cloud-text">Sync Active</span>
@@ -142,36 +142,36 @@
         </button>
 
         <!-- Expand Calculation Area / Toggle Sidebar Button -->
-        <button
+        <button :aria-label="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
           class="btn-icon desktop-only"
           :class="{ active: !showSidebar }"
-          @click="$emit('toggle-sidebar')"
           :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar & syntax sheet'"
+          @click="$emit('toggle-sidebar')"
         >
           <Maximize2 v-if="showSidebar" class="icon" />
           <Minimize2 v-else class="icon" />
         </button>
 
         <!-- Light / Dark Theme Toggle -->
-        <button
+        <button :aria-label="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
           class="btn-icon desktop-only"
-          @click="$emit('toggle-theme')"
           :title="theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'"
+          @click="$emit('toggle-theme')"
         >
           <Sun v-if="theme === 'dark'" class="icon" />
           <Moon v-else class="icon" />
         </button>
 
         <!-- Quick Tour / Welcome Modal Button -->
-        <button
+        <button aria-label="Quick Tour & Intro Guide"
           class="btn-icon desktop-only"
-          @click="$emit('open-welcome')"
           title="Quick Tour & Intro Guide"
+          @click="$emit('open-welcome')"
         >
           <HelpCircle class="icon" />
         </button>
 
-        <button class="btn-icon btn-settings desktop-only" @click="$emit('open-settings')" title="Settings & Data Management (Ctrl+,)">
+        <button class="btn-icon btn-settings desktop-only" title="Settings & Data Management (Ctrl+,)" @click="$emit('open-settings')">
           <Settings class="icon" />
           <span class="btn-settings-text">Settings</span>
         </button>
@@ -180,10 +180,13 @@
     <div v-if="currentView === 'notepad'" class="tabs-strip">
       <!-- Desktop & Tablet Tab Strip (100% Original Desktop HTML) -->
       <div class="tabs-desktop-strip desktop-tabs">
-        <div class="tabs-list">
+        <div class="tabs-list" role="tablist" aria-label="Notepad tabs">
           <div
             v-for="(tab, index) in tabs"
             :key="tab.id"
+            role="tab"
+            :aria-selected="tab.id === activeTabId"
+            :tabindex="tab.id === activeTabId ? 0 : -1"
             class="tab-item"
             :class="{
               active: tab.id === activeTabId,
@@ -198,12 +201,18 @@
             @drop.prevent="onDrop($event, index)"
             @dragend="onDragEnd"
             @click="$emit('select-tab', tab.id)"
+            @keydown.enter.self.prevent="$emit('select-tab', tab.id)"
+            @keydown.space.self.prevent="$emit('select-tab', tab.id)"
+            @keydown.f2.self.prevent="startRename(tab)"
+            @keydown.left.self.prevent="focusSiblingTab($event, -1)"
+            @keydown.right.self.prevent="focusSiblingTab($event, 1)"
           >
             <!-- Editing tab title inline -->
             <template v-if="editingTabId === tab.id">
               <input
                 ref="editInputRef"
                 v-model="editingTitle"
+                aria-label="Tab name"
                 class="tab-title-input"
                 @keyup.enter="saveRename(tab.id)"
                 @keyup.esc="cancelRename"
@@ -212,29 +221,31 @@
               />
             </template>
             <template v-else>
-              <span class="tab-title" @dblclick.stop="startRename(tab)" title="Double click to rename">
+              <span class="tab-title" title="Double click to rename" @dblclick.stop="startRename(tab)">
                 {{ tab.title || 'Untitled' }}
               </span>
               <button
+                :aria-label="`Rename ${tab.title || 'Untitled'}`"
                 class="btn-tab-rename"
+                title="Rename tab (F2)"
                 @click.stop="startRename(tab)"
-                title="Rename tab"
               >
                 <Edit3 class="icon-xs" />
               </button>
             </template>
             <button
               v-if="tabs.length > 1"
+              :aria-label="`Close ${tab.title || 'Untitled'}`"
               class="btn-tab-close"
-              @click.stop="$emit('close-tab', tab.id)"
               title="Close tab"
+              @click.stop="$emit('close-tab', tab.id)"
             >
               <X class="icon-xs" />
             </button>
           </div>
         </div>
 
-        <button class="btn-add-tab" @click="$emit('create-tab')" title="Create new notepad tab (Ctrl+N)">
+        <button class="btn-add-tab" title="Create new notepad tab (Alt+N)" @click="$emit('create-tab')">
           <Plus class="icon-sm" />
           <span>New Tab</span>
         </button>
@@ -244,6 +255,9 @@
       <div class="mobile-tab-bar">
         <button
           class="btn-mobile-tab-select"
+          :aria-expanded="isMobileTabMenuOpen"
+          aria-haspopup="true"
+          aria-label="Choose tab"
           @click="isMobileTabMenuOpen = !isMobileTabMenuOpen"
         >
           <Folder class="icon-sm active-folder-icon" />
@@ -268,7 +282,7 @@
                 <Folder class="icon-sm" />
                 <span>Notepad Tabs ({{ tabs.length }})</span>
               </div>
-              <button class="btn-close-dropdown" @click="isMobileTabMenuOpen = false">
+              <button aria-label="Close tab list" class="btn-close-dropdown" @click="isMobileTabMenuOpen = false">
                 <X class="icon-sm" />
               </button>
             </div>
@@ -292,10 +306,10 @@
                       @keyup.esc="cancelRename"
                       @click.stop
                     />
-                    <button class="btn-mobile-rename-save" @click.stop="saveRename(tab.id)" title="Save">
+                    <button aria-label="Save" class="btn-mobile-rename-save" title="Save" @click.stop="saveRename(tab.id)">
                       <Check class="icon-xs" />
                     </button>
-                    <button class="btn-mobile-rename-cancel" @click.stop="cancelRename" title="Cancel">
+                    <button aria-label="Cancel" class="btn-mobile-rename-cancel" title="Cancel" @click.stop="cancelRename">
                       <X class="icon-xs" />
                     </button>
                   </div>
@@ -309,8 +323,8 @@
                   <div class="dropdown-item-actions">
                     <button
                       class="btn-dropdown-action"
-                      @click.stop="startRename(tab)"
                       title="Rename"
+                      @click.stop="startRename(tab)"
                     >
                       <Edit3 class="icon-xs" />
                       <span>Rename</span>
@@ -318,8 +332,8 @@
                     <button
                       v-if="tabs.length > 1"
                       class="btn-dropdown-action delete"
-                      @click.stop="$emit('close-tab', tab.id)"
                       title="Close"
+                      @click.stop="$emit('close-tab', tab.id)"
                     >
                       <X class="icon-xs" />
                     </button>
@@ -410,12 +424,12 @@ function startRename(tab) {
   })
 }
 
-function openMobileRenameActiveTab() {
-  const activeTab = props.tabs.find(x => x.id === props.activeTabId)
-  if (activeTab) {
-    isMobileTabMenuOpen.value = true
-    startRename(activeTab)
-  }
+// Arrow keys move focus between tabs in the tab strip (select with Enter or Space)
+function focusSiblingTab(event, direction) {
+  const tabsEls = [...event.currentTarget.parentElement.querySelectorAll('[role="tab"]')]
+  const idx = tabsEls.indexOf(event.currentTarget)
+  const next = tabsEls[(idx + direction + tabsEls.length) % tabsEls.length]
+  next?.focus()
 }
 
 function saveRename(tabId) {

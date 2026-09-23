@@ -109,8 +109,10 @@ $500k                  // $500,000
 | **`Ctrl + Z`** / **`Cmd + Z`** | **Undo** last typing or insertion step |
 | **`Ctrl + Shift + Z`** / **`Ctrl + Y`** | **Redo** last undone step |
 | **`Ctrl + Shift + C`** / **`Cmd + Shift + C`** | **Copy All** text with implicit calculated answers appended (`= result`) |
-| **`Ctrl + N`** / **`Cmd + N`** | Create **New Notepad Tab** |
-| **`Ctrl + D`** / **`Cmd + D`** | Toggle **Decimals** ON / OFF |
+| **`Alt + N`** (**`Option + N`** on Mac) | Create **New Notepad Tab** |
+| **`Alt + Shift + T`** | **Reopen** the last closed tab (also **`Ctrl + Z`** when the editor isn't focused) |
+| **`Alt + D`** (**`Option + D`** on Mac) | Toggle **Decimals** ON / OFF |
+| **`Ctrl + B`** / **`Cmd + B`** | Show or hide the **reference sidebar** |
 | **`Ctrl + ,`** | Open **Settings & Local Data Management** |
 
 ---
