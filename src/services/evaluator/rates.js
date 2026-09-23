@@ -38,107 +38,6 @@ export const RATES = {
   AVAX: 1 / 28.5
 }
 
-export const ratesVersion = ref(1)
-
-export function updateDerivedRates() {
-  RATES.TL = RATES.TRY
-  const xauRate = RATES.XAU || DEFAULT_XAU
-  RATES.GRAM_GOLD = xauRate * GRAM_PER_TROY_OZ
-  RATES.CEYREK_GOLD = RATES.GRAM_GOLD / 1.75
-}
-
-updateDerivedRates()
-
-// Prototype pollution-safe rate assignment helper
-function safeAssignRates(target, source) {
-  if (!source || typeof source !== 'object') return
-  const forbidden = new Set(['__proto__', 'constructor', 'prototype'])
-  for (const key of Object.keys(source)) {
-    if (forbidden.has(key)) continue
-    if (Object.prototype.hasOwnProperty.call(target, key) || Object.prototype.hasOwnProperty.call(CURRENCY_MAP, key)) {
-      const val = source[key]
-      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
-        target[key] = val
-      }
-    }
-  }
-}
-
-export function initCachedRates() {
-  if (typeof window === 'undefined') return
-  try {
-    const raw = localStorage.getItem(CACHED_RATES_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object') {
-        safeAssignRates(RATES, parsed)
-        updateDerivedRates()
-      }
-    }
-  } catch (e) {}
-}
-
-initCachedRates()
-
-export async function fetchLiveExchangeRates() {
-  try {
-    const res = await fetch('https://open.er-api.com/v6/latest/USD')
-    if (res.ok) {
-      const data = await res.json()
-      if (data && data.rates) {
-        safeAssignRates(RATES, data.rates)
-        updateDerivedRates()
-      }
-    }
-
-    try {
-      const resGold = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/xau.json')
-      if (resGold.ok) {
-        const goldData = await resGold.json()
-        const usdPerOz = goldData?.xau?.usd || goldData?.xau?.bmd
-        if (usdPerOz && usdPerOz > 0 && Number.isFinite(usdPerOz)) {
-          RATES.XAU = 1 / usdPerOz
-          updateDerivedRates()
-        }
-      }
-    } catch (gErr) {}
-
-    try {
-      const resBtc = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/btc.json')
-      if (resBtc.ok) {
-        const btcData = await resBtc.json()
-        if (btcData?.btc?.usd && Number.isFinite(btcData.btc.usd)) RATES.BTC = 1 / btcData.btc.usd
-      }
-
-      const resEth = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eth.json')
-      if (resEth.ok) {
-        const ethData = await resEth.json()
-        if (ethData?.eth?.usd && Number.isFinite(ethData.eth.usd)) RATES.ETH = 1 / ethData.eth.usd
-      }
-
-      const resSol = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/sol.json')
-      if (resSol.ok) {
-        const solData = await resSol.json()
-        if (solData?.sol?.usd && Number.isFinite(solData.sol.usd)) RATES.SOL = 1 / solData.sol.usd
-      }
-    } catch (cErr) {}
-
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(CACHED_RATES_KEY, JSON.stringify(RATES))
-      } catch (e) {}
-    }
-    ratesVersion.value++
-  } catch (err) {
-    console.warn('Could not fetch live exchange rates, using cached rates:', err)
-  }
-}
-
-// Gate background fetching on browser window environment and non-test mode
-if (typeof window !== 'undefined' && (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test')) {
-  fetchLiveExchangeRates()
-}
-
 export const CURRENCY_MAP = {
   '$': '$',
   'USD': 'USD',
@@ -180,9 +79,7 @@ export const CURRENCY_MAP = {
   'GRAM_GOLD': 'GRAM_GOLD',
   'GRAM_ALTIN': 'GRAM_GOLD',
   'ALTIN': 'GRAM_GOLD',
-  'ALTıN': 'GRAM_GOLD',
   'GOLD': 'GRAM_GOLD',
-  'GRAM': 'GRAM_GOLD',
   'CEYREK_GOLD': 'CEYREK_GOLD',
   'CEYREK_ALTIN': 'CEYREK_GOLD',
   'CEYREK': 'CEYREK_GOLD',
@@ -204,6 +101,117 @@ export const CURRENCY_MAP = {
   'AVAX': 'AVAX'
 }
 
+// Codes recognised in any letter case; other live-feed codes must be written in capitals
+export const CORE_CURRENCY_CODES = new Set([...Object.keys(RATES), 'TL'])
+
+const CRYPTO_AND_GOLD_CODES = ['XAU', 'BTC', 'ETH', 'SOL', 'USDT', 'BNB', 'XRP', 'DOGE', 'ADA', 'AVAX']
+
+export const ratesVersion = ref(1)
+// When rates last came from the network (ms), or null while only defaults are in use
+export const ratesUpdatedAt = ref(null)
+
+export function updateDerivedRates() {
+  RATES.TL = RATES.TRY
+  const xauRate = RATES.XAU || DEFAULT_XAU
+  RATES.GRAM_GOLD = xauRate * GRAM_PER_TROY_OZ
+  RATES.CEYREK_GOLD = RATES.GRAM_GOLD / 1.75
+}
+
+updateDerivedRates()
+
+// Prototype pollution-safe rate assignment helper.
+// Accepts known keys plus any 3-letter ISO code, so every currency the feed offers works.
+function safeAssignRates(target, source, { onlyKeys = null } = {}) {
+  if (!source || typeof source !== 'object') return
+  const forbidden = new Set(['__proto__', 'constructor', 'prototype'])
+  for (const rawKey of Object.keys(source)) {
+    const key = rawKey.toUpperCase()
+    if (forbidden.has(rawKey) || forbidden.has(key)) continue
+    if (onlyKeys && !onlyKeys.includes(key)) continue
+    const isKnown = Object.prototype.hasOwnProperty.call(target, key) || Object.prototype.hasOwnProperty.call(CURRENCY_MAP, key)
+    if (isKnown || /^[A-Z]{3}$/.test(key)) {
+      const val = source[rawKey]
+      if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
+        target[key] = val
+      }
+    }
+  }
+}
+
+export function initCachedRates() {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = localStorage.getItem(CACHED_RATES_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        // Newer caches store { rates, updatedAt }; older ones stored the rates object directly
+        const cachedRates = parsed.rates && typeof parsed.rates === 'object' ? parsed.rates : parsed
+        safeAssignRates(RATES, cachedRates)
+        updateDerivedRates()
+        if (Number.isFinite(parsed.updatedAt)) ratesUpdatedAt.value = parsed.updatedAt
+      }
+    }
+  } catch (e) {}
+}
+
+initCachedRates()
+
+const FETCH_TIMEOUT_MS = 8000
+
+async function fetchJson(url) {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS) : null
+  try {
+    const res = await fetch(url, controller ? { signal: controller.signal } : undefined)
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`)
+    return await res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function fetchLiveExchangeRates() {
+  // Both feeds are quoted as units per 1 USD, the same shape as RATES.
+  // They load in parallel, and one failing doesn't block the other.
+  const [fiat, usdFeed] = await Promise.allSettled([
+    fetchJson('https://open.er-api.com/v6/latest/USD'),
+    fetchJson('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json')
+  ])
+
+  let updated = false
+  if (usdFeed.status === 'fulfilled' && usdFeed.value?.usd) {
+    // Gold and crypto always come from this feed; its fiat rates are a fallback
+    safeAssignRates(RATES, usdFeed.value.usd, { onlyKeys: CRYPTO_AND_GOLD_CODES })
+    if (fiat.status !== 'fulfilled') safeAssignRates(RATES, usdFeed.value.usd)
+    updated = true
+  }
+  if (fiat.status === 'fulfilled' && fiat.value?.rates) {
+    safeAssignRates(RATES, fiat.value.rates)
+    updated = true
+  }
+
+  if (!updated) {
+    console.warn('Could not fetch live exchange rates, using cached rates:', fiat.reason || usdFeed.reason)
+    return
+  }
+
+  updateDerivedRates()
+  ratesUpdatedAt.value = Date.now()
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CACHED_RATES_KEY, JSON.stringify({ rates: RATES, updatedAt: ratesUpdatedAt.value }))
+    } catch (e) {}
+  }
+  ratesVersion.value++
+}
+
+// Gate background fetching on browser window environment and non-test mode
+if (typeof window !== 'undefined' && (typeof process === 'undefined' || process.env?.NODE_ENV !== 'test')) {
+  fetchLiveExchangeRates()
+}
+
+
 export function getBaseCurrencyCode(curr) {
   if (!curr) return null
   if (curr === '$') return 'USD'
@@ -219,4 +227,13 @@ export function normalizeCurrency(str) {
   if (!str) return null
   const s = str.trim().toUpperCase()
   return CURRENCY_MAP[s] || (RATES[s] ? s : null)
+}
+
+// Converts an amount between currencies (codes or symbols). Returns null when a rate is missing.
+export function convertCurrency(amount, from, to) {
+  const baseFrom = getBaseCurrencyCode(from)
+  const baseTo = getBaseCurrencyCode(to)
+  if (!baseFrom || !baseTo || baseFrom === baseTo) return amount
+  if (!RATES[baseFrom] || !RATES[baseTo]) return null
+  return (amount / RATES[baseFrom]) * RATES[baseTo]
 }

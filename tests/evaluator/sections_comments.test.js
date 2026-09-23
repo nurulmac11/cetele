@@ -109,7 +109,7 @@ prev to tl`
     expect(res.rendered[7].text).toBe('1,500 USD')
     expect(res.rendered[8].text).toBe('400 USD')
     expect(res.rendered[9].isSubtotal).toBe(true)
-    expect(res.rendered[9].text).toBe('1,900')
+    expect(res.rendered[9].text).toBe('1,900 USD')
 
     expect(res.rendered[12].text).toBe('4,186.9565 USD')
     expect(res.rendered[13].text).toContain('TL')

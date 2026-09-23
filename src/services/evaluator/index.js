@@ -1,5 +1,5 @@
 import { RESERVED_KEYWORDS, EXAMPLE_TEXT } from './constants.js'
-import { RATES, ratesVersion, fetchLiveExchangeRates } from './rates.js'
+import { RATES, ratesVersion, ratesUpdatedAt, fetchLiveExchangeRates, convertCurrency } from './rates.js'
 import { fmtDate, fmtDateTime, formatValue, formatValueWithSymbol } from './formatters.js'
 import { Lexer } from './lexer.js'
 import { Parser } from './parser.js'
@@ -10,6 +10,7 @@ export {
   RESERVED_KEYWORDS,
   RATES,
   ratesVersion,
+  ratesUpdatedAt,
   fetchLiveExchangeRates,
   fmtDate,
   fmtDateTime,
@@ -32,26 +33,73 @@ function cleanCommentText(text) {
   return s.trim()
 }
 
+// Running sum that keeps a currency. Plain numbers add as they are; currency amounts are
+// converted into the first currency the sum meets (10$ + 500 tl stays in dollars).
+function createSum() {
+  return { value: 0, currency: null }
+}
+
+function addToSum(acc, value, currency) {
+  if (currency && acc.currency) {
+    const converted = convertCurrency(value, currency, acc.currency)
+    acc.value += converted === null ? value : converted
+    return
+  }
+  if (currency) acc.currency = currency
+  acc.value += value
+}
+
+export function formatAmount(value, currency, options = {}) {
+  return currency ? formatValueWithSymbol(value, currency, options) : formatValue(value, options)
+}
+
 export function evaluateAll(text, options = {}) {
   const _v = ratesVersion.value
 
   if (text === null || text === undefined) text = ''
   const lines = text.split('\n')
-  const scope = { pi: Math.PI, e: Math.E }
-  const varCurrencies = {}
-  const lineCurrencies = []
-  const scopeDates = {}
-  let prev = null
-  let prevCurrency = null
-  let sum = 0
+  const ctx = {
+    scope: { pi: Math.PI, e: Math.E },
+    varCurrencies: {},
+    scopeDates: {},
+    lineResults: [],
+    lineCurrencies: [],
+    lineDates: [],
+    prev: null,
+    prevCurrency: null,
+    prevDate: null,
+    sum: 0,
+    sumCurrency: null,
+    options
+  }
   const rendered = []
-  const lineResults = []
+  const total = createSum()
+  let sectionSum = createSum() // since the last subtotal line
+  let sectionTotal = createSum() // whole section, for the folded summary
   let currentSectionTitle = null
   let currentSectionHeaderIdx = null
-  let sectionSum = 0
-  let sectionTotalSum = 0
   let sectionLineCount = 0
   const sections = []
+
+  function pushLine(entry, value = null, currency = null, date = null) {
+    rendered.push(entry)
+    ctx.lineResults.push(value)
+    ctx.lineCurrencies.push(currency)
+    ctx.lineDates.push(date)
+  }
+
+  function closeSection(endIdx) {
+    if (currentSectionHeaderIdx === null) return
+    sections.push({
+      headerIdx: currentSectionHeaderIdx,
+      title: currentSectionTitle,
+      subtotal: sectionTotal.value,
+      currency: sectionTotal.currency,
+      subtotalText: formatAmount(sectionTotal.value, sectionTotal.currency, options),
+      count: sectionLineCount,
+      endIdx
+    })
+  }
 
   let inMultiLineComment = false
   let activeCommentDelimiter = null
@@ -71,16 +119,12 @@ export function evaluateAll(text, options = {}) {
         inMultiLineComment = false
         activeCommentDelimiter = null
       }
-      rendered.push({ cls: 'comment', text: cText })
-      lineResults.push(null)
-      lineCurrencies.push(null)
+      pushLine({ cls: 'comment', text: cText })
       return
     }
 
     if (trimmedRaw === '') {
-      rendered.push({ cls: 'empty', text: '' })
-      lineResults.push(null)
-      lineCurrencies.push(null)
+      pushLine({ cls: 'empty', text: '' })
       return
     }
 
@@ -97,170 +141,131 @@ export function evaluateAll(text, options = {}) {
         const afterCloseIdx = rest.indexOf(closingDelimiter) + closingDelimiter.length
         const afterComment = rest.slice(afterCloseIdx).trim()
         if (!afterComment) {
-          const cText = cleanCommentText(trimmedRaw)
-          rendered.push({ cls: 'comment', text: cText })
-          lineResults.push(null)
-          lineCurrencies.push(null)
+          pushLine({ cls: 'comment', text: cleanCommentText(trimmedRaw) })
           return
-        } else {
-          // Comment closes on same line with trailing code: advance lineToProcess to afterComment
-          lineToProcess = afterComment
         }
+        // Comment closes on same line with trailing code: advance lineToProcess to afterComment
+        lineToProcess = afterComment
       } else {
         inMultiLineComment = true
         activeCommentDelimiter = openingDelimiter
-        const cText = cleanCommentText(trimmedRaw)
-        rendered.push({ cls: 'comment', text: cText })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'comment', text: cleanCommentText(trimmedRaw) })
         return
       }
     }
 
     // Native Lexer & Parser execution
     try {
-      const lexer = new Lexer(lineToProcess)
-      const tokens = lexer.tokenizeLine()
-      const parser = new Parser(tokens)
-      const ast = parser.parseLine()
+      const tokens = new Lexer(lineToProcess).tokenizeLine()
+      const ast = new Parser(tokens).parseLine()
 
       if (!ast) {
-        rendered.push({ cls: 'empty', text: '' })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'empty', text: '' })
         return
       }
 
       if (ast.type === 'Comment') {
-        const cText = cleanCommentText(ast.value)
-        rendered.push({ cls: 'comment', text: cText })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'comment', text: cleanCommentText(ast.value) })
         return
       }
 
       if (ast.type === 'SectionHeader') {
-        const sectionTitle = ast.title
-        if (currentSectionHeaderIdx !== null) {
-          sections.push({
-            headerIdx: currentSectionHeaderIdx,
-            title: currentSectionTitle,
-            subtotal: sectionTotalSum,
-            count: sectionLineCount,
-            endIdx: lineIdx - 1
-          })
-        }
+        closeSection(lineIdx - 1)
         currentSectionHeaderIdx = lineIdx
-        currentSectionTitle = sectionTitle
-        sectionSum = 0
-        sectionTotalSum = 0
+        currentSectionTitle = ast.title
+        sectionSum = createSum()
+        sectionTotal = createSum()
         sectionLineCount = 0
-
-        rendered.push({ cls: 'section-header', isSection: true, title: sectionTitle, text: sectionTitle })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'section-header', isSection: true, title: ast.title, text: ast.title })
         return
       }
 
       if (ast.type === 'Subtotal') {
-        const formatted = formatValue(sectionSum, options)
-        rendered.push({ cls: 'num subtotal-line', isSubtotal: true, text: formatted })
-        lineResults.push(sectionSum)
-        lineCurrencies.push(null)
-        prev = sectionSum
-        sectionSum = 0
+        const { value, currency } = sectionSum
+        pushLine({ cls: 'num subtotal-line', isSubtotal: true, text: formatAmount(value, currency, options) }, value, currency)
+        ctx.prev = value
+        ctx.prevCurrency = currency
+        ctx.prevDate = null
+        sectionSum = createSum()
         return
       }
 
       if (ast.type === 'Assignment' && RESERVED_KEYWORDS.has(ast.varName.toLowerCase())) {
-        rendered.push({ cls: 'err', text: 'Reserved keyword' })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'err', text: 'Reserved keyword', error: `"${ast.varName}" is a reserved word` })
         return
       }
 
-      const evalRes = evaluateAST(ast, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      ctx.sum = total.value
+      ctx.sumCurrency = total.currency
+      const evalRes = evaluateAST(ast, ctx)
 
       if (evalRes.error) {
-        rendered.push({ cls: 'err', text: '—' })
-        lineResults.push(null)
-        lineCurrencies.push(null)
+        pushLine({ cls: 'err', text: '—', error: evalRes.error })
         return
       }
+
+      const varName = evalRes.varName ? evalRes.varName.toLowerCase() : null
 
       // Date AST Result
       if (evalRes.isDate) {
-        if (evalRes.varName) {
-          scopeDates[evalRes.varName] = {
-            timestamp: evalRes.value,
-            isTime: evalRes.isTimeIncluded
-          }
+        const date = { isTime: evalRes.isTimeIncluded }
+        if (varName) {
+          ctx.scopeDates[varName] = { timestamp: evalRes.value, isTime: evalRes.isTimeIncluded }
+          delete ctx.scope[varName]
+          delete ctx.varCurrencies[varName]
         }
         const dObj = new Date(evalRes.value)
         const formattedDate = evalRes.isTimeIncluded ? fmtDateTime(dObj) : fmtDate(dObj)
-
-        rendered.push({ cls: 'date', text: formattedDate })
-        lineResults.push(evalRes.value)
-        lineCurrencies.push(null)
-        prev = evalRes.value
-        prevCurrency = null
+        pushLine({ cls: 'date', text: formattedDate }, evalRes.value, null, date)
+        ctx.prev = evalRes.value
+        ctx.prevCurrency = null
+        ctx.prevDate = date
         return
       }
 
       const val = evalRes.value
-      const curr = evalRes.currency
+      const curr = evalRes.currency || null
 
-      if (evalRes.varName) {
-        scope[evalRes.varName] = val
-        if (curr) varCurrencies[evalRes.varName] = curr
+      if (varName) {
+        ctx.scope[varName] = val
+        delete ctx.scopeDates[varName]
+        if (curr) ctx.varCurrencies[varName] = curr
+        else delete ctx.varCurrencies[varName]
       }
 
       let formattedText = ''
-      if (val === null || val === undefined) {
-        formattedText = ''
-      } else if (curr) {
-        formattedText = formatValueWithSymbol(val, curr, options)
-      } else {
-        formattedText = formatValue(val, options)
+      if (val !== null && val !== undefined) {
+        formattedText = formatAmount(val, curr, options)
       }
 
-      rendered.push({ cls: 'num', text: formattedText })
-      lineResults.push(val)
-      lineCurrencies.push(curr || null)
+      pushLine({ cls: 'num', text: formattedText }, val, curr)
       if (val !== null) {
-        prev = val
-        prevCurrency = curr || null
+        ctx.prev = val
+        ctx.prevCurrency = curr
+        ctx.prevDate = null
       }
 
       const isTotalKeywordLine = (ast.type === 'Identifier' && ast.name.toLowerCase() === 'total')
       if (typeof val === 'number' && !isNaN(val) && !isTotalKeywordLine) {
-        sum += val
-        sectionSum += val
-        sectionTotalSum += val
+        addToSum(total, val, curr)
+        addToSum(sectionSum, val, curr)
+        addToSum(sectionTotal, val, curr)
         sectionLineCount++
       }
     } catch (err) {
-      rendered.push({ cls: 'err', text: '—' })
-      lineResults.push(null)
-      lineCurrencies.push(null)
+      pushLine({ cls: 'err', text: '—', error: err.message || 'Could not evaluate this line' })
     }
   })
 
-  if (currentSectionHeaderIdx !== null) {
-    sections.push({
-      headerIdx: currentSectionHeaderIdx,
-      title: currentSectionTitle,
-      subtotal: sectionTotalSum,
-      count: sectionLineCount,
-      endIdx: lines.length - 1
-    })
-  }
+  closeSection(lines.length - 1)
 
   return {
     rendered,
-    lineResults,
-    lineCurrencies,
-    sum,
+    lineResults: ctx.lineResults,
+    lineCurrencies: ctx.lineCurrencies,
+    sum: total.value,
+    sumCurrency: total.currency,
+    sumText: formatAmount(total.value, total.currency, options),
     sections,
     count: lines.length
   }

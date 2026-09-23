@@ -1,6 +1,0 @@
-import './evaluator/math.test.js'
-import './evaluator/currency.test.js'
-import './evaluator/date_units.test.js'
-import './evaluator/sections_comments.test.js'
-import './evaluator/multipliers.test.js'
-import './services.test.js'

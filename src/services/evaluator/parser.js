@@ -127,12 +127,35 @@ export class Parser {
     return this.parsePower()
   }
 
+  // Is the '%' at the current position a postfix percent (10%) rather than modulo (10 % 3)?
+  isPostfixPercent() {
+    const tok = this.peek()
+    if (tok.type !== 'OPERATOR' || tok.value !== '%') return false
+    const after = this.tokens[this.pos + 1]
+    const isModuloOperand = after && (
+      after.type === 'NUMBER' ||
+      after.type === 'IDENT' ||
+      after.type === 'LINE_REF' ||
+      after.type === 'CURRENCY_SYMBOL' ||
+      after.type === 'CURRENCY_CODE' ||
+      (after.type === 'OPERATOR' && after.value === '(')
+    )
+    return !isModuloOperand
+  }
+
   parsePower() {
     let left = this.parsePrimary()
 
+    // Postfix percent on a variable, line reference or group: x%, #2%, (a + b)%
+    if (left && ['Identifier', 'LineRef', 'Paren'].includes(left.type) && this.isPostfixPercent()) {
+      this.consume()
+      left = { type: 'Percent', expr: left }
+    }
+
     if (this.peek().type === 'OPERATOR' && this.peek().value === '^') {
       const op = this.consume().value
-      const right = this.parsePower()
+      // parseUnary allows a signed exponent (2^-1) and recurses back here for right associativity
+      const right = this.parseUnary()
       left = { type: 'Binary', op, left, right }
     }
 
@@ -152,8 +175,11 @@ export class Parser {
 
     // Number (with optional Currency Suffix like 100 USD, Unit Suffix like 5 miles, 10%, or Spaced Multipliers like 500 k, 2 m)
     if (tok.type === 'NUMBER') {
-      let amount = this.consume().value
+      const numTok = this.consume()
+      let amount = numTok.value
       let nextTok = this.peek()
+      // 'm' may mean million or metres; keep the metres reading for unit arithmetic (5 m + 3 cm)
+      let metresAmount = /[0-9.]m$/i.test(numTok.raw || '') ? amount / 1e6 : null
 
       // Spaced multiplier support (e.g. 500 k, 2 m, 1.5 b, 3 t)
       if (nextTok.type === 'IDENT') {
@@ -165,6 +191,7 @@ export class Parser {
           const isUnitConversionFollowup = multKey === 'm' && lookahead2 && (lookahead2.type === 'KEYWORD' && (lookahead2.value === 'to' || lookahead2.value === 'in'))
           if (!isUnitConversionFollowup) {
             this.consume() // consume multiplier token 'k', 'm', 'b', or 't'
+            if (multKey === 'm') metresAmount = amount
             amount = amount * MULTIPLIERS[multKey]
             nextTok = this.peek()
           }
@@ -175,21 +202,10 @@ export class Parser {
         const curr = this.consume().value
         return { type: 'CurrencyNumber', amount, currency: normalizeCurrency(curr) || curr }
       }
-      if (nextTok.type === 'OPERATOR' && nextTok.value === '%') {
-        // Distinguish postfix percentage (10%) from binary modulo operator (10 % 3)
-        const afterPercent = this.tokens[this.pos + 1]
-        const isBinaryModuloFollowup = afterPercent && (
-          afterPercent.type === 'NUMBER' ||
-          afterPercent.type === 'IDENT' ||
-          afterPercent.type === 'LINE_REF' ||
-          afterPercent.type === 'CURRENCY_SYMBOL' ||
-          afterPercent.type === 'CURRENCY_CODE' ||
-          (afterPercent.type === 'OPERATOR' && (afterPercent.value === '(' || afterPercent.value === '+' || afterPercent.value === '-'))
-        )
-        if (!isBinaryModuloFollowup) {
-          this.consume() // '%'
-          return { type: 'PercentNumber', amount }
-        }
+      // Distinguish postfix percentage (10%) from binary modulo operator (10 % 3)
+      if (this.isPostfixPercent()) {
+        this.consume() // '%'
+        return { type: 'PercentNumber', amount }
       }
       // Unit identifier suffix (e.g. 5 miles)
       if (nextTok.type === 'IDENT' || nextTok.type === 'DATE_UNIT') {
@@ -204,7 +220,9 @@ export class Parser {
           return { type: 'UnitNumber', amount, unit }
         }
       }
-      return { type: 'Number', value: amount }
+      return metresAmount !== null
+        ? { type: 'Number', value: amount, metresAmount }
+        : { type: 'Number', value: amount }
     }
 
     // Date Expression (e.g. today + 2 weeks, now - 1 hour, start + 2 weeks - 1 day)

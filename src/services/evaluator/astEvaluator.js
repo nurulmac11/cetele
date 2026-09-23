@@ -1,6 +1,6 @@
-import * as math from 'mathjs'
+import { math } from './math.js'
 import { RESERVED_KEYWORDS } from './constants.js'
-import { RATES, getBaseCurrencyCode, normalizeCurrency } from './rates.js'
+import { convertCurrency, normalizeCurrency } from './rates.js'
 
 const UNIT_ALIASES = {
   tbsp: 'tablespoon',
@@ -15,6 +15,23 @@ const UNIT_ALIASES = {
   mins: 'minutes'
 }
 
+// Functions callable from the notepad. Anything else in mathjs (evaluate, import, createUnit...)
+// is deliberately not reachable.
+const ALLOWED_FUNCTIONS = new Set([
+  'sqrt', 'cbrt', 'abs', 'sign', 'ceil', 'floor', 'round', 'fix',
+  'exp', 'log', 'log2', 'log10', 'pow', 'factorial', 'mod',
+  'min', 'max', 'sum', 'mean', 'median', 'mode', 'std', 'variance', 'prod', 'gcd', 'lcm',
+  'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2', 'sec', 'csc', 'cot',
+  'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh'
+])
+
+const FUNCTION_ALIASES = { ln: 'log', avg: 'mean', average: 'mean', var: 'variance' }
+
+// Functions whose result is in the same currency as their arguments
+const CURRENCY_PRESERVING_FUNCTIONS = new Set(['abs', 'ceil', 'floor', 'round', 'fix', 'min', 'max', 'sum', 'mean', 'median'])
+
+const MS_PER_DAY = 86400000
+
 function normalizeUnit(unit) {
   if (!unit) return unit
   const key = String(unit).toLowerCase()
@@ -25,8 +42,20 @@ function isError(res) {
   return res && res.error
 }
 
-export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options) {
+function isPercentNode(node) {
+  return node && (node.type === 'PercentNumber' || node.type === 'Percent')
+}
+
+function dateResult(timestamp, isTimeIncluded) {
+  return { value: timestamp, isDate: true, isTimeIncluded: Boolean(isTimeIncluded) }
+}
+
+// ctx: { scope, varCurrencies, scopeDates, lineResults, lineCurrencies, lineDates,
+//        prev, prevCurrency, prevDate, sum, sumCurrency, options }
+// Variable names in scope, varCurrencies and scopeDates are stored lowercase.
+export function evaluateAST(node, ctx) {
   if (!node) return { value: null, currency: null }
+  const evaluate = (child) => evaluateAST(child, ctx)
 
   switch (node.type) {
     case 'Error':
@@ -49,21 +78,32 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     case 'PercentNumber':
       return { value: node.amount / 100, isPercent: true, currency: null }
 
-    case 'DateExpression': {
-      let baseTime = Date.now()
-      let isTimeIncluded = node.baseName === 'now'
+    case 'Percent': {
+      const sub = evaluate(node.expr)
+      if (isError(sub)) return sub
+      if (typeof sub.value !== 'number') return { error: 'Percent needs a number' }
+      return { value: sub.value / 100, isPercent: true, currency: null }
+    }
 
-      if (node.baseName === 'today') {
+    case 'DateExpression': {
+      const baseName = node.baseName.toLowerCase()
+      let baseTime
+      let isTimeIncluded = false
+
+      if (baseName === 'today') {
         const d = new Date()
         d.setHours(0, 0, 0, 0)
         baseTime = d.getTime()
-      } else if (node.baseName === 'now') {
+      } else if (baseName === 'now') {
         baseTime = Date.now()
         isTimeIncluded = true
-      } else if (scopeDates && scopeDates[node.baseName]) {
-        baseTime = scopeDates[node.baseName].timestamp
-        if (scopeDates[node.baseName].isTime) isTimeIncluded = true
-      } else if (node.baseName !== 'today' && node.baseName !== 'now') {
+      } else if (baseName === 'prev' && ctx.prevDate) {
+        baseTime = ctx.prev
+        isTimeIncluded = ctx.prevDate.isTime
+      } else if (ctx.scopeDates[baseName]) {
+        baseTime = ctx.scopeDates[baseName].timestamp
+        isTimeIncluded = ctx.scopeDates[baseName].isTime
+      } else {
         return { error: `Unknown date variable: ${node.baseName}` }
       }
 
@@ -84,28 +124,33 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
         currentTimestamp = d.getTime()
       }
 
-      return { value: currentTimestamp, isDate: true, isTimeIncluded }
+      return dateResult(currentTimestamp, isTimeIncluded)
     }
 
     case 'LineRef': {
       const idx = node.refIdx - 1
-      if (idx < 0 || idx >= lineResults.length || lineResults[idx] === null || lineResults[idx] === undefined) {
+      const val = ctx.lineResults[idx]
+      if (idx < 0 || idx >= ctx.lineResults.length || val === null || val === undefined) {
         return { error: 'Invalid line reference' }
       }
-      const val = lineResults[idx]
-      const curr = lineCurrencies[idx] || null
-      return { value: val, currency: curr, isUnit: !!val?.isUnit }
+      const lineDate = ctx.lineDates[idx]
+      if (lineDate) return dateResult(val, lineDate.isTime)
+      return { value: val, currency: ctx.lineCurrencies[idx] || null, isUnit: !!val?.isUnit }
     }
 
     case 'Identifier': {
       const name = node.name.toLowerCase()
-      if (name === 'prev') return { value: prev || 0, currency: prevCurrency || null, isUnit: !!prev?.isUnit }
-      if (name === 'total') return { value: sum || 0, currency: null }
-      if (scope[node.name] !== undefined) {
-        return { value: scope[node.name], currency: varCurrencies[node.name] || null, isUnit: !!scope[node.name]?.isUnit }
+      if (name === 'prev') {
+        if (ctx.prevDate) return dateResult(ctx.prev, ctx.prevDate.isTime)
+        return { value: ctx.prev || 0, currency: ctx.prevCurrency || null, isUnit: !!ctx.prev?.isUnit }
       }
-      if (scope[name] !== undefined) {
-        return { value: scope[name], currency: varCurrencies[name] || null, isUnit: !!scope[name]?.isUnit }
+      if (name === 'total') return { value: ctx.sum || 0, currency: ctx.sumCurrency || null }
+      if (ctx.scope[name] !== undefined) {
+        const value = ctx.scope[name]
+        return { value, currency: ctx.varCurrencies[name] || null, isUnit: !!value?.isUnit }
+      }
+      if (ctx.scopeDates[name]) {
+        return dateResult(ctx.scopeDates[name].timestamp, ctx.scopeDates[name].isTime)
       }
       if (RESERVED_KEYWORDS.has(name) || typeof math[name] === 'function') {
         return { value: null, currency: null }
@@ -114,42 +159,42 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     }
 
     case 'Assignment': {
-      const sub = evaluateAST(node.expr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const sub = evaluate(node.expr)
       if (isError(sub)) return sub
-      return { varName: node.varName, value: sub.value, currency: sub.currency, isUnit: sub.isUnit, isDate: sub.isDate, isTimeIncluded: sub.isTimeIncluded }
+      return { ...sub, varName: node.varName }
     }
 
     case 'Conversion': {
-      const sub = evaluateAST(node.expr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const sub = evaluate(node.expr)
       if (isError(sub)) return sub
-      const targetToken = normalizeUnit(node.targetUnit)
-      const rawTarget = normalizeCurrency(targetToken) || targetToken
-      const baseTarget = getBaseCurrencyCode(rawTarget) || rawTarget
-      const baseSub = getBaseCurrencyCode(sub.currency) || sub.currency
-      let val = sub.value
+      const target = normalizeUnit(node.targetUnit)
+      if (!target) return { error: 'Missing conversion target' }
+      if (sub.isDate) return { error: 'Dates cannot be converted' }
 
-      // Try currency conversion first
-      if (typeof val === 'number' && baseSub && baseTarget && RATES[baseSub] && RATES[baseTarget]) {
-        val = (val / RATES[baseSub]) * RATES[baseTarget]
-        return { value: val, currency: rawTarget }
+      if (sub.isUnit) {
+        try {
+          return { value: sub.value.to(target), isUnit: true }
+        } catch (e) {
+          return { error: `Cannot convert to ${node.targetUnit}` }
+        }
       }
 
-      // Try Math.js unit conversion (e.g. 5 miles to km)
-      try {
-        const converted = sub.isUnit
-          ? sub.value.to(rawTarget)
-          : math.evaluate(`${val} ${sub.currency || ''} to ${rawTarget}`.trim())
-        if (converted && converted.isUnit) {
-          return { value: converted, isUnit: true }
-        }
-      } catch (e) {}
+      const targetCurrency = normalizeCurrency(target)
+      if (targetCurrency && typeof sub.value === 'number') {
+        // A plain number is labelled with the currency (100 to usd)
+        if (!sub.currency) return { value: sub.value, currency: targetCurrency }
+        const converted = convertCurrency(sub.value, sub.currency, targetCurrency)
+        if (converted === null) return { error: `No exchange rate for ${targetCurrency}` }
+        return { value: converted, currency: targetCurrency }
+      }
 
-      return { value: val, currency: rawTarget }
+      return { error: `Cannot convert to ${node.targetUnit}` }
     }
 
     case 'Unary': {
-      const sub = evaluateAST(node.expr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const sub = evaluate(node.expr)
       if (isError(sub)) return sub
+      if (sub.isDate) return { error: 'Invalid date operation' }
       if (sub.isUnit) {
         try {
           const val = node.op === '-' ? math.unaryMinus(sub.value) : sub.value
@@ -163,26 +208,48 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     }
 
     case 'Binary': {
-      const left = evaluateAST(node.left, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const left = evaluate(node.left)
       if (isError(left)) return left
 
-      if ((node.op === '+' || node.op === '-') && node.right && node.right.type === 'PercentNumber') {
-        const percentRatio = node.right.amount / 100
+      // a + 10% / a - 10%: change a by a percentage of itself
+      if ((node.op === '+' || node.op === '-') && isPercentNode(node.right) && !left.isDate) {
+        const pct = evaluate(node.right)
+        if (isError(pct)) return pct
         const lVal = left.value ?? 0
+        if (left.isUnit) {
+          try {
+            const factor = node.op === '+' ? 1 + pct.value : 1 - pct.value
+            return { value: math.multiply(lVal, factor), isUnit: true }
+          } catch (e) {
+            return { error: e.message || 'Invalid unit operation' }
+          }
+        }
         if (typeof lVal === 'number' && isNaN(lVal)) return { value: NaN, currency: left.currency }
-        const delta = lVal * percentRatio
-        const resVal = node.op === '+' ? lVal + delta : lVal - delta
-        return { value: resVal, currency: left.currency }
+        const delta = lVal * pct.value
+        return { value: node.op === '+' ? lVal + delta : lVal - delta, currency: left.currency }
       }
 
-      const right = evaluateAST(node.right, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const right = evaluate(node.right)
       if (isError(right)) return right
-      let currency = left.currency || right.currency || null
+
+      if (left.isDate || right.isDate) {
+        // date - date gives the time between them
+        if (node.op === '-' && left.isDate && right.isDate) {
+          let days = (left.value - right.value) / MS_PER_DAY
+          // Whole days between calendar dates, even across daylight-saving changes
+          if (!left.isTimeIncluded && !right.isTimeIncluded) days = Math.round(days)
+          return { value: math.unit(days, 'days'), isUnit: true }
+        }
+        return { error: 'Add or subtract dates with units, e.g. + 3 days' }
+      }
 
       let lVal = left.value ?? 0
       let rVal = right.value ?? 0
 
       if (left.isUnit || right.isUnit) {
+        // '5 m + 3 cm': the 'm' was read as million, but here it means metres
+        if (!left.isUnit && node.left?.metresAmount != null) lVal = math.unit(node.left.metresAmount, 'm')
+        if (!right.isUnit && node.right?.metresAmount != null) rVal = math.unit(node.right.metresAmount, 'm')
         try {
           let unitResult
           switch (node.op) {
@@ -200,15 +267,13 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
       }
 
       if ((typeof lVal === 'number' && isNaN(lVal)) || (typeof rVal === 'number' && isNaN(rVal))) {
-        return { value: NaN, currency }
+        return { value: NaN, currency: left.currency || right.currency || null }
       }
 
-      const baseLeft = getBaseCurrencyCode(left.currency)
-      const baseRight = getBaseCurrencyCode(right.currency)
-      if (baseLeft && baseRight && baseLeft !== baseRight) {
-        if (RATES[baseRight] && RATES[baseLeft]) {
-          rVal = (rVal / RATES[baseRight]) * RATES[baseLeft]
-        }
+      let currency = left.currency || right.currency || null
+      if (left.currency && right.currency) {
+        const converted = convertCurrency(rVal, right.currency, left.currency)
+        if (converted !== null) rVal = converted
         currency = left.currency
       }
 
@@ -225,45 +290,63 @@ export function evaluateAST(node, scope, varCurrencies, lineCurrencies, lineResu
     }
 
     case 'PercentageOf': {
-      const p = evaluateAST(node.percentExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
-      const b = evaluateAST(node.baseExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const p = evaluate(node.percentExpr)
+      const b = evaluate(node.baseExpr)
       if (isError(p)) return p
       if (isError(b)) return b
+      if (p.isDate || b.isDate) return { error: 'Invalid date operation' }
       const percentRatio = p.isPercent ? p.value : p.value / 100
-      let resVal = 0
-      if (node.kind === 'off') {
-        resVal = b.value * (1 - percentRatio)
-      } else {
-        resVal = b.value * percentRatio
-      }
+      const resVal = node.kind === 'off'
+        ? b.value * (1 - percentRatio)
+        : b.value * percentRatio
       return { value: resVal, currency: b.currency }
     }
 
     case 'PercentChange': {
-      const b = evaluateAST(node.baseExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
-      const p = evaluateAST(node.percentExpr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      const b = evaluate(node.baseExpr)
+      const p = evaluate(node.percentExpr)
       if (isError(b)) return b
       if (isError(p)) return p
+      if (p.isDate || b.isDate) return { error: 'Invalid date operation' }
       const percentRatio = p.isPercent ? p.value : p.value / 100
       const factor = node.verb === 'increase' ? (1 + percentRatio) : (1 - percentRatio)
       return { value: b.value * factor, currency: b.currency }
     }
 
     case 'Paren':
-      return evaluateAST(node.expr, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options)
+      return evaluate(node.expr)
 
     case 'FunctionCall': {
-      const name = node.name.toLowerCase()
-      const evaluated = node.args.map(a => evaluateAST(a, scope, varCurrencies, lineCurrencies, lineResults, scopeDates, prev, prevCurrency, sum, options))
-      const firstError = evaluated.find(isError)
+      const lower = node.name.toLowerCase()
+      const name = FUNCTION_ALIASES[lower] || lower
+      if (!ALLOWED_FUNCTIONS.has(name) || typeof math[name] !== 'function') {
+        return { error: `Unknown function: ${node.name}` }
+      }
+
+      const args = node.args.map(evaluate)
+      const firstError = args.find(isError)
       if (firstError) return firstError
-      const evaluatedArgs = evaluated.map(a => a.value)
+      if (args.some(a => a.isDate)) return { error: 'Invalid date operation' }
+
+      // Bring every currency argument into the first argument's currency
+      const currency = args.find(a => a.currency)?.currency || null
+      const values = args.map(a => {
+        if (currency && a.currency && a.currency !== currency && typeof a.value === 'number') {
+          const converted = convertCurrency(a.value, a.currency, currency)
+          return converted === null ? a.value : converted
+        }
+        return a.value
+      })
+
       try {
-        const res = math.evaluate(`${name}(${evaluatedArgs.join(', ')})`)
-        const numVal = typeof res === 'number' ? res : (res && typeof res.toNumber === 'function' ? res.toNumber() : Number(res))
-        if (!isNaN(numVal)) return { value: numVal, currency: null }
-      } catch (e) {}
-      return { value: 0, currency: null }
+        const res = math[name](...values)
+        if (res?.isUnit) return { value: res, isUnit: true }
+        const numVal = typeof res === 'number' ? res : (typeof res?.toNumber === 'function' ? res.toNumber() : NaN)
+        if (Number.isNaN(numVal)) return { error: 'Result is not a real number' }
+        return { value: numVal, currency: CURRENCY_PRESERVING_FUNCTIONS.has(name) ? currency : null }
+      } catch (e) {
+        return { error: e.message || `Invalid arguments for ${node.name}` }
+      }
     }
   }
 

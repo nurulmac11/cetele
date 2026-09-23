@@ -29,7 +29,8 @@ export function formatValue(v, options = {}) {
     if (disableFloat && Number.isInteger(v)) {
       return v.toLocaleString('en-US')
     }
-    const abs = Math.abs(v)
+    // Drop float noise (0.1 + 0.2 = 0.30000000000000004) before choosing decimals
+    const abs = Math.abs(Number(v.toPrecision(12)))
     const dec = (abs % 1 === 0) ? 0 : ((abs * 10) % 1 === 0 ? 1 : (abs >= 1000 ? 0 : 2))
     return v.toLocaleString('en-US', {
       minimumFractionDigits: disableFloat ? 0 : dec,

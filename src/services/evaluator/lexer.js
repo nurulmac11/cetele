@@ -1,11 +1,12 @@
-import { CURRENCY_MAP, RATES } from './rates.js'
+import { CURRENCY_MAP, RATES, CORE_CURRENCY_CODES } from './rates.js'
 
 function isDigit(ch) {
   return ch >= '0' && ch <= '9'
 }
 
+// Any Unicode letter, so Turkish words like maaş, ödeme, altın and çeyrek stay whole
 function isAlpha(ch) {
-  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_'
+  return ch === '_' || (ch !== '' && /\p{L}/u.test(ch))
 }
 
 function isAlphaNum(ch) {
@@ -178,6 +179,14 @@ export class Lexer {
           numStr += this.consume()
         }
 
+        // Scientific notation (1e3, 2.5E-4)
+        const expSign = this.peek(1) === '+' || this.peek(1) === '-'
+        if ((this.peek() === 'e' || this.peek() === 'E') && isDigit(this.peek(expSign ? 2 : 1))) {
+          numStr += this.consume()
+          if (expSign) numStr += this.consume()
+          while (isDigit(this.peek())) numStr += this.consume()
+        }
+
         let numVal = parseFloat(numStr)
 
         const MULTIPLIERS = {
@@ -189,7 +198,9 @@ export class Lexer {
         const nextCh = this.peek()
         const nextLower = nextCh ? nextCh.toLowerCase() : ''
 
-        if (MULTIPLIERS[nextLower] && !isAlpha(this.peek(1))) {
+        // An attached 'm' before a conversion (500m to km) means metres, not million
+        const isMetresBeforeConversion = nextLower === 'm' && /^\s+(to|in)\b/i.test(this.input.slice(this.pos + 1))
+        if (MULTIPLIERS[nextLower] && !isAlpha(this.peek(1)) && !isMetresBeforeConversion) {
           const suffixChar = this.consume()
           numVal = numVal * MULTIPLIERS[nextLower]
           numStr = numStr + suffixChar
@@ -223,7 +234,10 @@ export class Lexer {
         }
 
         const upper = word.toUpperCase()
-        if (CURRENCY_MAP[upper] || RATES[upper]) {
+        // Extra ISO codes from the live feed (MXN, PLN...) only count when written in capitals,
+        // so words like 'all', 'top' or 'cup' stay usable as variables and units
+        const isExtraCurrency = RATES[upper] && !CORE_CURRENCY_CODES.has(upper) && word === upper
+        if (CURRENCY_MAP[upper] || (RATES[upper] && CORE_CURRENCY_CODES.has(upper)) || isExtraCurrency) {
           tokens.push({ type: 'CURRENCY_CODE', value: CURRENCY_MAP[upper] || upper, raw: word })
         } else if (['to', 'in', 'of', 'off', 'increase', 'decrease', 'by'].includes(lowerWord)) {
           tokens.push({ type: 'KEYWORD', value: lowerWord })
@@ -244,6 +258,13 @@ export class Lexer {
         } else {
           tokens.push({ type: 'IDENT', value: word })
         }
+        continue
+      }
+
+      // Typographic multiply / divide signs
+      if (ch === '×' || ch === '÷') {
+        this.consume()
+        tokens.push({ type: 'OPERATOR', value: ch === '×' ? '*' : '/' })
         continue
       }
 
