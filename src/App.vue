@@ -192,6 +192,7 @@ import { askConfirm } from './services/confirmService.js'
 import SyntaxGuidePage from './components/SyntaxGuidePage.vue'
 import SavedTabsPage from './components/SavedTabsPage.vue'
 import { EXAMPLE_TEXT, getFormattedCopyAllText } from './services/evaluator.js'
+import { MONTHLY_BUDGET_TEXT, LEGACY_DEFAULT_TAB_CONTENTS } from './services/evaluator/constants.js'
 import { encodeSharePayload, decodeSharePayload } from './services/shareService.js'
 import {
   getLocalTabs,
@@ -231,7 +232,7 @@ const defaultTabs = [
   {
     id: 'tab-2',
     title: 'Monthly Budget',
-    content: `// 📊 Personal & Business Monthly Financial Plan\n\n=== Revenues & Multiplier Income ===\nprimary_salary = 5.5k\nconsulting = 1.8k\nfreelance = 500k tl to usd\nside_project = $500\nsubtotal\n\n=== Fixed Living Expenses ===\nrent_mortgage = 1.85k\ngroceries = 650\nutilities = 220\nsubscriptions = 45\nsubtotal\n\n=== Savings & Investments ===\nemergency_fund = 15% of primary_salary\ncrypto_dca = 0.05 btc + $250\ngold_savings = 2 gram gold to tl\nsubtotal\n\n=== Financial Summary & Runway ===\ntotal_income = L8\ntotal_spending = L15\nnet_monthly_savings = total_income - total_spending\nannual_savings_projected = net_monthly_savings * 12`,
+    content: MONTHLY_BUDGET_TEXT,
     position: 1,
     isActive: false
   }
@@ -274,7 +275,9 @@ function markEdited(tab) {
 // Guest example tabs nobody has edited; not worth adding to an account that already has tabs
 function isUntouchedDefaultTab(tab) {
   const def = defaultTabs.find((d) => d.id === tab.id)
-  return Boolean(def && def.title === tab.title && def.content === tab.content)
+  return Boolean(
+    def && def.title === tab.title && (def.content === tab.content || LEGACY_DEFAULT_TAB_CONTENTS.includes(tab.content))
+  )
 }
 
 const activeTab = computed(() => {

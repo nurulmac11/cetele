@@ -154,23 +154,14 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 
 ## 📑 Default Example Showcase Tabs (`defaultTabs`)
 
-Çetele initializes with two rich default showcase tabs designed to demonstrate the full range of notepad calculator capabilities:
+New users start with two tabs whose text lives in `src/services/evaluator/constants.js`:
 
-1. **Tab 1: Calculator** (`EXAMPLE_TEXT` in `src/services/evaluator/constants.js`):
-   - **Income & Multipliers**: Magnitude shorthand (`salary = 500k`, `freelance = 1.2m`, `investments = $2.5m`).
-   - **Living Expenses & Discounts**: `rent = 1.65k`, `tech_deal = 20% off 1.5k`.
-   - **Currency, Gold & Crypto**: Live conversions (`500k tl to usd`, `1 gram gold to tl`, `1 ceyrek gold to tl`, `portfolio = 0.5 btc + 2 eth to usd`).
-   - **Physical Units & Percentages**: `12 km to miles`, `increase 2.5m by 15%`.
-   - **Date Math**: `start_date = today`, `launch_event = start_date + 2 weeks - 1 day`, `flight_time = now + 4 hours - 15 mins`.
-   - **Section Headers & Totals**: Section syntax (`=== Section Title ===`), section subtotals (`subtotal`), and grand `total` (result area renders clean, underlined section titles).
+1. **Calculator** (`EXAMPLE_TEXT`): multipliers, subtotals, discounts, KDV, `average`, currencies, gold (`çeyrek altın`), crypto, historical rates (`@ 2020-01-02`), `loan()` and `compound()`, a `#12` line reference, units including `km/h` and `°C`, date math with `days until` / `days since`, and a grand `total`. Its first lines mention Ctrl+K, Alt+click and Tab.
+2. **Monthly Budget** (`MONTHLY_BUDGET_TEXT`): income, expenses (with `%20 kdv` and a `loan()` payment), savings converted to USD, and a summary that reads the subtotals through `L8` / `L17` and projects growth with `compound()`.
 
-2. **Tab 2: Monthly Budget** (`defaultTabs` in `src/App.vue`):
-   - **Revenues & Multiplier Income**: `primary_salary = 5.5k`, `consulting = 1.8k`, `freelance = 500k tl to usd`.
-   - **Fixed Living Expenses**: `rent_mortgage = 1.85k`, `groceries = 650`, `utilities = 220`, `subscriptions = 45`.
-   - **Savings & Investments**: Percentage savings (`15% of primary_salary`), crypto DCA (`0.05 btc + $250`), gold accumulation (`2 gram gold to tl`).
-   - **Financial Summary & Runway**: Subtotal line references (`total_income = L8`, `total_spending = L15`), net monthly savings (`total_income - total_spending`), and projected annual savings (`net_monthly_savings * 12`).
+`tests/defaultTabs.test.js` fails if any example line errors or if the budget's `L` references stop pointing at subtotal lines, so check it after editing these texts.
 
----
+When changing a default text, add the previous text to `LEGACY_DEFAULT_TAB_CONTENTS`. Guests' untouched example tabs are recognised by comparing against it (`isUntouchedDefaultTab` in `App.vue`), so they aren't uploaded into an account at login.
 
 ## 💾 Storage & Cloud Sync Architecture
 
