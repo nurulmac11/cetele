@@ -1,15 +1,19 @@
 // Version history: decides when to snapshot a tab. Storage lives in localDb.js.
 //
-// Automatic snapshots save the text a tab had *before* an editing burst, and at most every
-// AUTO_SNAPSHOT_INTERVAL while editing continues. Forced snapshots are taken before anything
-// that replaces a tab's text (clear, restore, import, cloud sync).
+// - Before an editing burst: the text a tab had before you started typing (at most every
+//   AUTO_SNAPSHOT_INTERVAL while editing continues).
+// - After a pause: the edited text, once typing stops for IDLE_CHECKPOINT_DELAY, or right away
+//   when you switch tabs or leave the page.
+// - Forced: before anything that replaces a tab's text (clear, restore, import, cloud sync).
 
 import { addTabVersion, getTabVersions, clearTabVersions } from './localDb.js'
 
 export const AUTO_SNAPSHOT_INTERVAL = 5 * 60 * 1000
+export const IDLE_CHECKPOINT_DELAY = 15 * 1000
 
 export const VERSION_REASONS = {
   edit: 'Before editing',
+  pause: 'After editing',
   clear: 'Before clearing',
   restore: 'Before restoring a version',
   import: 'Before importing a backup',
@@ -60,14 +64,46 @@ export async function snapshotTab(tab, reason = VERSION_REASONS.edit, { force = 
 
 export { getTabVersions }
 
+// --- Checkpoint after a pause in typing ---
+
+let checkpointTimer = null
+let checkpointTab = null
+
+/**
+ * Call after every edit: saves the tab's text once typing has paused for IDLE_CHECKPOINT_DELAY.
+ * Editing a different tab first saves the pending checkpoint of the previous one.
+ */
+export function scheduleCheckpoint(tab) {
+  if (!tab?.id) return
+  if (checkpointTab && checkpointTab.id !== tab.id) flushCheckpoint()
+  checkpointTab = tab
+  clearTimeout(checkpointTimer)
+  checkpointTimer = setTimeout(flushCheckpoint, IDLE_CHECKPOINT_DELAY)
+}
+
+// Saves a pending checkpoint now (tab switch, page hidden). Resolves to the version or null.
+export function flushCheckpoint() {
+  clearTimeout(checkpointTimer)
+  checkpointTimer = null
+  const tab = checkpointTab
+  checkpointTab = null
+  return tab ? snapshotTab(tab, VERSION_REASONS.pause, { force: true }) : Promise.resolve(null)
+}
+
 // Deletes all history, e.g. on sign-out so the next person on this device can't read it
 export async function clearVersionHistory() {
+  clearTimeout(checkpointTimer)
+  checkpointTimer = null
+  checkpointTab = null
   lastSnapshot.clear()
   await clearTabVersions()
 }
 
 // For tests
 export function _resetVersionMemory() {
+  clearTimeout(checkpointTimer)
+  checkpointTimer = null
+  checkpointTab = null
   lastSnapshot.clear()
 }
 

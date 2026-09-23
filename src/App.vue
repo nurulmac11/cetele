@@ -50,7 +50,7 @@
         @save-tab="handleSaveActiveTabToLibrary"
         @share-tab="handleShareActiveTab"
         @copy-all="copyAllWithResults"
-        @open-history="isHistoryOpen = true"
+        @open-history="openHistory"
       />
     </main>
 
@@ -184,7 +184,13 @@ import WelcomeModal from './components/WelcomeModal.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import TabHistoryModal from './components/TabHistoryModal.vue'
-import { snapshotTab, clearVersionHistory, VERSION_REASONS } from './services/versionService.js'
+import {
+  snapshotTab,
+  scheduleCheckpoint,
+  flushCheckpoint,
+  clearVersionHistory,
+  VERSION_REASONS
+} from './services/versionService.js'
 import {
   Plus,
   RotateCcw,
@@ -487,6 +493,7 @@ function handleTryWelcomeYourself() {
 
 // Tab Switching & Management
 function selectTab(id) {
+  if (id !== activeTabId.value) flushCheckpoint()
   activeTabId.value = id
   tabs.value.forEach((t) => {
     t.isActive = t.id === id
@@ -590,6 +597,8 @@ function updateActiveTabContent(newContent) {
     activeTab.value.content = newContent
     markEdited(activeTab.value)
     triggerSave()
+    // ...and the edited text once typing pauses
+    scheduleCheckpoint(activeTab.value)
   }
 }
 
@@ -743,6 +752,12 @@ async function copyAllWithResults() {
 
 const isHistoryOpen = ref(false)
 
+// Save any pending checkpoint first, so the list includes the latest edits
+async function openHistory() {
+  await flushCheckpoint()
+  isHistoryOpen.value = true
+}
+
 async function restoreTabVersion(version) {
   const tab = activeTab.value
   if (!tab || !version) return
@@ -788,7 +803,7 @@ const paletteCommands = computed(() => [
     label: 'Version history of this tab',
     keywords: 'versions restore undo backup',
     icon: markRaw(History),
-    run: () => (isHistoryOpen.value = true)
+    run: openHistory
   },
   { id: 'clear', label: 'Clear this tab', keywords: 'delete empty', icon: markRaw(Eraser), run: clearActiveTab },
   {
@@ -1032,6 +1047,8 @@ async function resetLocalData() {
 
 // Push pending edits when the page is hidden; pick up other devices' edits when it returns
 function handleVisibilityChange() {
+  // Leaving the page (tab switch, close) saves a pending version checkpoint
+  if (document.visibilityState === 'hidden') flushCheckpoint()
   if (!currentUser.value) return
   if (document.visibilityState === 'hidden') {
     flushPendingSync()

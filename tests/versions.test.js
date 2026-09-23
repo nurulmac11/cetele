@@ -22,8 +22,17 @@ class MemoryStorage {
 }
 globalThis.localStorage = new MemoryStorage()
 
-const { snapshotTab, getTabVersions, clearVersionHistory, diffStats, _resetVersionMemory, VERSION_REASONS } =
-  await import('../src/services/versionService.js')
+const {
+  snapshotTab,
+  scheduleCheckpoint,
+  flushCheckpoint,
+  getTabVersions,
+  clearVersionHistory,
+  diffStats,
+  _resetVersionMemory,
+  VERSION_REASONS,
+  IDLE_CHECKPOINT_DELAY
+} = await import('../src/services/versionService.js')
 const { default: TabHistoryModal } = await import('../src/components/TabHistoryModal.vue')
 
 beforeEach(async () => {
@@ -48,6 +57,37 @@ describe('Version history', () => {
     const versions = await getTabVersions('t1')
     expect(versions.map((v) => v.content)).toEqual(['rent = 1100', 'rent = 1000'])
     expect(versions[0].reason).toBe(VERSION_REASONS.edit)
+  })
+
+  it('saves the edited text once typing pauses, even a minute after the first snapshot', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-01T10:00:00Z'))
+    const tab = { id: 'pause', title: 'Budget', content: 'rent = 1000' }
+
+    // Typing a few lines, the way the app calls these on every edit
+    for (const next of ['rent = 1000\nfood = 300', 'rent = 1000\nfood = 300\nfuel = 90']) {
+      await snapshotTab(tab)
+      tab.content = next
+      scheduleCheckpoint(tab)
+      await vi.advanceTimersByTimeAsync(2000)
+    }
+    await vi.advanceTimersByTimeAsync(IDLE_CHECKPOINT_DELAY)
+
+    const versions = await getTabVersions('pause')
+    expect(versions.map((v) => v.reason)).toEqual([VERSION_REASONS.pause, VERSION_REASONS.edit])
+    expect(versions[0].content).toBe('rent = 1000\nfood = 300\nfuel = 90')
+  })
+
+  it('saves a pending checkpoint right away when switching to another tab', async () => {
+    const a = { id: 'switch-a', content: 'a = 1' }
+    const b = { id: 'switch-b', content: 'b = 1' }
+    scheduleCheckpoint(a)
+    a.content = 'a = 2'
+    scheduleCheckpoint(b) // editing another tab flushes the first
+    // The flush for tab A runs in the background
+    await vi.waitFor(async () => expect((await getTabVersions('switch-a')).map((v) => v.content)).toEqual(['a = 2']))
+    expect(await flushCheckpoint()).not.toBeNull()
+    expect(await getTabVersions('switch-b')).toHaveLength(1)
   })
 
   it('always saves before destructive actions, but never duplicates or empty text', async () => {

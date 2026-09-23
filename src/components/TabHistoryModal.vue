@@ -26,8 +26,8 @@
       <div v-else-if="versions.length === 0" class="history-empty">
         <p><b>No earlier versions yet.</b></p>
         <p>
-          A version is saved when you start editing this tab (at most every 5 minutes while you keep typing), and before
-          it is cleared, restored, replaced by an import or updated by cloud sync.
+          A version is saved when you pause typing for a few seconds, when you switch tabs or leave the page, and before
+          this tab is cleared, restored, replaced by an import or updated by cloud sync.
         </p>
       </div>
 
@@ -59,7 +59,8 @@
                 >
                   −{{ version.stats.removed }}
                 </span>
-                <span v-if="!version.stats.added && !version.stats.removed" class="stat-same">same lines</span>
+                <span v-if="version.isCurrent" class="stat-current">current text</span>
+                <span v-else-if="!version.stats.added && !version.stats.removed" class="stat-same">reordered</span>
               </span>
             </button>
           </li>
@@ -83,7 +84,12 @@
               <Copy class="icon-xs" aria-hidden="true" />
               Copy text
             </button>
-            <button class="btn-primary" @click="$emit('restore', selected)">
+            <button
+              class="btn-primary"
+              :disabled="selectedIsCurrent"
+              :title="selectedIsCurrent ? 'This version matches the current text' : ''"
+              @click="$emit('restore', selected)"
+            >
               <RotateCcw class="icon-xs" aria-hidden="true" />
               Restore this version
             </button>
@@ -141,10 +147,15 @@ watch(
 
 // Compared with the tab's current text
 const versionsWithStats = computed(() =>
-  versions.value.map((v) => ({ ...v, stats: diffStats(props.tab?.content || '', v.content) }))
+  versions.value.map((v) => ({
+    ...v,
+    isCurrent: v.content === (props.tab?.content || ''),
+    stats: diffStats(props.tab?.content || '', v.content)
+  }))
 )
 
 const selected = computed(() => versions.value.find((v) => v.id === selectedId.value) || null)
+const selectedIsCurrent = computed(() => selected.value?.content === (props.tab?.content || ''))
 const selectedLines = computed(() => (selected.value?.content || '').split('\n'))
 const selectedEvaluation = computed(() =>
   selected.value ? evaluateAll(selected.value.content, { disableFloat: props.disableFloat }) : null
@@ -340,6 +351,16 @@ async function copyVersion() {
 
 .stat-remove {
   color: var(--err);
+}
+
+.stat-current {
+  color: var(--accent);
+  font-family: inherit;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .stat-same {

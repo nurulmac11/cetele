@@ -156,7 +156,7 @@ count                  // 2
 ---
 
 ### Version History
-Every tab keeps earlier versions on your device: one when you start editing (at most every 5 minutes while you type), and one before the tab is cleared, restored, replaced by an import, or updated by cloud sync. Open **History** in the sidebar or search "history" with **`Ctrl + K`** to preview a version with its results and restore it. Restoring saves the current text as a version first, so it can be undone.
+Every tab keeps earlier versions on your device: one when you pause typing for a few seconds, when you switch tabs or leave the page, and before the tab is cleared, restored, replaced by an import, or updated by cloud sync. Open **History** in the sidebar or search "history" with **`Ctrl + K`** to preview a version with its results and restore it. Restoring saves the current text as a version first, so it can be undone.
 
 ---
 
