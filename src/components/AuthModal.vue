@@ -82,12 +82,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { checkIsSupabaseConfigured } from '../services/supabaseClient.js'
-import { signInWithGoogle, signOut } from '../services/syncService.js'
+import { signInWithGoogle, signOut, flushPendingSync, hasUnsyncedEdits } from '../services/syncService.js'
 import { Cloud, X, AlertTriangle, UserCheck, CloudCheck, LogOut, Loader2 } from '@lucide/vue'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
-  user: { type: Object, default: null }
+  user: { type: Object, default: null },
+  tabs: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['close', 'user-updated', 'toast'])
@@ -116,6 +117,17 @@ async function handleGoogleLogin() {
 async function handleSignOut() {
   loading.value = true
   try {
+    // Sign-out resets local tabs, so anything the cloud doesn't have yet would be lost
+    await flushPendingSync()
+    const unsyncedTabs = props.tabs.filter(hasUnsyncedEdits)
+    if (unsyncedTabs.length > 0) {
+      const names = unsyncedTabs.map((t) => `• ${t.title || 'Untitled'}`).join('\n')
+      const proceed = confirm(
+        `These tabs have changes that couldn't be uploaded to the cloud (you may be offline):\n\n${names}\n\n` +
+        'Signing out now will permanently lose these changes. Sign out anyway?'
+      )
+      if (!proceed) return
+    }
     await signOut()
     emit('user-updated', null)
     emit('toast', 'Signed out of Cloud Sync')

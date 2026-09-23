@@ -107,7 +107,8 @@ export async function saveLocalTabs(tabsArray) {
           store.put({
             ...tab,
             position: idx,
-            updatedAt: new Date().toISOString()
+            // Keep the tab's own edit time: cloud sync compares it against syncedAt
+            updatedAt: tab.updatedAt || new Date().toISOString()
           })
         })
       }

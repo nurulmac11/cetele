@@ -131,6 +131,7 @@
     <AuthModal
       :is-open="isAuthModalOpen"
       :user="currentUser"
+      :tabs="tabs"
       @close="isAuthModalOpen = false"
       @user-updated="handleUserUpdated"
       @toast="showToast"
@@ -179,7 +180,9 @@ import {
   deleteCloudLibraryItem,
   fetchCloudLibrary,
   syncTabsToCloud,
-  syncLibraryToCloud
+  syncLibraryToCloud,
+  mergeCloudTabs,
+  flushPendingSync
 } from './services/syncService.js'
 
 const defaultTabs = [
@@ -223,6 +226,20 @@ const notepadRef = ref(null)
 let saveDebounceTimer = null
 let toastTimer = null
 let authUnsubscribe = null
+let cloudFetchInFlight = null
+let lastCloudFetchAt = 0
+const CLOUD_REFETCH_MIN_INTERVAL = 30000
+
+// Record when a tab's synced fields (title, content) last changed
+function markEdited(tab) {
+  tab.updatedAt = new Date().toISOString()
+}
+
+// Guest example tabs nobody has edited; not worth adding to an account that already has tabs
+function isUntouchedDefaultTab(tab) {
+  const def = defaultTabs.find((d) => d.id === tab.id)
+  return Boolean(def && def.title === tab.title && def.content === tab.content)
+}
 
 const activeTab = computed(() => {
   if (!Array.isArray(tabs.value) || tabs.value.length === 0) {
@@ -280,28 +297,41 @@ async function handleUserUpdated(newUser, session, event) {
   }
 }
 
-async function handleCloudFetch(userId) {
-  // Fetch Cloud Tabs
-  const cloudTabs = await fetchCloudTabs(userId)
-  if (cloudTabs && cloudTabs.length > 0) {
-    // Preserve current activeTabId if it exists in fetched cloudTabs
-    const currentActiveId = activeTabId.value
-    const matchingTab = cloudTabs.find((t) => t.id === currentActiveId)
-    const targetActiveId = matchingTab ? currentActiveId : cloudTabs[0].id
-
-    cloudTabs.forEach((t) => {
-      t.isActive = t.id === targetActiveId
+// Concurrent callers (initial load, auth events, window focus) share one fetch
+function handleCloudFetch(userId) {
+  if (!cloudFetchInFlight) {
+    cloudFetchInFlight = pullFromCloud(userId).finally(() => {
+      cloudFetchInFlight = null
     })
-    tabs.value = cloudTabs
-    activeTabId.value = targetActiveId
-    await saveLocalTabs(cloudTabs)
-  } else {
-    // Upsert existing local tabs to cloud for new user
-    syncTabsToCloud(tabs.value, userId)
+  }
+  return cloudFetchInFlight
+}
+
+async function pullFromCloud(userId) {
+  const cloudTabs = await fetchCloudTabs(userId)
+  // Skip when the fetch failed or the user changed while it was running
+  if (cloudTabs && currentUser.value?.id === userId) {
+    lastCloudFetchAt = Date.now()
+    const merged = mergeCloudTabs(tabs.value, cloudTabs, isUntouchedDefaultTab)
+    if (merged.length > 0) {
+      // Preserve current activeTabId if it survived the merge
+      const targetActiveId = merged.some((t) => t.id === activeTabId.value)
+        ? activeTabId.value
+        : merged[0].id
+      merged.forEach((t) => {
+        t.isActive = t.id === targetActiveId
+      })
+      tabs.value = merged
+      activeTabId.value = targetActiveId
+      await saveLocalTabs(merged)
+    }
+    // Upload local-only tabs and local edits that are newer than the cloud copy
+    syncTabsToCloud(() => tabs.value, userId)
   }
 
   // Fetch Cloud Saved Library
   const cloudLibrary = await fetchCloudLibrary(userId)
+  if (currentUser.value?.id !== userId) return
   if (cloudLibrary && cloudLibrary.length > 0) {
     savedLibrary.value = cloudLibrary
     await saveAllSavedLibrary(cloudLibrary)
@@ -339,7 +369,8 @@ async function initLocalData() {
     const user = await getSessionUser()
     currentUser.value = user
     if (user) {
-      handleCloudFetch(user.id)
+      // Finish merging cloud tabs before adding a shared tab, so the merge can't drop it
+      await handleCloudFetch(user.id)
     }
 
     // Check if opened via a Share URL
@@ -353,10 +384,14 @@ async function initLocalData() {
         position: tabs.value.length,
         isActive: true
       }
+      markEdited(newTab)
       tabs.value.forEach((t) => (t.isActive = false))
       tabs.value.push(newTab)
       activeTabId.value = newId
       await saveLocalTabs(tabs.value)
+      if (currentUser.value) {
+        throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
+      }
       history.replaceState(null, '', window.location.pathname)
       showToast(`Opened shared tab "${sharedDoc.title}"!`)
     }
@@ -401,6 +436,7 @@ function createTab() {
     position: tabs.value.length,
     isActive: true
   }
+  markEdited(newTab)
 
   tabs.value.forEach((t) => (t.isActive = false))
   tabs.value.push(newTab)
@@ -450,6 +486,8 @@ function reopenLastClosedTab() {
   }
 
   restoredTab.isActive = true
+  // The cloud copy was deleted on close, so mark it for upload again
+  markEdited(restoredTab)
   tabs.value.forEach((t) => (t.isActive = false))
   tabs.value.splice(insertIndex, 0, restoredTab)
   activeTabId.value = restoredTab.id
@@ -463,6 +501,7 @@ function renameTab({ id, title }) {
   const target = tabs.value.find((t) => t.id === id)
   if (target) {
     target.title = title
+    markEdited(target)
     triggerSave()
   }
 }
@@ -479,6 +518,7 @@ function reorderTabs(newTabsList) {
 function updateActiveTabContent(newContent) {
   if (activeTab.value) {
     activeTab.value.content = newContent
+    markEdited(activeTab.value)
     triggerSave()
   }
 }
@@ -487,6 +527,7 @@ function clearActiveTab() {
   if (activeTab.value) {
     if (confirm('Are you sure you want to clear all text in this tab?')) {
       activeTab.value.content = ''
+      markEdited(activeTab.value)
       triggerSave()
       showToast('Tab cleared')
     }
@@ -548,6 +589,7 @@ function handleLoadSavedTabAsTab(savedItem) {
       position: tabs.value.length,
       isActive: true
     }
+    markEdited(newTab)
     tabs.value.forEach((t) => (t.isActive = false))
     tabs.value.push(newTab)
     activeTabId.value = newId
@@ -678,7 +720,7 @@ function triggerSave() {
     try {
       await saveLocalTabs(tabs.value)
       if (currentUser.value) {
-        throttledSyncTabsToCloud(tabs.value, currentUser.value.id)
+        throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
       }
       saveStatus.value = 'saved'
     } catch (err) {
@@ -715,7 +757,8 @@ async function importTabs(importedArray) {
       title: t.title || `Tab ${idx + 1}`,
       content: t.content || '',
       position: idx,
-      isActive: idx === 0
+      isActive: idx === 0,
+      updatedAt: new Date().toISOString()
     }))
     activeTabId.value = tabs.value[0].id
     triggerSave()
@@ -732,9 +775,20 @@ async function resetLocalData() {
   }
 }
 
+// Push pending edits when the page is hidden; pick up other devices' edits when it returns
+function handleVisibilityChange() {
+  if (!currentUser.value) return
+  if (document.visibilityState === 'hidden') {
+    flushPendingSync()
+  } else if (Date.now() - lastCloudFetchAt > CLOUD_REFETCH_MIN_INTERVAL) {
+    handleCloudFetch(currentUser.value.id)
+  }
+}
+
 onMounted(() => {
   initLocalData()
   window.addEventListener('keydown', handleGlobalShortcuts)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   authUnsubscribe = subscribeToAuth((user, session, event) => {
     handleUserUpdated(user, session, event)
@@ -743,6 +797,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalShortcuts)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (authUnsubscribe) authUnsubscribe()
 })
 </script>

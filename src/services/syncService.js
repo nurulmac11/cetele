@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js'
+import { saveLocalTabs } from './localDb.js'
 
 // Subscribe to auth state changes
 export function subscribeToAuth(callback) {
@@ -43,81 +44,162 @@ export async function signInWithGoogle() {
 // Sign Out
 export async function signOut() {
   if (!isSupabaseConfigured || !supabase) return
+  // Push unsynced edits while the session is still valid; the app resets local tabs after sign-out
+  await flushPendingSync()
   const { error } = await supabase.auth.signOut()
   if (error) throw error
+  tabSync.cancel()
+  librarySync.cancel()
+}
+
+
+// --- Write Queue & Throttling ---
+
+const CLOUD_SYNC_MIN_INTERVAL = 2000 // Max 1 cloud sync request per 2 seconds
+
+// Cloud writes run one at a time, so a delete can't race an upsert that is already in flight
+let cloudQueue = Promise.resolve()
+
+function enqueue(task) {
+  const run = cloudQueue.then(task, task)
+  cloudQueue = run.catch(() => {})
+  return run
+}
+
+// Throttle that always sends the most recent arguments when the timer fires
+function createThrottle(fn) {
+  let timer = null
+  let lastRun = 0
+  let latestArgs = null
+
+  function flush() {
+    clearTimeout(timer)
+    timer = null
+    if (!latestArgs) return cloudQueue
+    const args = latestArgs
+    latestArgs = null
+    lastRun = Date.now()
+    return fn(...args)
+  }
+
+  function schedule(...args) {
+    latestArgs = args
+    if (timer) return
+    const wait = Math.max(0, CLOUD_SYNC_MIN_INTERVAL - (Date.now() - lastRun))
+    timer = setTimeout(flush, wait)
+  }
+
+  function cancel() {
+    clearTimeout(timer)
+    timer = null
+    latestArgs = null
+  }
+
+  return { schedule, flush, cancel }
+}
+
+function resolveList(listOrGetter) {
+  const list = typeof listOrGetter === 'function' ? listOrGetter() : listOrGetter
+  return Array.isArray(list) ? list : []
+}
+
+// Postgres error for an ON CONFLICT target with no matching unique constraint
+const NO_MATCHING_CONSTRAINT = '42P10'
+
+// Upserts on (user_id, id). Databases that haven't run the per-user-ids migration only have a
+// primary key on id, so fall back to that until the migration is applied.
+async function upsertOwnRows(table, rows) {
+  const result = await supabase.from(table).upsert(rows, { onConflict: 'user_id,id' })
+  if (result.error?.code === NO_MATCHING_CONSTRAINT) {
+    return supabase.from(table).upsert(rows, { onConflict: 'id' })
+  }
+  return result
+}
+
+function toMs(value) {
+  if (!value) return 0
+  const ms = typeof value === 'number' ? value : Date.parse(value)
+  return Number.isFinite(ms) ? ms : 0
 }
 
 // --- Active Tabs Cloud Sync ---
 
-let tabSyncThrottleTimer = null
-let tabSyncPending = false
-let lastTabSyncTime = 0
-const CLOUD_SYNC_MIN_INTERVAL = 2000 // Max 1 cloud sync request per 2 seconds
+// A tab has unsynced edits when it was never uploaded or was edited after its last upload
+export function hasUnsyncedEdits(tab) {
+  return !tab.syncedAt || toMs(tab.updatedAt) > toMs(tab.syncedAt)
+}
 
-export async function syncTabsToCloud(tabs, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(tabs)) return
+function needsUpload(tab, idx) {
+  return hasUnsyncedEdits(tab) || tab.syncedPosition !== idx
+}
 
-  try {
-    const formattedRows = tabs.map((t, idx) => ({
-      id: t.id,
+// Accepts the tabs array or a getter returning it; a getter is read when the write actually runs
+export function syncTabsToCloud(tabs, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId) return Promise.resolve()
+
+  return enqueue(async () => {
+    const list = resolveList(tabs)
+    const pending = list
+      .map((tab, idx) => ({ tab, idx }))
+      .filter(({ tab, idx }) => needsUpload(tab, idx))
+    if (pending.length === 0) return
+
+    const rows = pending.map(({ tab, idx }) => ({
+      id: tab.id,
       user_id: userId,
-      title: t.title || `Tab ${idx + 1}`,
-      content: t.content || '',
+      title: tab.title || `Tab ${idx + 1}`,
+      content: tab.content || '',
       position: idx,
-      updated_at: new Date().toISOString()
+      updated_at: tab.updatedAt || new Date().toISOString()
     }))
 
-    const { error } = await supabase
-      .from('user_tabs')
-      .upsert(formattedRows, { onConflict: 'id' })
+    try {
+      const { error } = await upsertOwnRows('user_tabs', rows)
 
-    if (error) {
-      console.warn('Supabase tabs sync warning:', error.message)
+      if (error) {
+        console.warn('Supabase tabs sync warning:', error.message)
+        return
+      }
+      // Mark with the timestamp that was sent: edits made during the request stay pending
+      pending.forEach(({ tab }, i) => {
+        tab.syncedAt = rows[i].updated_at
+        tab.syncedPosition = rows[i].position
+      })
+      // Persist the sync markers so a reload still knows which tabs the cloud has
+      await saveLocalTabs(list)
+    } catch (err) {
+      console.error('Failed to sync tabs to cloud:', err)
     }
-  } catch (err) {
-    console.error('Failed to sync tabs to cloud:', err)
-  }
+  })
 }
+
+const tabSync = createThrottle(syncTabsToCloud)
 
 export function throttledSyncTabsToCloud(tabs, userId) {
-  const now = Date.now()
-  const elapsed = now - lastTabSyncTime
-
-  if (elapsed >= CLOUD_SYNC_MIN_INTERVAL) {
-    lastTabSyncTime = now
-    tabSyncPending = false
-    clearTimeout(tabSyncThrottleTimer)
-    syncTabsToCloud(tabs, userId)
-  } else if (!tabSyncPending) {
-    tabSyncPending = true
-    const remaining = CLOUD_SYNC_MIN_INTERVAL - elapsed
-    clearTimeout(tabSyncThrottleTimer)
-    tabSyncThrottleTimer = setTimeout(() => {
-      lastTabSyncTime = Date.now()
-      tabSyncPending = false
-      syncTabsToCloud(tabs, userId)
-    }, remaining)
-  }
+  tabSync.schedule(tabs, userId)
 }
 
-export async function deleteCloudTab(tabId, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !tabId) return
+export function deleteCloudTab(tabId, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId || !tabId) return Promise.resolve()
 
-  try {
-    const { error } = await supabase
-      .from('user_tabs')
-      .delete()
-      .eq('id', tabId)
-      .eq('user_id', userId)
+  return enqueue(async () => {
+    try {
+      const { error } = await supabase
+        .from('user_tabs')
+        .delete()
+        .eq('id', tabId)
+        .eq('user_id', userId)
 
-    if (error) {
-      console.warn('Error deleting cloud tab:', error.message)
+      if (error) {
+        console.warn('Error deleting cloud tab:', error.message)
+      }
+    } catch (err) {
+      console.error('Failed to delete cloud tab:', err)
     }
-  } catch (err) {
-    console.error('Failed to delete cloud tab:', err)
-  }
+  })
 }
 
+// Returns the user's cloud tabs ([] when there are none), or null when the fetch failed
 export async function fetchCloudTabs(userId) {
   if (!isSupabaseConfigured || !supabase || !userId) return null
 
@@ -133,33 +215,65 @@ export async function fetchCloudTabs(userId) {
       return null
     }
 
-    if (Array.isArray(data) && data.length > 0) {
-      return data.map(r => ({
+    return (data || []).map(r => {
+      const updatedAt = new Date(r.updated_at).toISOString()
+      return {
         id: r.id,
         title: r.title,
         content: r.content,
         position: r.position,
-        isActive: false
-      }))
-    }
-    return null
+        isActive: false,
+        updatedAt,
+        syncedAt: updatedAt,
+        syncedPosition: r.position
+      }
+    })
   } catch (err) {
     console.error('Failed to fetch cloud tabs:', err)
     return null
   }
 }
 
+// Combines local and cloud tabs instead of letting one side overwrite the other.
+// - A tab in both places uses the cloud copy, unless the local copy has newer unsynced edits.
+// - A local-only tab that was synced before was deleted on another device, so it is dropped
+//   (unless it has unsynced edits).
+// - A local-only tab that was never synced is kept, except throwaway tabs (isDisposable)
+//   when the account already has tabs.
+export function mergeCloudTabs(localTabs, cloudTabs, isDisposable = () => false) {
+  const local = Array.isArray(localTabs) ? localTabs : []
+  const cloud = Array.isArray(cloudTabs) ? cloudTabs : []
+  if (cloud.length === 0) return [...local]
+
+  const localById = new Map(local.map(t => [t.id, t]))
+  const merged = cloud.map(cloudTab => {
+    const localTab = localById.get(cloudTab.id)
+    if (localTab && hasUnsyncedEdits(localTab) && toMs(localTab.updatedAt) > toMs(cloudTab.updatedAt)) {
+      return localTab
+    }
+    return cloudTab
+  })
+
+  const cloudIds = new Set(cloud.map(t => t.id))
+  for (const localTab of local) {
+    if (cloudIds.has(localTab.id)) continue
+    if (!hasUnsyncedEdits(localTab)) continue
+    if (!localTab.syncedAt && isDisposable(localTab)) continue
+    merged.push(localTab)
+  }
+  return merged
+}
+
 // --- Saved Tabs Library Cloud Sync ---
 
-let libSyncThrottleTimer = null
-let libSyncPending = false
-let lastLibSyncTime = 0
+export function syncLibraryToCloud(library, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId) return Promise.resolve()
 
-export async function syncLibraryToCloud(library, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !Array.isArray(library)) return
+  return enqueue(async () => {
+    const items = resolveList(library)
+    if (items.length === 0) return
 
-  try {
-    const formattedRows = library.map((item) => ({
+    const formattedRows = items.map((item) => ({
       id: String(item.id),
       user_id: userId,
       title: item.title || 'Untitled',
@@ -167,55 +281,42 @@ export async function syncLibraryToCloud(library, userId) {
       saved_at: item.savedAt || new Date().toISOString()
     }))
 
-    const { error } = await supabase
-      .from('saved_library')
-      .upsert(formattedRows, { onConflict: 'id' })
+    try {
+      const { error } = await upsertOwnRows('saved_library', formattedRows)
 
-    if (error) {
-      console.warn('Supabase library sync warning:', error.message)
+      if (error) {
+        console.warn('Supabase library sync warning:', error.message)
+      }
+    } catch (err) {
+      console.error('Failed to sync library to cloud:', err)
     }
-  } catch (err) {
-    console.error('Failed to sync library to cloud:', err)
-  }
+  })
 }
+
+const librarySync = createThrottle(syncLibraryToCloud)
 
 export function throttledSyncLibraryToCloud(library, userId) {
-  const now = Date.now()
-  const elapsed = now - lastLibSyncTime
-
-  if (elapsed >= CLOUD_SYNC_MIN_INTERVAL) {
-    lastLibSyncTime = now
-    libSyncPending = false
-    clearTimeout(libSyncThrottleTimer)
-    syncLibraryToCloud(library, userId)
-  } else if (!libSyncPending) {
-    libSyncPending = true
-    const remaining = CLOUD_SYNC_MIN_INTERVAL - elapsed
-    clearTimeout(libSyncThrottleTimer)
-    libSyncThrottleTimer = setTimeout(() => {
-      lastLibSyncTime = Date.now()
-      libSyncPending = false
-      syncLibraryToCloud(library, userId)
-    }, remaining)
-  }
+  librarySync.schedule(library, userId)
 }
 
-export async function deleteCloudLibraryItem(itemId, userId) {
-  if (!isSupabaseConfigured || !supabase || !userId || !itemId) return
+export function deleteCloudLibraryItem(itemId, userId) {
+  if (!isSupabaseConfigured || !supabase || !userId || !itemId) return Promise.resolve()
 
-  try {
-    const { error } = await supabase
-      .from('saved_library')
-      .delete()
-      .eq('id', String(itemId))
-      .eq('user_id', userId)
+  return enqueue(async () => {
+    try {
+      const { error } = await supabase
+        .from('saved_library')
+        .delete()
+        .eq('id', String(itemId))
+        .eq('user_id', userId)
 
-    if (error) {
-      console.warn('Error deleting cloud library item:', error.message)
+      if (error) {
+        console.warn('Error deleting cloud library item:', error.message)
+      }
+    } catch (err) {
+      console.error('Failed to delete cloud library item:', err)
     }
-  } catch (err) {
-    console.error('Failed to delete cloud library item:', err)
-  }
+  })
 }
 
 export async function fetchCloudLibrary(userId) {
@@ -246,4 +347,11 @@ export async function fetchCloudLibrary(userId) {
     console.error('Failed to fetch cloud library:', err)
     return null
   }
+}
+
+// Sends any throttled writes now and waits for every queued write to finish
+export async function flushPendingSync() {
+  tabSync.flush()
+  librarySync.flush()
+  await cloudQueue
 }

@@ -169,6 +169,11 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - Uses Supabase PostgreSQL (`user_tabs` table).
    - Implements throttled background updates (`throttledSyncTabsToCloud`) limited to a maximum rate of 1 write request per 2 seconds.
    - Row-Level Security (RLS) policies enforce isolated user access (`auth.uid() = user_id`).
+   - Rows are keyed by `(user_id, id)`; tab ids are only unique per user. A `BEFORE UPDATE` trigger ignores writes older than the stored `updated_at` (last-write-wins).
+   - Each tab carries `updatedAt` (last edit), `syncedAt` and `syncedPosition` (last upload). Only tabs that changed since their last upload are sent. Call `markEdited(tab)` in `App.vue` whenever a tab's title or content changes.
+   - Cloud writes go through one queue, so deletes and upserts can't race. Throttled syncs read the latest `tabs` through a getter when they fire.
+   - On login, load and window refocus, `mergeCloudTabs` combines cloud and local tabs instead of overwriting either side (see `tests/sync.test.js`). `signOut()` flushes pending writes first.
+   - Existing databases need `supabase/migrations/20260923_per_user_tab_ids.sql`.
 
 3. **Window Focus & Active Tab Preservation**:
    - `subscribeToAuth` emits `(user, session, event)` on auth state changes.
