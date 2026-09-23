@@ -216,6 +216,13 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 
 ---
 
+## 📦 Loading, Offline & Deployment
+
+- **Bundle**: Vue and mathjs are split into their own long-cached chunks (`vite.config.js`). The Supabase SDK is loaded on demand through `getSupabase()` in `src/services/supabaseClient.js`; never import `@supabase/supabase-js` statically.
+- **Offline**: `public/sw.js` (registered in `src/main.js`, production only) caches the app shell, `/assets/*` and Google Fonts. Bump its `CACHE` name to drop old caches.
+- **Theme**: an inline script in `index.html` applies the saved theme before first paint.
+- **Headers** (`vercel.json`): security headers plus a `Content-Security-Policy-Report-Only` policy. Adding a new external host (API, CDN, font) means adding it to the CSP. Editing the inline script in `index.html` changes its hash; `tests/deployConfig.test.js` fails until the new hash is in `vercel.json`.
+
 ## 🚦 Developer Workflow & Commands
 
 ### Running Locally
