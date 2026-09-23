@@ -1,4 +1,4 @@
-import { RESERVED_KEYWORDS, EXAMPLE_TEXT, variableKey } from './constants.js'
+import { RESERVED_KEYWORDS, EXAMPLE_TEXT, variableKey, emptyTable } from './constants.js'
 import { RATES, ratesVersion, ratesUpdatedAt, fetchLiveExchangeRates, convertCurrency } from './rates.js'
 import { fmtDate, fmtDateTime, formatValue, formatValueWithSymbol } from './formatters.js'
 import { Lexer } from './lexer.js'
@@ -60,9 +60,10 @@ export function evaluateAll(text, options = {}) {
   if (text === null || text === undefined) text = ''
   const lines = text.split('\n')
   const ctx = {
-    scope: { pi: Math.PI, e: Math.E },
-    varCurrencies: {},
-    scopeDates: {},
+    // Prototype-free tables: variable names like "constructor" or "__proto__" are ordinary keys
+    scope: emptyTable({ pi: Math.PI, e: Math.E }),
+    varCurrencies: emptyTable(),
+    scopeDates: emptyTable(),
     lineResults: [],
     lineCurrencies: [],
     lineDates: [],
@@ -73,7 +74,7 @@ export function evaluateAll(text, options = {}) {
     sumCurrency: null,
     rates: RATES,
     // Which line set each variable and prev, and the lines the current line reads
-    varLines: {},
+    varLines: emptyTable(),
     prevLine: null,
     deps: null,
     options
@@ -299,7 +300,9 @@ export function evaluateAll(text, options = {}) {
         sectionLineCount++
       }
     } catch (err) {
-      pushLine({ cls: 'err', text: '—', error: err.message || 'Could not evaluate this line' })
+      // A RangeError here is a stack overflow from an extremely long expression (e.g. 50,000 terms)
+      const message = err instanceof RangeError ? 'This line is too long to evaluate' : err.message
+      pushLine({ cls: 'err', text: '—', error: message || 'Could not evaluate this line' })
     }
   })
 

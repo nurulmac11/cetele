@@ -59,18 +59,58 @@ export function tokenizeCodePart(code) {
   return result
 }
 
-const SECTION_LINE_RE = /^(\s*(?:\/\/\s*)?)(={3,}|-{3,})(\s*)(.*?)(\s*)(={3,}|-{3,})?(\s*)$/
+const isSpace = (ch) => ch === ' ' || ch === '\t' || ch === '\r'
+
+// Splits "  // === Title ===  " into its parts with plain index scans. (A regex here backtracked
+// badly: a header padded with a few thousand spaces froze the page.) Every character is kept,
+// so the parts join back to the exact line.
+function splitSectionLine(line) {
+  const len = line.length
+  let i = 0
+  while (i < len && isSpace(line[i])) i++
+  if (line.startsWith('//', i)) {
+    i += 2
+    while (i < len && isSpace(line[i])) i++
+  }
+  const marker = line[i]
+  if (marker !== '=' && marker !== '-') return null
+  let openEnd = i
+  while (openEnd < len && line[openEnd] === marker) openEnd++
+  if (openEnd - i < 3) return null
+
+  let end = len
+  while (end > openEnd && isSpace(line[end - 1])) end--
+  let closeStart = end
+  const closeMarker = line[end - 1]
+  if (closeMarker === '=' || closeMarker === '-') {
+    while (closeStart > openEnd && line[closeStart - 1] === closeMarker) closeStart--
+    if (end - closeStart < 3) closeStart = end
+  }
+  let titleEnd = closeStart
+  while (titleEnd > openEnd && isSpace(line[titleEnd - 1])) titleEnd--
+  let titleStart = openEnd
+  while (titleStart < titleEnd && isSpace(line[titleStart])) titleStart++
+
+  return {
+    lead: line.slice(0, i),
+    open: line.slice(i, openEnd),
+    gap1: line.slice(openEnd, titleStart),
+    title: line.slice(titleStart, titleEnd),
+    gap2: line.slice(titleEnd, closeStart),
+    close: line.slice(closeStart, end),
+    trail: line.slice(end)
+  }
+}
 
 function highlightSectionHeader(line) {
-  const match = line.match(SECTION_LINE_RE)
-  if (!match) return [{ cls: 'tok-header-title', text: line }]
-  const [, lead, open, gap1, title, gap2, close = '', trail] = match
+  const parts = splitSectionLine(line)
+  if (!parts) return [{ cls: 'tok-header-title', text: line }]
   return [
-    { cls: 'tok-code', text: lead },
-    { cls: 'tok-header-line', text: open + gap1 },
-    { cls: 'tok-header-title', text: title },
-    { cls: 'tok-header-line', text: gap2 + close },
-    { cls: 'tok-code', text: trail }
+    { cls: 'tok-code', text: parts.lead },
+    { cls: 'tok-header-line', text: parts.open + parts.gap1 },
+    { cls: 'tok-header-title', text: parts.title },
+    { cls: 'tok-header-line', text: parts.gap2 + parts.close },
+    { cls: 'tok-code', text: parts.trail }
   ].filter((t) => t.text)
 }
 

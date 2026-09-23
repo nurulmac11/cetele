@@ -198,3 +198,14 @@ export function variableKey(name) {
     .toLowerCase()
     .replace(/\u0307/g, '')
 }
+
+// Looks up a key typed by the user on a lookup table, ignoring JavaScript's built-in properties
+// (so words like "constructor" or "toString" aren't found on every object)
+export function ownValue(table, key) {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined
+}
+
+// Empty lookup table without inherited properties, for user-named keys (variables)
+export function emptyTable(initial = {}) {
+  return Object.assign(Object.create(null), initial)
+}

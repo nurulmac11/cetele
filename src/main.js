@@ -4,7 +4,10 @@ import './assets/main.css'
 import { inject } from '@vercel/analytics'
 
 // Initialize Vercel Web Analytics
-inject()
+inject({
+  // Share links carry the whole document after "#"; never send that part to analytics
+  beforeSend: (event) => ({ ...event, url: event.url.split('#')[0] })
+})
 
 createApp(App).mount('#app')
 

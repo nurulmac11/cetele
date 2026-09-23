@@ -232,6 +232,18 @@ When changing a default text, add the previous text to `LEGACY_DEFAULT_TAB_CONTE
 - The Ctrl/Cmd+K palette (`CommandPalette.vue`, search in `src/services/paletteSearch.js`) lists commands defined in `paletteCommands` in `App.vue`; add new app actions there. Jumping to a line uses `Notepad.goToLine()`.
 - Syntax highlighting (`src/services/highlighter.js`) is built from the evaluator's `Lexer` tokens, so colours match evaluation. Its tokens must join back to the exact line text, or the coloured layer drifts from the textarea (`tests/highlighter.test.js` checks this).
 
+## 🔒 Untrusted Input (share links)
+
+A share link can put any text into a victim's notepad, so every code path that reads document text must stay safe on hostile input (`tests/security.test.js`):
+
+- Opening a link asks first (`openSharedDoc` in `App.vue`, preview and Open/Ignore). The tab is titled `Shared: …`, and decoded documents are capped at 1 MB.
+- Never render document text as HTML (`v-html`, `innerHTML`); Vue text interpolation only. The enforced CSP in `vercel.json` is the backstop.
+- No regexes with nested or adjacent unbounded quantifiers over document text; prefer index scans (see `splitSectionLine` in `highlighter.js`). Lexer lookaheads read a small window (`slice(pos, pos + N)`), never the rest of the line.
+- The parser caps nesting (`MAX_NESTING`); evaluation errors from huge lines become a readable message.
+- Look up user-typed words on lookup tables with `ownValue()`, and keep variables in `emptyTable()` objects, so `constructor` or `__proto__` are ordinary words.
+- Network calls triggered by document text are limited: historical rates allow 3 at a time and 50 downloads per page, with 100 cached days.
+- Analytics strips the `#…` part of URLs (`beforeSend` in `main.js`), so shared documents never leave the browser.
+
 ## 🚦 Developer Workflow & Commands
 
 ### Running Locally

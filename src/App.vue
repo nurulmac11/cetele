@@ -414,6 +414,47 @@ async function pullFromCloud(userId) {
   }
 }
 
+// A share link comes from someone else, so show what it holds and ask before adding it
+async function openSharedDoc(sharedDoc) {
+  const title = (sharedDoc.title || 'Shared tab').slice(0, 80)
+  const lines = sharedDoc.content.split('\n')
+  const preview = lines.slice(0, 6).map((line) => (line.length > 70 ? `${line.slice(0, 70)}…` : line || ' '))
+  if (lines.length > 6) preview.push(`… ${lines.length - 6} more lines`)
+
+  const confirmed = await askConfirm({
+    title: 'Open shared tab?',
+    message: `Someone shared "${title}" (${lines.length} line${lines.length === 1 ? '' : 's'}). It will be added as a new tab${
+      currentUser.value ? ' and synced to your account' : ''
+    }.`,
+    details: preview,
+    confirmLabel: 'Open as new tab',
+    cancelLabel: 'Ignore'
+  })
+  if (!confirmed) {
+    showToast('Shared tab ignored')
+    return
+  }
+
+  const newId = 'tab-shared-' + Date.now()
+  const newTab = {
+    id: newId,
+    // Marked as shared, so it can't pass for one of your own tabs
+    title: `Shared: ${title}`,
+    content: sharedDoc.content,
+    position: tabs.value.length,
+    isActive: true
+  }
+  markEdited(newTab)
+  tabs.value.forEach((t) => (t.isActive = false))
+  tabs.value.push(newTab)
+  activeTabId.value = newId
+  await saveLocalTabs(tabs.value)
+  if (currentUser.value) {
+    throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
+  }
+  showToast(`Opened shared tab "${title}"`)
+}
+
 // Initialize Local DB & Library
 async function initLocalData() {
   try {
@@ -449,28 +490,14 @@ async function initLocalData() {
 
     // Check if opened via a Share URL
     const sharedDoc = await decodeSharePayload()
-    if (sharedDoc?.tooLarge) {
+    if (sharedDoc) {
+      // Remove the document from the address bar either way, so a reload doesn't ask again
       history.replaceState(null, '', window.location.pathname)
+    }
+    if (sharedDoc?.tooLarge) {
       showToast('This share link holds a document over 1 MB, so it was not opened')
     } else if (sharedDoc) {
-      const newId = 'tab-shared-' + Date.now()
-      const newTab = {
-        id: newId,
-        title: sharedDoc.title || 'Shared Tab',
-        content: sharedDoc.content !== undefined ? sharedDoc.content : sharedDoc.text || '',
-        position: tabs.value.length,
-        isActive: true
-      }
-      markEdited(newTab)
-      tabs.value.forEach((t) => (t.isActive = false))
-      tabs.value.push(newTab)
-      activeTabId.value = newId
-      await saveLocalTabs(tabs.value)
-      if (currentUser.value) {
-        throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
-      }
-      history.replaceState(null, '', window.location.pathname)
-      showToast(`Opened shared tab "${sharedDoc.title}"!`)
+      await openSharedDoc(sharedDoc)
     }
 
     // Check if first time opening application

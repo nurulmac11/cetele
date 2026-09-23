@@ -1,5 +1,5 @@
 import { math } from './math.js'
-import { RESERVED_KEYWORDS, variableKey } from './constants.js'
+import { RESERVED_KEYWORDS, variableKey, ownValue } from './constants.js'
 import {
   RATES,
   convertCurrency,
@@ -217,7 +217,7 @@ function calendarMonthsBetween(from, to) {
 function normalizeUnit(unit) {
   if (!unit) return unit
   const key = String(unit).toLowerCase()
-  return UNIT_ALIASES[key] || unit
+  return ownValue(UNIT_ALIASES, key) || unit
 }
 
 function isError(res) {
@@ -401,7 +401,7 @@ export function evaluateAST(node, ctx) {
         noteDependency(ctx, ctx.varLines?.[name])
         return dateResult(ctx.scopeDates[name].timestamp, ctx.scopeDates[name].isTime)
       }
-      if (RESERVED_KEYWORDS.has(name) || typeof math[name] === 'function') {
+      if (RESERVED_KEYWORDS.has(name) || typeof ownValue(math, name) === 'function') {
         return { value: null, currency: null }
       }
       return { error: `Unknown identifier: ${node.name}` }
@@ -598,7 +598,7 @@ export function evaluateAST(node, ctx) {
     case 'FunctionCall': {
       const lower = node.name.toLowerCase()
 
-      const finance = FINANCE_FUNCTIONS[lower]
+      const finance = ownValue(FINANCE_FUNCTIONS, lower)
       if (finance) {
         const [min, max] = finance.arity
         if (node.args.length < min || node.args.length > max) {
@@ -613,8 +613,8 @@ export function evaluateAST(node, ctx) {
         return finance.run(args)
       }
 
-      const name = FUNCTION_ALIASES[lower] || lower
-      if (!ALLOWED_FUNCTIONS.has(name) || typeof math[name] !== 'function') {
+      const name = ownValue(FUNCTION_ALIASES, lower) || lower
+      if (!ALLOWED_FUNCTIONS.has(name) || typeof ownValue(math, name) !== 'function') {
         return { error: `Unknown function: ${node.name}` }
       }
 

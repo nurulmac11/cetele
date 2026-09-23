@@ -1,4 +1,5 @@
 import { normalizeCurrency } from './rates.js'
+import { ownValue } from './constants.js'
 
 // Words that may follow a percentage as a label: 1000 + %20 kdv, 50 + 8% vat
 const TAX_WORDS = new Set(['kdv', 'vat', 'tax', 'gst', 'otv', 'ötv', 'stopaj'])
@@ -6,10 +7,16 @@ const TAX_WORDS = new Set(['kdv', 'vat', 'tax', 'gst', 'otv', 'ötv', 'stopaj'])
 // Standalone words that summarise the lines above (like subtotal)
 const AGGREGATE_WORDS = new Set(['avg', 'average', 'count'])
 
+// Deepest nesting a line may use (each "(" costs a few levels)
+const MAX_NESTING = 600
+
+class NestingError extends Error {}
+
 export class Parser {
   constructor(tokens) {
     this.tokens = tokens
     this.pos = 0
+    this.depth = 0
   }
 
   peek() {
@@ -30,7 +37,31 @@ export class Parser {
     return null
   }
 
+  // Nesting guard: parentheses, unary signs, powers and "of" chains recurse. Past MAX_NESTING
+  // the line fails fast instead of overflowing the call stack after seconds of work.
+  nested(parse) {
+    if (++this.depth > MAX_NESTING) {
+      this.depth--
+      throw new NestingError()
+    }
+    try {
+      return parse()
+    } finally {
+      this.depth--
+    }
+  }
+
   parseLine() {
+    try {
+      return this.parseLineInner()
+    } catch (err) {
+      if (err instanceof NestingError)
+        return { type: 'Error', message: `Too deeply nested (over ${MAX_NESTING} levels)` }
+      throw err
+    }
+  }
+
+  parseLineInner() {
     const tok = this.peek()
     if (tok.type === 'EOF') return null
     if (tok.type === 'COMMENT') return { type: 'Comment', value: tok.value }
@@ -103,6 +134,10 @@ export class Parser {
   }
 
   parseExpression() {
+    return this.nested(() => this.parseExpressionInner())
+  }
+
+  parseExpressionInner() {
     const kw = this.peek()
 
     // days until 2026-12-31, weeks since start
@@ -128,6 +163,10 @@ export class Parser {
   }
 
   parseAdditive() {
+    return this.nested(() => this.parseAdditiveInner())
+  }
+
+  parseAdditiveInner() {
     let left = this.parseMultiplicative()
 
     while (true) {
@@ -179,6 +218,10 @@ export class Parser {
   }
 
   parseUnary() {
+    return this.nested(() => this.parseUnaryInner())
+  }
+
+  parseUnaryInner() {
     const tok = this.peek()
     if (tok.type === 'OPERATOR' && (tok.value === '+' || tok.value === '-')) {
       const op = this.consume().value
@@ -282,7 +325,7 @@ export class Parser {
       if (nextTok.type === 'IDENT') {
         const multKey = nextTok.value.toLowerCase()
         const MULTIPLIERS = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }
-        if (MULTIPLIERS[multKey]) {
+        if (ownValue(MULTIPLIERS, multKey)) {
           const lookahead2 = this.tokens[this.pos + 1]
           // If 'm' is followed by 'to' or 'in' (e.g. 500 m to km), leave 'm' for unit conversion
           const isUnitConversionFollowup =

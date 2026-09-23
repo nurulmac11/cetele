@@ -785,7 +785,11 @@ function updateCursorState() {
   cursorPosition.value = pos
 
   const textBefore = tabContent.value.slice(0, pos)
-  const match = textBefore.match(/([\p{L}_][\p{L}\p{N}_]*)$/u)
+  // Only the end of the current line matters. Matching the whole document before the cursor was
+  // quadratic on long runs of letters and could freeze typing.
+  const lineStartIdx = textBefore.lastIndexOf('\n') + 1
+  const tail = textBefore.slice(Math.max(lineStartIdx, textBefore.length - 64))
+  const match = tail.match(/([\p{L}_][\p{L}\p{N}_]*)$/u)
   if (match) {
     const wasShowing = showAutocomplete.value && currentPrefix.value
     currentPrefix.value = match[1]

@@ -258,6 +258,13 @@ export function convertCurrency(amount, from, to, rates = RATES) {
 export const HISTORICAL_RATES_START = '1999-01-04'
 export const FULL_HISTORICAL_RATES_START = '2024-03-02'
 const HISTORICAL_CACHE_PREFIX = 'cetele_historical_rates_v2_'
+const HISTORICAL_CACHE_INDEX = 'cetele_historical_rates_index'
+
+// Limits, so a document (for example one opened from a share link) with thousands of different
+// "@ date" lines can't make thousands of requests or fill up localStorage
+const MAX_CONCURRENT_DOWNLOADS = 3
+export const MAX_HISTORICAL_DOWNLOADS_PER_PAGE = 50
+const MAX_CACHED_DAYS = 100
 
 // dateKey -> { rates, effectiveDate, coverage } | { loading: true } | { error }
 const historicalRates = new Map()
@@ -295,13 +302,48 @@ async function fromFrankfurter(dateKey) {
   return { rates: cleanRates(data.rates), effectiveDate: data.date || dateKey, coverage: 'major' }
 }
 
-async function loadHistoricalRates(dateKey) {
-  // Past days never change, so a cached copy is final
+function readCachedDay(dateKey) {
   try {
     const cached = JSON.parse(localStorage.getItem(HISTORICAL_CACHE_PREFIX + dateKey) || 'null')
-    if (cached?.rates) return cached
-  } catch (e) {}
+    return cached?.rates ? cached : null
+  } catch (e) {
+    return null
+  }
+}
 
+// Stores a day and keeps only the MAX_CACHED_DAYS most recently stored days
+function writeCachedDay(dateKey, result) {
+  try {
+    const index = JSON.parse(localStorage.getItem(HISTORICAL_CACHE_INDEX) || '[]').filter((k) => k !== dateKey)
+    index.push(dateKey)
+    while (index.length > MAX_CACHED_DAYS) localStorage.removeItem(HISTORICAL_CACHE_PREFIX + index.shift())
+    localStorage.setItem(HISTORICAL_CACHE_PREFIX + dateKey, JSON.stringify(result))
+    localStorage.setItem(HISTORICAL_CACHE_INDEX, JSON.stringify(index))
+  } catch (e) {}
+}
+
+// Runs downloads a few at a time
+let activeDownloads = 0
+const downloadQueue = []
+let downloadsThisPage = 0
+
+function withDownloadSlot(task) {
+  return new Promise((resolve, reject) => {
+    const run = () => {
+      activeDownloads++
+      task()
+        .then(resolve, reject)
+        .finally(() => {
+          activeDownloads--
+          downloadQueue.shift()?.()
+        })
+    }
+    if (activeDownloads < MAX_CONCURRENT_DOWNLOADS) run()
+    else downloadQueue.push(run)
+  })
+}
+
+async function loadHistoricalRates(dateKey) {
   const sources =
     dateKey >= FULL_HISTORICAL_RATES_START
       ? [
@@ -320,9 +362,7 @@ async function loadHistoricalRates(dateKey) {
   for (const load of sources) {
     try {
       const result = await load()
-      try {
-        localStorage.setItem(HISTORICAL_CACHE_PREFIX + dateKey, JSON.stringify(result))
-      } catch (e) {}
+      writeCachedDay(dateKey, result)
       return result
     } catch (err) {
       lastError = err
@@ -349,8 +389,22 @@ export function getHistoricalRates(timestamp) {
   const known = historicalRates.get(dateKey)
   if (known) return known
 
+  // Past days never change, so a cached copy is final and costs no request
+  const cached = readCachedDay(dateKey)
+  if (cached) {
+    historicalRates.set(dateKey, cached)
+    return cached
+  }
+
+  if (downloadsThisPage >= MAX_HISTORICAL_DOWNLOADS_PER_PAGE) {
+    return {
+      error: `Too many different dates on this page (limit ${MAX_HISTORICAL_DOWNLOADS_PER_PAGE} downloads); reload to load more`
+    }
+  }
+  downloadsThisPage++
+
   historicalRates.set(dateKey, { loading: true })
-  loadHistoricalRates(dateKey)
+  withDownloadSlot(() => loadHistoricalRates(dateKey))
     .then((result) => historicalRates.set(dateKey, result))
     .catch(() => {
       // Forget the failure after a minute so it can be retried (e.g. back online)
@@ -366,4 +420,5 @@ export function getHistoricalRates(timestamp) {
 // For tests
 export function _resetHistoricalRates() {
   historicalRates.clear()
+  downloadsThisPage = 0
 }

@@ -37,7 +37,8 @@ function matchDateLiteral(rest) {
 const COMPOUND_UNIT_RE = /^[A-Za-z]+(?:\^\d+(?:[/*][A-Za-z]+(?:\^\d+)?)*|(?:[/*][A-Za-z]+(?:\^\d+)?)+)/
 
 function checkPhraseMapping(word, input, pos) {
-  const rest = input.slice(pos).toLowerCase()
+  // The longest phrase is " ounces gold"; a short window keeps lexing long lines linear
+  const rest = input.slice(pos, pos + 24).toLowerCase()
   const lower = word.toLowerCase()
 
   if (lower === 'gram' || lower === 'g') {
@@ -73,6 +74,14 @@ export class Lexer {
     // Comment ranges within the line ({ start, end }), for syntax highlighting.
     // Inline comments produce no token, so the parser never sees them.
     this.comments = []
+  }
+
+  // True when only whitespace follows (stops at the first other character)
+  onlySpaceFrom(pos) {
+    for (let i = pos; i < this.length; i++) {
+      if (!isWhitespace(this.input[i])) return false
+    }
+    return true
   }
 
   peek(offset = 0) {
@@ -152,7 +161,7 @@ export class Lexer {
           const commentContent = this.input.slice(this.pos, closeIdx)
           this.pos = closeIdx + delim.length
           this.comments.push({ start: passStart, end: this.pos })
-          const restOfLine = this.input.slice(this.pos).trim()
+          const restOfLine = this.onlySpaceFrom(this.pos) ? '' : 'code'
 
           // Emit COMMENT token ONLY if it is a standalone comment line (no preceding or trailing code)
           if (tokens.length === 0 && restOfLine === '') {
@@ -194,7 +203,7 @@ export class Lexer {
       }
 
       // Line References line1, line2
-      if (this.input.slice(this.pos).toLowerCase().startsWith('line') && isDigit(this.peek(4))) {
+      if (this.input.slice(this.pos, this.pos + 4).toLowerCase() === 'line' && isDigit(this.peek(4))) {
         this.pos += 4 // 'line'
         let numStr = ''
         while (isDigit(this.peek())) {
@@ -206,7 +215,7 @@ export class Lexer {
 
       // Date literals (2026-12-31, 31.12.2026)
       if (isDigit(ch)) {
-        const date = matchDateLiteral(this.input.slice(this.pos))
+        const date = matchDateLiteral(this.input.slice(this.pos, this.pos + 16))
         if (date) {
           const raw = this.input.slice(this.pos, this.pos + date.length)
           this.pos += date.length
@@ -252,7 +261,7 @@ export class Lexer {
         const nextLower = nextCh ? nextCh.toLowerCase() : ''
 
         // An attached 'm' before a conversion (500m to km) means metres, not million
-        const afterSuffix = this.input.slice(this.pos + 1)
+        const afterSuffix = this.input.slice(this.pos + 1, this.pos + 65)
         // ...and so does 'm' starting a compound unit (500m/s, 9.8m/s^2)
         const isMetresBeforeConversion =
           nextLower === 'm' && (/^\s+(to|in)\b/i.test(afterSuffix) || /^(\/[A-Za-z]|\^\d)/.test(afterSuffix))
@@ -279,7 +288,7 @@ export class Lexer {
         const isUnitPosition =
           prevTok?.type === 'NUMBER' ||
           (prevTok?.type === 'KEYWORD' && (prevTok.value === 'to' || prevTok.value === 'in'))
-        const compound = isUnitPosition ? this.input.slice(this.pos).match(COMPOUND_UNIT_RE) : null
+        const compound = isUnitPosition ? this.input.slice(this.pos, this.pos + 64).match(COMPOUND_UNIT_RE) : null
         if (compound) {
           this.pos += compound[0].length
           tokens.push({ type: 'IDENT', value: compound[0], isCompoundUnit: true })
