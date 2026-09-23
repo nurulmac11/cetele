@@ -1,4 +1,4 @@
-# Çetele (Kulba) — Developer & AI Agent Guide (`AGENT.md`)
+# Çetele — Developer & AI Agent Guide (`AGENT.md`)
 
 Welcome to **Çetele**! This guide provides a comprehensive technical overview of the codebase architecture, evaluation engine, component hierarchy, data persistence layer, online sync behavior, tab management, testing setup, and guidelines for AI agents and developers.
 
@@ -13,14 +13,14 @@ Welcome to **Çetele**! This guide provides a comprehensive technical overview o
 - **Backend / Auth**: [Supabase JS Client](https://supabase.com/docs/reference/javascript/introduction) (`@supabase/supabase-js`)
 - **Testing**: [Vitest 3](https://vitest.dev/)
 - **Analytics**: [Vercel Analytics](https://vercel.com/docs/analytics) (`@vercel/analytics`)
-- **Styling**: Vanilla CSS with dark/light CSS variables (`src/assets/index.css`)
+- **Styling**: Vanilla CSS with dark/light CSS variables (`src/assets/main.css`)
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-kulba/
+cetele/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # GitHub Actions CI workflow (PR & push test/build runner)
@@ -33,7 +33,6 @@ kulba/
 ├── supabase/
 │   └── schema.sql               # PostgreSQL schema & RLS policies for user_tabs
 ├── tests/
-│   ├── evaluator.test.js        # Vitest suite entrypoint re-exporting all sub-suites
 │   ├── services.test.js         # Tests for share payload encoding & copy all text helper
 │   └── evaluator/               # Modular test suites by domain
 │       ├── math.test.js         # Basic math, line references, percentage arithmetic, parens, NaN
@@ -45,7 +44,7 @@ kulba/
     ├── main.js                  # App bootstrap & Vercel analytics initialization
     ├── App.vue                  # Main application component, layout & shortcut manager
     ├── assets/
-    │   └── index.css            # Global CSS custom properties, design system & themes
+    │   └── main.css             # Global CSS custom properties, design system & themes
     ├── components/
     │   ├── Notepad.vue          # Notepad text editor, result column & Expand Area toggle
     │   ├── Header.vue           # Top navigation bar, tab strip, theme toggle & Expand Workspace button
@@ -65,7 +64,7 @@ kulba/
         │   ├── constants.js     # EXAMPLE_TEXT & RESERVED_KEYWORDS
         │   └── formatters.js    # Number & Currency formatting utilities (formatValue, fmtDate)
         ├── localDb.js           # Offline IndexedDB storage with localStorage fallback
-        ├── shareService.js      # URL hash compression & payload encoder/decoder
+        ├── shareService.js      # Share links: deflate-compressed document in the URL hash
         ├── supabaseClient.js    # Supabase client initializer
         └── syncService.js       # Real-time cloud sync engine (throttled upserts)
 ```
@@ -87,7 +86,7 @@ Use this index to quickly locate the exact files, key functions, and test suites
 | **Tab Management & Navigation** | `src/App.vue`<br>`src/components/Header.vue` | Reactive `tabs` array, `closedTabsStack`, drag-and-drop tab reordering, mobile view dropdown menu (`mobile-nav-wrapper`), mobile tab rename inline form (`mobile-dropdown-rename-form`), global keyboard shortcuts (`Ctrl+N`, `Ctrl+Z`, `Ctrl+Shift+C`). | — |
 | **Offline Storage (IndexedDB)** | `src/services/localDb.js` | `CeteleLocalDB` (IndexedDB stores for `tabs`, `saved_tabs`, `settings`) with `localStorage` fallback. | `tests/services.test.js` |
 | **Cloud Synchronization** | `src/services/syncService.js`<br>`supabase/schema.sql` | Supabase auth integration, `throttledSyncTabsToCloud`, Row-Level Security (RLS) policies. | — |
-| **Document Sharing** | `src/services/shareService.js` | URL hash compression & Base64 payload encoding/decoding (`#doc=...`). | `tests/services.test.js` |
+| **Document Sharing** | `src/services/shareService.js` | Deflate-compressed, base64url payload in the URL hash (`#z=...`); legacy `#doc=...` links still open. | `tests/services.test.js` |
 
 ---
 
@@ -123,13 +122,23 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - Formats final output numbers with locale grouping.
    - **Decimal Preservation Rule**: Gold and crypto assets (`GRAM_GOLD`, `CEYREK_GOLD`, `XAU`, `BTC`, `ETH`, etc.) **always** preserve floating-point decimals even when integer rounding (`disableFloat: true`) is toggled for fiat currency calculations.
 
+### Evaluator Rules Worth Knowing
+- `evaluateAST(node, ctx)` takes one context object (`scope`, `varCurrencies`, `scopeDates`, `lineResults`, `lineCurrencies`, `lineDates`, `prev`, `prevDate`, `sum`, `sumCurrency`, `options`).
+- Variable names are case-insensitive and stored lowercase. Identifiers accept any Unicode letter (`maaş`, `ödeme`).
+- `total`, `subtotal` and section subtotals keep a currency: amounts are converted into the first currency the sum meets. `evaluateAll` returns preformatted `sumText` and `sections[].subtotalText`; components display those rather than formatting `sum` themselves.
+- Dates stay dates through variables, `prev` and line references; `date - date` gives a `days` unit, and adding a plain number to a date is an error.
+- `m` is million by default, but metres before `to`/`in` and in arithmetic with units (`5 m + 3 cm`). `gram` is a mass unit; only `gram gold`/`gram altın` is gold.
+- Core currencies match in any case. Extra ISO codes from the live feed (`MXN`, `PLN`...) only match in capitals, so words like `all` or `cup` stay usable.
+- Function calls go through an allowlist in `astEvaluator.js`; failures return an error instead of `0`. Errors carry a message in `rendered[i].error`, shown as the result row's tooltip.
+- mathjs is loaded as a trimmed instance (`src/services/evaluator/math.js`). Add a function's `*Dependencies` there before using it.
+
 ### Live Exchange & Gold Rate Pipeline
 - Initial rates are defined synchronously as defaults in `RATES`.
 - Rates are cached locally in `localStorage` (`cetele_cached_exchange_rates`) for instant offline launch.
 - `fetchLiveExchangeRates()` asynchronously fetches:
-  1. Fiat rates from `https://open.er-api.com/v6/latest/USD`.
-  2. Spot gold price (XAU per troy ounce) from `@fawazahmed0/currency-api`.
-  3. Crypto prices (BTC, ETH, SOL) from `@fawazahmed0/currency-api`.
+  1. Fiat rates (every currency offered) from `https://open.er-api.com/v6/latest/USD`.
+  2. Gold (XAU) and crypto (BTC, ETH, SOL, USDT, BNB, XRP, DOGE, ADA, AVAX) from `@fawazahmed0/currency-api` `usd.json`, which is also the fiat fallback.
+  - Both requests run in parallel with an 8s timeout; `ratesUpdatedAt` records the last successful load and is shown in the status bar.
 - `updateDerivedRates()` updates derived units:
   - `GRAM_GOLD = RATES.XAU * 31.1034768` (1 troy ounce = 31.1034768 grams)
   - `CEYREK_GOLD = RATES.GRAM_GOLD / 1.75` (1 Çeyrek Altın = 1.75 grams of 22k gold)
@@ -181,7 +190,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
    - `handleCloudFetch` checks if `activeTabId.value` exists in incoming `cloudTabs` and preserves active tab selection instead of resetting to tab 0.
 
 4. **Shareable Links (`src/services/shareService.js`)**:
-   - Serializes document title and content into a URL hash fragment (`#doc=<base64_encoded_payload>`).
+   - Serializes document title and content into a URL hash fragment (`#z=<base64url(deflate-raw(json))>`). `encodeSharePayload` and `decodeSharePayload` are async. Old `#doc=<base64>` links are still decoded.
    - Enables instant tab sharing without backend server calls.
 
 ---
@@ -219,7 +228,7 @@ Starts Vite dev server at `http://localhost:3000`.
 ```bash
 npm test
 ```
-Runs Vitest test suite (`tests/evaluator.test.js`). Always run `npm test` after modifying any logic in `evaluator.js` or state services.
+Runs every Vitest suite under `tests/`. Always run `npm test` after modifying any logic in `evaluator.js` or state services.
 
 ### Production Build
 ```bash

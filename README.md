@@ -58,10 +58,10 @@ npm run build
 | :--- | :--- | :--- |
 | **Variables** | `subtotal = 1,250.50`<br>`tax = 8.25% of subtotal` | `1,250.5`<br>`103.16625` |
 | **Line References** | `#1 + #2`<br>`L1 * 2`<br>`prev / 2` | `1,353.66625`<br>`2,501`<br>`676.833125` |
-| **Currencies** | `10$ + 500 tl`<br>`m + plus to tl + 16000` | `22.25`<br>`453,330.94` |
+| **Currencies** | `10$ + 500 tl`<br>`100 EUR to USD`<br>`1 gram altın to tl` | `$20.53`<br>`108.70 USD`<br>`6,175 TL` *(at live rates)* |
 | **Units** | `5 miles to km`<br>`3 cups + 2 tbsp to ml` | `8.04672`<br>`739.338` |
 | **Percentages** | `20% off 89.99`<br>`increase 1200 by 7%` | `51.992`<br>`1284` |
-| **Dates** | `today`<br>`today + 14 days` | `Sun, Aug 02, 2026`<br>`Sun, Aug 16, 2026` |
+| **Dates** | `today`<br>`deadline = today + 14 days`<br>`deadline - today` | `Sun, Aug 02, 2026`<br>`Sun, Aug 16, 2026`<br>`14 days` |
 
 ---
 
