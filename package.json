@@ -16,7 +16,7 @@
     "@lucide/vue": "^1.16.0",
     "@supabase/supabase-js": "^2.111.0",
     "@vercel/analytics": "^2.0.1",
-    "mathjs": "^14.0.1",
+    "mathjs": "^15.2.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {

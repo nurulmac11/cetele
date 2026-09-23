@@ -51,6 +51,15 @@ export class Parser {
       return { type: 'Assignment', varName, expr }
     }
 
+    // "usd = 5": the word is a currency, so it can't be a variable name
+    if (
+      (tok.type === 'CURRENCY_CODE' || tok.type === 'CURRENCY_SYMBOL') &&
+      this.tokens[this.pos + 1]?.type === 'OPERATOR' &&
+      this.tokens[this.pos + 1]?.value === '='
+    ) {
+      return { type: 'Error', message: `"${tok.raw || tok.value}" is a currency name; pick another variable name` }
+    }
+
     // avg / average / count on their own line
     if (
       tok.type === 'IDENT' &&

@@ -124,7 +124,7 @@ The evaluator engine parses plain multi-line text input into formatted, calculat
 
 ### Evaluator Rules Worth Knowing
 - `evaluateAST(node, ctx)` takes one context object (`scope`, `varCurrencies`, `scopeDates`, `lineResults`, `lineCurrencies`, `lineDates`, `prev`, `prevDate`, `sum`, `sumCurrency`, `options`).
-- Variable names are case-insensitive and stored lowercase. Identifiers accept any Unicode letter (`maaş`, `ödeme`).
+- Variable names are case-insensitive: always key them with `variableKey()` (constants.js), which also makes Turkish `İ` match `i`. Currency words (`usd = 5`) can't be variable names. Identifiers accept any Unicode letter (`maaş`, `ödeme`).
 - `total`, `subtotal` and section subtotals keep a currency: amounts are converted into the first currency the sum meets. `evaluateAll` returns preformatted `sumText` and `sections[].subtotalText`; components display those rather than formatting `sum` themselves.
 - Dates stay dates through variables, `prev` and line references; `date - date` gives a `days` unit, and adding a plain number to a date is an error.
 - `m` is million by default, but metres before `to`/`in` and in arithmetic with units (`5 m + 3 cm`). `gram` is a mass unit; only `gram gold`/`gram altın` is gold.
@@ -190,6 +190,7 @@ When changing a default text, add the previous text to `LEGACY_DEFAULT_TAB_CONTE
 4. **Shareable Links (`src/services/shareService.js`)**:
    - Serializes document title and content into a URL hash fragment (`#z=<base64url(deflate-raw(json))>`). `encodeSharePayload` and `decodeSharePayload` are async. Old `#doc=<base64>` links are still decoded.
    - Enables instant tab sharing without backend server calls.
+   - Decoded documents are capped at 1 MB (`MAX_SHARED_DOC_BYTES`); decompression stops past it, so a tiny link can't expand into gigabytes. Oversized links return `{ tooLarge: true }` and the app shows a message.
 
 ---
 

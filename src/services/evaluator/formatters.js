@@ -20,8 +20,54 @@ export function fmtDateTime(d) {
 // Display names for units mathjs spells out (degC -> °C, mi / h -> mph)
 const UNIT_DISPLAY = { degC: '°C', degF: '°F', 'mi / h': 'mph', 'km / h': 'km/h', 'm / s': 'm/s' }
 
-function prettyUnit(unitStr) {
-  return UNIT_DISPLAY[unitStr] || unitStr.replace(/ \/ /g, '/')
+// Singular -> plural for whole-word units, so "1.5 hour" reads "1.5 hours" and "1 days" reads "1 day"
+const UNIT_PLURALS = {
+  second: 'seconds',
+  minute: 'minutes',
+  hour: 'hours',
+  day: 'days',
+  week: 'weeks',
+  month: 'months',
+  year: 'years',
+  mile: 'miles',
+  inch: 'inches',
+  foot: 'feet',
+  yard: 'yards',
+  cup: 'cups',
+  tablespoon: 'tablespoons',
+  teaspoon: 'teaspoons',
+  liter: 'liters',
+  litre: 'litres',
+  gallon: 'gallons',
+  ounce: 'ounces',
+  pound: 'pounds',
+  acre: 'acres'
+}
+const UNIT_SINGULARS = Object.fromEntries(Object.entries(UNIT_PLURALS).map(([one, many]) => [many, one]))
+
+// "kg kg" -> "kg^2", "m m / s" -> "m^2/s": mathjs lists repeated units separately
+function collapseRepeatedUnits(unitStr) {
+  return unitStr
+    .split(' / ')
+    .map((part) => {
+      const powers = new Map()
+      for (const token of part.split(' ').filter(Boolean)) {
+        const [base, exp = '1'] = token.split('^')
+        powers.set(base, (powers.get(base) || 0) + Number(exp))
+      }
+      return [...powers].map(([base, exp]) => (exp === 1 ? base : `${base}^${exp}`)).join(' ')
+    })
+    .join('/')
+}
+
+function prettyUnit(unitStr, value) {
+  if (UNIT_DISPLAY[unitStr]) return UNIT_DISPLAY[unitStr]
+  const unit = collapseRepeatedUnits(unitStr)
+  if (typeof value === 'number') {
+    if (Math.abs(value) === 1 && UNIT_SINGULARS[unit]) return UNIT_SINGULARS[unit]
+    if (Math.abs(value) !== 1 && UNIT_PLURALS[unit]) return UNIT_PLURALS[unit]
+  }
+  return unit
 }
 
 export function formatValue(v, options = {}) {
@@ -52,7 +98,7 @@ export function formatValue(v, options = {}) {
         val = v.toNumber(unitStr)
       } catch (e) {}
     }
-    return `${formatValue(val, options)} ${prettyUnit(unitStr)}`
+    return `${formatValue(val, options)} ${prettyUnit(unitStr, val)}`
   }
   if (typeof v === 'object' && v.value !== undefined) {
     return formatValue(v.value, options)
@@ -92,6 +138,12 @@ export function formatValueWithSymbol(val, symbol, options = {}) {
     }
   } else {
     formattedNum = String(val)
+  }
+
+  // Prefix symbols go after the minus sign: -$5, not $-5
+  const prefixSymbols = ['$', '€', '£', '₺', '¥', '₹']
+  if (prefixSymbols.includes(symbol) && formattedNum.startsWith('-')) {
+    return `-${symbol}${formattedNum.slice(1)}`
   }
 
   switch (symbol) {

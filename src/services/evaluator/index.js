@@ -1,4 +1,4 @@
-import { RESERVED_KEYWORDS, EXAMPLE_TEXT } from './constants.js'
+import { RESERVED_KEYWORDS, EXAMPLE_TEXT, variableKey } from './constants.js'
 import { RATES, ratesVersion, ratesUpdatedAt, fetchLiveExchangeRates, convertCurrency } from './rates.js'
 import { fmtDate, fmtDateTime, formatValue, formatValueWithSymbol } from './formatters.js'
 import { Lexer } from './lexer.js'
@@ -206,7 +206,7 @@ export function evaluateAll(text, options = {}) {
 
       // avg / average / count: over the lines since the section header or last subtotal.
       // A variable with the same name wins, so existing documents keep working.
-      if (ast.type === 'Aggregate' && ctx.scope[ast.name.toLowerCase()] === undefined) {
+      if (ast.type === 'Aggregate' && ctx.scope[variableKey(ast.name)] === undefined) {
         const { value: sumValue, currency, count } = sectionSum
         const value = ast.kind === 'count' ? count : count > 0 ? sumValue / count : 0
         const valueCurrency = ast.kind === 'count' ? null : currency
@@ -222,7 +222,7 @@ export function evaluateAll(text, options = {}) {
         return
       }
 
-      if (ast.type === 'Assignment' && RESERVED_KEYWORDS.has(ast.varName.toLowerCase())) {
+      if (ast.type === 'Assignment' && RESERVED_KEYWORDS.has(variableKey(ast.varName))) {
         pushLine({ cls: 'err', text: 'Reserved keyword', error: `"${ast.varName}" is a reserved word` })
         return
       }
@@ -242,7 +242,7 @@ export function evaluateAll(text, options = {}) {
         return
       }
 
-      const varName = evalRes.varName ? evalRes.varName.toLowerCase() : null
+      const varName = evalRes.varName ? variableKey(evalRes.varName) : null
 
       // Date AST Result
       if (evalRes.isDate) {

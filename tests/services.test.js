@@ -31,6 +31,22 @@ describe('Application Helper Services', () => {
     expect(await decodeSharePayload(hash)).toEqual({ title: 'Budget', content: 'income = 5000' })
   })
 
+  it('refuses share links that expand beyond 1 MB (zip bombs)', async () => {
+    const bomb = await encodeSharePayload({ title: 'x', content: '0'.repeat(5_000_000) })
+    const hash = bomb.slice(bomb.indexOf('#'))
+    expect(hash.length).toBeLessThan(20_000) // tiny link...
+    expect(await decodeSharePayload(hash)).toEqual({ tooLarge: true }) // ...not a 5 MB document
+
+    const legacy = '#doc=' + btoa(encodeURIComponent(JSON.stringify({ title: 'x', content: 'a'.repeat(1_100_000) })))
+    expect(await decodeSharePayload(legacy)).toEqual({ tooLarge: true })
+  })
+
+  it('still opens documents just under the limit', async () => {
+    const tab = { title: 'Big', content: 'rent = 1500\n'.repeat(80_000) } // ~960 KB
+    const url = await encodeSharePayload(tab)
+    expect(await decodeSharePayload(url.slice(url.indexOf('#')))).toEqual(tab)
+  })
+
   it('ignores malformed share links', async () => {
     expect(await decodeSharePayload('#z=not-valid')).toBeNull()
     expect(await decodeSharePayload('#doc=%%%')).toBeNull()

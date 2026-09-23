@@ -5,6 +5,17 @@
 const COMPRESSED_PREFIX = '#z='
 const LEGACY_PREFIX = '#doc='
 
+// Largest shared document we accept (decoded). A tiny compressed link can otherwise expand to
+// gigabytes and freeze the page ("zip bomb").
+export const MAX_SHARED_DOC_BYTES = 1024 * 1024
+
+export class ShareTooLargeError extends Error {
+  constructor() {
+    super('Shared document is too large')
+    this.name = 'ShareTooLargeError'
+  }
+}
+
 function bytesToBase64Url(bytes) {
   let binary = ''
   for (let i = 0; i < bytes.length; i += 0x8000) {
@@ -22,6 +33,30 @@ function base64UrlToBytes(str) {
 async function pipeThrough(bytes, stream) {
   const out = new Blob([bytes]).stream().pipeThrough(stream)
   return new Uint8Array(await new Response(out).arrayBuffer())
+}
+
+// Decompresses, giving up as soon as the output passes maxBytes
+async function inflateWithLimit(bytes, maxBytes) {
+  const reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader()
+  const chunks = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.length
+    if (total > maxBytes) {
+      await reader.cancel()
+      throw new ShareTooLargeError()
+    }
+    chunks.push(value)
+  }
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    out.set(chunk, offset)
+    offset += chunk.length
+  }
+  return out
 }
 
 function canCompress() {
@@ -62,7 +97,9 @@ function toSharedDoc(parsed) {
   return null
 }
 
-// Reads a shared document from a hash (defaults to the current page's hash)
+// Reads a shared document from a hash (defaults to the current page's hash).
+// Returns { title, content }, { tooLarge: true } for documents over MAX_SHARED_DOC_BYTES,
+// or null when there is no valid shared document.
 export async function decodeSharePayload(hash = typeof window !== 'undefined' ? window.location.hash : '') {
   if (!hash) return null
 
@@ -70,15 +107,18 @@ export async function decodeSharePayload(hash = typeof window !== 'undefined' ? 
     if (hash.startsWith(COMPRESSED_PREFIX)) {
       if (!canCompress()) return null
       const bytes = base64UrlToBytes(hash.slice(COMPRESSED_PREFIX.length))
-      const json = new TextDecoder().decode(await pipeThrough(bytes, new DecompressionStream('deflate-raw')))
+      const json = new TextDecoder().decode(await inflateWithLimit(bytes, MAX_SHARED_DOC_BYTES))
       return toSharedDoc(JSON.parse(json))
     }
     if (hash.includes(LEGACY_PREFIX)) {
       const rawPayload = hash.split(LEGACY_PREFIX)[1]
       if (!rawPayload) return null
-      return toSharedDoc(JSON.parse(decodeURIComponent(atob(rawPayload))))
+      const json = decodeURIComponent(atob(rawPayload))
+      if (json.length > MAX_SHARED_DOC_BYTES) return { tooLarge: true }
+      return toSharedDoc(JSON.parse(json))
     }
   } catch (err) {
+    if (err instanceof ShareTooLargeError) return { tooLarge: true }
     console.warn('Could not parse share URL payload:', err)
   }
 

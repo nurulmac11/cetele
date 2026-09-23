@@ -33,8 +33,8 @@ function matchDateLiteral(rest) {
   return null
 }
 
-// Compound unit written without spaces: km/h, m/s^2, kg*m/s^2
-const COMPOUND_UNIT_RE = /^[A-Za-z]+(?:\^\d+)?(?:[/*][A-Za-z]+(?:\^\d+)?)+/
+// Compound or powered unit written without spaces: km/h, m/s^2, kg*m/s^2, m^2, cm^3
+const COMPOUND_UNIT_RE = /^[A-Za-z]+(?:\^\d+(?:[/*][A-Za-z]+(?:\^\d+)?)*|(?:[/*][A-Za-z]+(?:\^\d+)?)+)/
 
 function checkPhraseMapping(word, input, pos) {
   const rest = input.slice(pos).toLowerCase()

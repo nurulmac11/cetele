@@ -1,5 +1,5 @@
 import { math } from './math.js'
-import { RESERVED_KEYWORDS } from './constants.js'
+import { RESERVED_KEYWORDS, variableKey } from './constants.js'
 import {
   RATES,
   convertCurrency,
@@ -172,6 +172,32 @@ function noteDependency(ctx, lineIdx) {
   if (ctx.deps && lineIdx !== null && lineIdx !== undefined) ctx.deps.add(lineIdx)
 }
 
+// Adds months, keeping to the last day of shorter months: Jan 31 + 1 month is Feb 28 (not Mar 3)
+function addCalendarMonths(date, months) {
+  const day = date.getDate()
+  date.setDate(1)
+  date.setMonth(date.getMonth() + months)
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
+  date.setDate(Math.min(day, lastDay))
+}
+
+// Turns mathjs unit errors into messages that say what to change
+function unitOperationError(e, op, left, right) {
+  const message = e?.message || ''
+  const isAddOrSubtract = op === '+' || op === '-'
+  if (isAddOrSubtract && left.isUnit !== right.isUnit) {
+    const unitSide = left.isUnit ? left.value : right.value
+    const unitName = typeof unitSide?.formatUnits === 'function' ? unitSide.formatUnits() : 'a unit'
+    return { error: `Can't ${op === '+' ? 'add' : 'subtract'} a plain number and ${unitName}; give the number a unit` }
+  }
+  if (/Units do not match|dimension/i.test(message)) {
+    return {
+      error: `Units don't match: ${left.value?.formatUnits?.() || 'number'} and ${right.value?.formatUnits?.() || 'number'}`
+    }
+  }
+  return { error: message || 'Invalid unit operation' }
+}
+
 function startOfToday() {
   const d = new Date()
   d.setHours(0, 0, 0, 0)
@@ -242,7 +268,7 @@ export function evaluateAST(node, ctx) {
     }
 
     case 'DateExpression': {
-      const baseName = node.baseName ? node.baseName.toLowerCase() : null
+      const baseName = node.baseName ? variableKey(node.baseName) : null
       let baseTime
       let isTimeIncluded = false
 
@@ -276,8 +302,8 @@ export function evaluateAST(node, ctx) {
 
         if (unit.startsWith('day')) d.setDate(d.getDate() + amount)
         else if (unit.startsWith('week')) d.setDate(d.getDate() + amount * 7)
-        else if (unit.startsWith('month')) d.setMonth(d.getMonth() + amount)
-        else if (unit.startsWith('year')) d.setFullYear(d.getFullYear() + amount)
+        else if (unit.startsWith('month')) addCalendarMonths(d, amount)
+        else if (unit.startsWith('year')) addCalendarMonths(d, amount * 12)
         else if (unit.startsWith('hour')) {
           d.setHours(d.getHours() + amount)
           isTimeIncluded = true
@@ -359,7 +385,7 @@ export function evaluateAST(node, ctx) {
     }
 
     case 'Identifier': {
-      const name = node.name.toLowerCase()
+      const name = variableKey(node.name)
       if (name === 'prev') {
         noteDependency(ctx, ctx.prevLine)
         if (ctx.prevDate) return dateResult(ctx.prev, ctx.prevDate.isTime)
@@ -496,7 +522,13 @@ export function evaluateAST(node, ctx) {
           }
           return unitResult?.isUnit ? { value: unitResult, isUnit: true } : { value: unitResult, currency: null }
         } catch (e) {
-          return { error: e.message || 'Invalid unit operation' }
+          // Use the values actually combined: a number may have been turned into metres above
+          return unitOperationError(
+            e,
+            node.op,
+            { value: lVal, isUnit: !!lVal?.isUnit },
+            { value: rVal, isUnit: !!rVal?.isUnit }
+          )
         }
       }
 
@@ -510,7 +542,8 @@ export function evaluateAST(node, ctx) {
         // Adding amounts in different currencies without a rate would give a meaningless number
         if (converted === null) return missingRateError(ctx, right.currency, left.currency)
         rVal = converted
-        currency = left.currency
+        // Money divided by money is a plain ratio (10 usd / 2 usd = 5)
+        currency = node.op === '/' ? null : left.currency
       }
 
       let resVal = 0

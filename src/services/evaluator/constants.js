@@ -190,3 +190,11 @@ export const RESERVED_KEYWORDS = new Set([
   'nan',
   'infinity'
 ])
+
+// Key for a variable name: case-insensitive, and Turkish İ matches i
+// ('İ'.toLowerCase() is 'i' plus a combining dot, which would otherwise differ from 'i').
+export function variableKey(name) {
+  return String(name)
+    .toLowerCase()
+    .replace(/\u0307/g, '')
+}

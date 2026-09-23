@@ -449,7 +449,10 @@ async function initLocalData() {
 
     // Check if opened via a Share URL
     const sharedDoc = await decodeSharePayload()
-    if (sharedDoc) {
+    if (sharedDoc?.tooLarge) {
+      history.replaceState(null, '', window.location.pathname)
+      showToast('This share link holds a document over 1 MB, so it was not opened')
+    } else if (sharedDoc) {
       const newId = 'tab-shared-' + Date.now()
       const newTab = {
         id: newId,
