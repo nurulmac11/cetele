@@ -3,8 +3,9 @@
     <div class="rows">
       <!-- Line number gutter (hidden on small mobile screens) -->
       <div ref="gutterRef" class="gutter">
+        <div class="row-spacer" :style="{ height: `${windowSpacers.top}px` }" aria-hidden="true"></div>
         <div
-          v-for="(item, k) in visibleLines"
+          v-for="{ k, item } in windowRows"
           :key="k"
           class="g-num"
           :class="{
@@ -29,19 +30,21 @@
           </button>
           <span class="num-text">{{ item.origIdx + 1 }}</span>
         </div>
+        <div class="row-spacer" :style="{ height: `${windowSpacers.bottom}px` }" aria-hidden="true"></div>
       </div>
 
       <!-- Textarea input container -->
       <div class="input-wrapper">
         <!-- Editor Syntax Highlighting Backdrop Layer -->
         <div ref="backdropRef" class="editor-backdrop" aria-hidden="true">
+          <div class="row-spacer" :style="{ height: `${windowSpacers.top}px` }"></div>
           <div
-            v-for="(line, idx) in formattedEditorLines"
-            :key="idx"
+            v-for="{ k, item, line } in windowRows"
+            :key="k"
             class="backdrop-line"
             :class="{
-              'is-ref-target': refTargets.has(visibleLines[idx]?.origIdx),
-              'line-flash': flashLineIndex === visibleLines[idx]?.origIdx
+              'is-ref-target': refTargets.has(item.origIdx),
+              'line-flash': flashLineIndex === item.origIdx
             }"
           >
             <template v-for="(token, tIdx) in line.tokens" :key="tIdx">
@@ -49,6 +52,7 @@
             </template>
             <span v-if="line.tokens.length === 0 || !line.tokens[0].text">&nbsp;</span>
           </div>
+          <div class="row-spacer" :style="{ height: `${windowSpacers.bottom}px` }"></div>
         </div>
 
         <textarea
@@ -104,8 +108,9 @@
 
       <!-- Evaluated results column -->
       <div ref="resultsRef" class="results" @scroll="syncScrollFromResults">
+        <div class="row-spacer" :style="{ height: `${windowSpacers.top}px` }" aria-hidden="true"></div>
         <div
-          v-for="(item, k) in visibleLines"
+          v-for="{ k, item, details } in windowRows"
           :key="k"
           class="r"
           :class="[
@@ -189,22 +194,22 @@
               <span v-if="evaluation.rendered[item.origIdx]?.error" class="res-label err-reason">
                 {{ evaluation.rendered[item.origIdx].error }}
               </span>
-              <span v-else class="res-label">{{ rowDetails[k].label }}</span>
+              <span v-else class="res-label">{{ details.label }}</span>
               <span class="res-value err-val">{{ evaluation.rendered[item.origIdx]?.text || '—' }}</span>
             </div>
           </template>
 
           <!-- Normal Evaluated Result Row (Two-column: Label on left, Value on right) -->
           <template v-else-if="evaluation.rendered[item.origIdx]?.text">
-            <div class="res-row" :class="{ 'negative-val': rowDetails[k].isNegative }">
-              <span class="res-label" :title="rowDetails[k].label">{{ rowDetails[k].label }}</span>
+            <div class="res-row" :class="{ 'negative-val': details.isNegative }">
+              <span class="res-label" :title="details.label">{{ details.label }}</span>
               <span class="res-value">
-                <template v-if="rowDetails[k].unitPart">
-                  <span class="val-num">{{ rowDetails[k].numPart }}</span>
-                  <span class="val-unit">{{ rowDetails[k].unitPart }}</span>
+                <template v-if="details.unitPart">
+                  <span class="val-num">{{ details.numPart }}</span>
+                  <span class="val-unit">{{ details.unitPart }}</span>
                 </template>
                 <template v-else>
-                  {{ rowDetails[k].valueText }}
+                  {{ details.valueText }}
                 </template>
               </span>
               <!-- Marks results that used another day's rates; the reason is in the row tooltip -->
@@ -231,6 +236,7 @@
             <span class="res-empty-space">&nbsp;</span>
           </template>
         </div>
+        <div class="row-spacer" :style="{ height: `${windowSpacers.bottom}px` }" aria-hidden="true"></div>
       </div>
     </div>
 
@@ -538,14 +544,15 @@ const cursorPosition = ref(0)
 const visibleLines = computed(() => {
   const raw = props.tab?.content || ''
   const lines = raw.split('\n')
-  const secs = evaluation.value.sections || []
+  // Map by header line: looking sections up with find() for every line was O(lines × sections)
+  const sectionByHeader = new Map((evaluation.value.sections || []).map((sec) => [sec.headerIdx, sec]))
   const result = []
   let skipUntil = -1
 
   lines.forEach((lineText, origIdx) => {
     if (origIdx <= skipUntil) return
 
-    const sec = secs.find((s) => s.headerIdx === origIdx)
+    const sec = sectionByHeader.get(origIdx)
     if (sec && collapsedSections.value[origIdx]) {
       const hiddenCount = sec.endIdx - sec.headerIdx
       const formattedSub = sec.subtotalText
@@ -639,8 +646,43 @@ const evaluation = computed(() => {
 
 const formattedTotal = computed(() => evaluation.value.sumText)
 
-// Row display data, computed once per render instead of per template binding
-const rowDetails = computed(() => visibleLines.value.map(getRowDetails))
+// --- Rendering only the rows in view ---
+// Lines are a fixed 26px (no wrapping), so the gutter, highlight layer and results column draw
+// just the rows around the visible area, with spacers above and below. The textarea still holds
+// the full text. Row details and highlighting are computed for those rows only.
+
+const LINE_HEIGHT = 26
+const OVERSCAN_ROWS = 30
+const scrollTopPx = ref(0)
+const viewportPx = ref(900)
+
+const windowRange = computed(() => {
+  const total = visibleLines.value.length
+  const first = Math.floor(scrollTopPx.value / LINE_HEIGHT)
+  const start = Math.max(0, first - OVERSCAN_ROWS)
+  const end = Math.min(total, first + Math.ceil(viewportPx.value / LINE_HEIGHT) + OVERSCAN_ROWS)
+  return { start, end, total }
+})
+
+const windowSpacers = computed(() => ({
+  top: windowRange.value.start * LINE_HEIGHT,
+  bottom: (windowRange.value.total - windowRange.value.end) * LINE_HEIGHT
+}))
+
+const windowRows = computed(() => {
+  const { start, end } = windowRange.value
+  const lines = formattedEditorLines.value
+  const rows = []
+  for (let k = start; k < end; k++) {
+    const item = visibleLines.value[k]
+    rows.push({ k, item, line: lines[k] || { tokens: [] }, details: getRowDetails(item) })
+  }
+  return rows
+})
+
+function measureViewport() {
+  if (inputRef.value) viewportPx.value = inputRef.value.clientHeight || viewportPx.value
+}
 
 // How old the exchange rates are
 const nowTick = ref(Date.now())
@@ -941,6 +983,7 @@ let isSyncingInput = false
 let isSyncingResults = false
 
 function syncScroll() {
+  if (inputRef.value) scrollTopPx.value = inputRef.value.scrollTop
   if (!inputRef.value || isSyncingInput) return
   isSyncingResults = true
   const scrollTop = inputRef.value.scrollTop
@@ -960,6 +1003,7 @@ function syncScroll() {
 }
 
 function syncScrollFromResults() {
+  if (resultsRef.value) scrollTopPx.value = resultsRef.value.scrollTop
   if (!resultsRef.value || isSyncingResults) return
   isSyncingInput = true
   const scrollTop = resultsRef.value.scrollTop
@@ -1074,7 +1118,14 @@ defineExpose({
   goToLine
 })
 
+let viewportObserver = null
+
 onMounted(() => {
+  measureViewport()
+  if (typeof ResizeObserver !== 'undefined' && inputRef.value) {
+    viewportObserver = new ResizeObserver(measureViewport)
+    viewportObserver.observe(inputRef.value)
+  }
   nowTimer = setInterval(() => {
     nowTick.value = Date.now()
   }, 60000)
@@ -1086,6 +1137,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  viewportObserver?.disconnect()
   clearInterval(nowTimer)
 })
 
@@ -1097,6 +1149,8 @@ watch(
   (newId, oldId) => {
     // Folds are per document; carrying them over could lock another tab read-only
     collapsedSections.value = {}
+    // The textarea keeps a scroll position per content; re-read it for the row window
+    nextTick(syncScroll)
 
     clearTimeout(historyDebounceTimer)
     if (oldId) historyByTab.set(oldId, { stack: historyStack.value, index: historyIndex.value })
@@ -1201,6 +1255,10 @@ watch(
 
 .hidden-row {
   display: none !important;
+}
+
+.row-spacer {
+  flex-shrink: 0;
 }
 
 .highlighted-line {

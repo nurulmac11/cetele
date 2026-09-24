@@ -71,6 +71,39 @@ function openDatabase() {
 // TABS CRUD (Active Notepad Tabs)
 // ----------------------------------------------------
 
+// Thrown when the browser refuses to store more data (quota exceeded)
+export class StorageFullError extends Error {
+  constructor(cause) {
+    super('Browser storage is full')
+    this.name = 'StorageFullError'
+    this.cause = cause
+  }
+}
+
+function isQuotaError(err) {
+  return err?.name === 'QuotaExceededError' || err?.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err?.code === 22
+}
+
+// id -> the record last written to IndexedDB, so a save writes only tabs that changed.
+// null until the first load or save.
+let writtenTabs = null
+
+function tabRecord(tab, idx) {
+  return {
+    ...tab,
+    position: idx,
+    // Keep the tab's own edit time: cloud sync compares it against syncedAt
+    updatedAt: tab.updatedAt || new Date().toISOString()
+  }
+}
+
+function sameRecord(a, b) {
+  if (!a || !b) return false
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const key of keys) if (a[key] !== b[key]) return false
+  return true
+}
+
 export async function getLocalTabs() {
   let fallbackTabs = []
   try {
@@ -89,8 +122,10 @@ export async function getLocalTabs() {
         const tabs = request.result || []
         if (tabs.length > 0) {
           tabs.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          writtenTabs = new Map(tabs.map((t) => [t.id, { ...t }]))
           resolve(tabs)
         } else {
+          // Tabs saved by older versions (or while IndexedDB was unavailable) move over on the next save
           resolve(fallbackTabs)
         }
       }
@@ -101,60 +136,86 @@ export async function getLocalTabs() {
   }
 }
 
+/**
+ * Saves all open tabs. With IndexedDB only changed tabs are written (and removed ones deleted);
+ * localStorage is used only when IndexedDB is unavailable. Rejects with StorageFullError when
+ * the browser is out of space, so the app can tell the user instead of losing edits silently.
+ */
 export async function saveLocalTabs(tabsArray) {
+  const records = tabsArray.map(tabRecord)
+
+  let db = null
   try {
-    localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(tabsArray))
-  } catch (e) {
-    console.error('LocalStorage write failed:', e)
-  }
-
-  try {
-    const db = await openDatabase()
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_TABS, 'readwrite')
-      const store = tx.objectStore(STORE_TABS)
-
-      store.clear().onsuccess = () => {
-        tabsArray.forEach((tab, idx) => {
-          store.put({
-            ...tab,
-            position: idx,
-            // Keep the tab's own edit time: cloud sync compares it against syncedAt
-            updatedAt: tab.updatedAt || new Date().toISOString()
-          })
-        })
-      }
-
-      tx.oncomplete = () => resolve(true)
-      tx.onerror = () => reject(tx.error)
-    })
+    db = await openDatabase()
   } catch (err) {
-    return true
+    db = null
   }
+
+  if (!db) {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(records))
+      return true
+    } catch (err) {
+      throw isQuotaError(err) ? new StorageFullError(err) : err
+    }
+  }
+
+  const previous = writtenTabs
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_TABS, 'readwrite')
+    const store = tx.objectStore(STORE_TABS)
+    const keep = new Set(records.map((r) => r.id))
+
+    const writeChanges = (storedIds) => {
+      for (const record of records) {
+        if (!sameRecord(previous?.get(record.id), record)) store.put(record)
+      }
+      for (const id of storedIds) {
+        if (!keep.has(id)) store.delete(id)
+      }
+    }
+
+    if (previous) {
+      writeChanges(previous.keys())
+    } else {
+      const request = store.getAllKeys()
+      request.onsuccess = () => writeChanges(request.result || [])
+    }
+
+    tx.oncomplete = () => resolve()
+    const fail = () => reject(isQuotaError(tx.error) ? new StorageFullError(tx.error) : tx.error)
+    tx.onerror = fail
+    tx.onabort = fail
+  })
+
+  writtenTabs = new Map(records.map((r) => [r.id, r]))
+  // IndexedDB holds the tabs now; a second copy in localStorage only used up its 5 MB
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_TABS_KEY)
+  } catch (e) {}
+  return true
 }
 
 export async function deleteLocalTab(tabId) {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
-    if (raw) {
-      const current = JSON.parse(raw)
-      const filtered = current.filter((t) => t.id !== tabId)
-      localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(filtered))
-    }
-  } catch (e) {}
-
-  try {
     const db = await openDatabase()
-    return new Promise((resolve) => {
+    await new Promise((resolve) => {
       const tx = db.transaction(STORE_TABS, 'readwrite')
-      const store = tx.objectStore(STORE_TABS)
-      store.delete(tabId)
-      tx.oncomplete = () => resolve(true)
-      tx.onerror = () => resolve(true)
+      tx.objectStore(STORE_TABS).delete(tabId)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
     })
+    writtenTabs?.delete(tabId)
   } catch (err) {
-    return true
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_TABS_KEY)
+      if (raw) {
+        const current = JSON.parse(raw)
+        localStorage.setItem(LOCAL_STORAGE_TABS_KEY, JSON.stringify(current.filter((t) => t.id !== tabId)))
+      }
+    } catch (e) {}
   }
+  return true
 }
 
 // ----------------------------------------------------
@@ -334,6 +395,7 @@ export async function saveLocalSettings(settingsObj) {
 }
 
 export async function clearLocalDatabase() {
+  writtenTabs = null
   localStorage.removeItem(LOCAL_STORAGE_TABS_KEY)
   localStorage.removeItem(LOCAL_STORAGE_SAVED_TABS_KEY)
   localStorage.removeItem(LOCAL_STORAGE_SETTINGS_KEY)

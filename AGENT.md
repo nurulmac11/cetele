@@ -232,6 +232,14 @@ When changing a default text, add the previous text to `LEGACY_DEFAULT_TAB_CONTE
 - The Ctrl/Cmd+K palette (`CommandPalette.vue`, search in `src/services/paletteSearch.js`) lists commands defined in `paletteCommands` in `App.vue`; add new app actions there. Jumping to a line uses `Notepad.goToLine()`.
 - Syntax highlighting (`src/services/highlighter.js`) is built from the evaluator's `Lexer` tokens, so colours match evaluation. Its tokens must join back to the exact line text, or the coloured layer drifts from the textarea (`tests/highlighter.test.js` checks this).
 
+## ⚡ Performance Rules
+
+- **Incremental evaluation** (`evaluateAll` in `evaluator/index.js`): each run saves the loop state every 64 lines, and the next run of a similar text resumes from the checkpoint before the first changed line (4 recent documents are remembered). Any new state carried from one line to the next **must** be added to `freshState`, `takeCheckpoint` and `resumeState`, or edits will give wrong results. `tests/evaluator/incremental.test.js` compares random edits against a full evaluation. The cache key includes `ratesVersion`, the decimals option and the current minute.
+- **Number formatting** reuses cached `Intl.NumberFormat` objects (`numberFormat()` in `formatters.js`); `toLocaleString` with options builds a new formatter per call and used to dominate evaluation time.
+- **Highlighting** is cached per line text (`highlightLine` in `highlighter.js`).
+- **Row windowing** in `Notepad.vue`: the gutter, highlight layer and results column render only rows near the viewport (`windowRows`, spacers above and below). This relies on every line being exactly 26 px, so keep `white-space: pre` with no wrapping. `tests/notepadWindowing.test.js` mounts the notepad in happy-dom.
+- **Storage**: `saveLocalTabs` writes only tabs that changed (and deletes removed ones). localStorage holds tabs only when IndexedDB is unavailable; the old copy is removed after the first IndexedDB save. Save failures reject (`StorageFullError` when full), and `persistTabs` in `App.vue` shows them; always save tabs through `persistTabs`.
+
 ## 🔒 Untrusted Input (share links)
 
 A share link can put any text into a victim's notepad, so every code path that reads document text must stay safe on hostile input (`tests/security.test.js`):

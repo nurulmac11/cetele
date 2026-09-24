@@ -70,6 +70,20 @@ function prettyUnit(unitStr, value) {
   return unit
 }
 
+// Creating an Intl.NumberFormat is expensive (toLocaleString makes one per call and took most of
+// the evaluation time), so keep one per decimal setting
+const numberFormats = new Map()
+
+function numberFormat(minDecimals, maxDecimals) {
+  const key = `${minDecimals}:${maxDecimals}`
+  let format = numberFormats.get(key)
+  if (!format) {
+    format = new Intl.NumberFormat('en-US', { minimumFractionDigits: minDecimals, maximumFractionDigits: maxDecimals })
+    numberFormats.set(key, format)
+  }
+  return format
+}
+
 export function formatValue(v, options = {}) {
   const { disableFloat = false } = options
   if (v === null || v === undefined) return ''
@@ -80,15 +94,12 @@ export function formatValue(v, options = {}) {
     if (isNaN(v)) return '—'
     if (!isFinite(v)) return v > 0 ? 'Infinity' : '-Infinity'
     if (disableFloat && Number.isInteger(v)) {
-      return v.toLocaleString('en-US')
+      return numberFormat(0, 3).format(v)
     }
     // Drop float noise (0.1 + 0.2 = 0.30000000000000004) before choosing decimals
     const abs = Math.abs(Number(v.toPrecision(12)))
     const dec = abs % 1 === 0 ? 0 : (abs * 10) % 1 === 0 ? 1 : abs >= 1000 ? 0 : 2
-    return v.toLocaleString('en-US', {
-      minimumFractionDigits: disableFloat ? 0 : dec,
-      maximumFractionDigits: disableFloat ? 0 : 4
-    })
+    return numberFormat(disableFloat ? 0 : dec, disableFloat ? 0 : 4).format(v)
   }
   if (typeof v === 'object' && v.isUnit) {
     const unitStr = v.formatUnits ? v.formatUnits() : String(v.fixPrefix ? v.fixPrefix() : v)
@@ -129,10 +140,7 @@ export function formatValueWithSymbol(val, symbol, options = {}) {
     const abs = Math.abs(val)
     if (isGoldOrCrypto) {
       const maxDecimals = ['BTC', 'ETH', 'SOL', 'XAU'].includes(symbol) ? 6 : 2
-      formattedNum = val.toLocaleString('en-US', {
-        minimumFractionDigits: abs % 1 === 0 ? 0 : 2,
-        maximumFractionDigits: maxDecimals
-      })
+      formattedNum = numberFormat(abs % 1 === 0 ? 0 : 2, maxDecimals).format(val)
     } else {
       formattedNum = formatValue(val, effectiveOptions)
     }

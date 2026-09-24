@@ -114,6 +114,22 @@ function highlightSectionHeader(line) {
   ].filter((t) => t.text)
 }
 
+// Outside multi-line comments a line's colours depend only on its text, so they're cached:
+// typing re-highlights just the edited line instead of the whole document
+const lineCache = new Map()
+const MAX_CACHED_LINES = 5000
+
+function highlightLine(line) {
+  let tokens = lineCache.get(line)
+  if (tokens) return tokens
+  // Only style a header when the lexer reads the line as one (=== 5 === and a === b are not)
+  tokens =
+    new Lexer(line).tokenizeLine()[0]?.type === 'SECTION_HEADER' ? highlightSectionHeader(line) : tokenizeCodePart(line)
+  if (lineCache.size >= MAX_CACHED_LINES) lineCache.clear()
+  lineCache.set(line, tokens)
+  return tokens
+}
+
 // Splits a document into lines of { cls, text } tokens for the editor's coloured backdrop.
 // Tokens of each line join back to exactly the line's text, so the backdrop stays aligned.
 export function highlightDocument(text) {
@@ -150,14 +166,7 @@ export function highlightDocument(text) {
       return
     }
 
-    // Only style a header when the lexer reads the line as one (=== 5 === and a === b are not)
-    if (new Lexer(line).tokenizeLine()[0]?.type === 'SECTION_HEADER') {
-      result.push({ tokens: highlightSectionHeader(line) })
-      return
-    }
-
-    // Everything else, including inline and single-line comments, comes from the lexer
-    result.push({ tokens: tokenizeCodePart(line) })
+    result.push({ tokens: highlightLine(line) })
   })
 
   return result

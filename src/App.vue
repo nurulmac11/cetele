@@ -217,6 +217,7 @@ import { encodeSharePayload, decodeSharePayload } from './services/shareService.
 import {
   getLocalTabs,
   saveLocalTabs,
+  StorageFullError,
   deleteLocalTab,
   getSavedLibraryTabs,
   saveTabToLibrary,
@@ -361,7 +362,7 @@ async function handleUserUpdated(newUser, session, event) {
     activeTabId.value = defaultTabs[0].id
     savedLibrary.value = []
     closedTabsStack.value = []
-    await saveLocalTabs(tabs.value)
+    await persistTabs()
     await saveAllSavedLibrary([])
   }
 }
@@ -397,7 +398,7 @@ async function pullFromCloud(userId) {
       })
       tabs.value = merged
       activeTabId.value = targetActiveId
-      await saveLocalTabs(merged)
+      await persistTabs(merged)
     }
     // Upload local-only tabs and local edits that are newer than the cloud copy
     syncTabsToCloud(() => tabs.value, userId)
@@ -448,7 +449,7 @@ async function openSharedDoc(sharedDoc) {
   tabs.value.forEach((t) => (t.isActive = false))
   tabs.value.push(newTab)
   activeTabId.value = newId
-  await saveLocalTabs(tabs.value)
+  await persistTabs()
   if (currentUser.value) {
     throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
   }
@@ -466,7 +467,7 @@ async function initLocalData() {
     } else {
       tabs.value = JSON.parse(JSON.stringify(defaultTabs))
       activeTabId.value = defaultTabs[0].id
-      await saveLocalTabs(tabs.value)
+      await persistTabs()
     }
 
     const library = await getSavedLibraryTabs()
@@ -986,19 +987,37 @@ function handleGlobalShortcuts(e) {
 }
 
 // Auto Save (Debounced & Rate-Limited Throttled Cloud Sync)
+// Saves tabs on this device. Failures are shown (status badge and a toast) instead of only logged.
+let storageWarningShown = false
+
+async function persistTabs(list = tabs.value) {
+  try {
+    await saveLocalTabs(list)
+    saveStatus.value = 'saved'
+    storageWarningShown = false
+    return true
+  } catch (err) {
+    console.error('Could not save tabs on this device:', err)
+    saveStatus.value = 'error'
+    if (!storageWarningShown) {
+      storageWarningShown = true
+      showToast(
+        err instanceof StorageFullError
+          ? 'Could not save: browser storage is full. Delete unused tabs or saved items, or export a backup.'
+          : 'Could not save your tabs on this device. Export a backup from Settings to be safe.'
+      )
+    }
+    return false
+  }
+}
+
 function triggerSave() {
   saveStatus.value = 'saving'
   clearTimeout(saveDebounceTimer)
   saveDebounceTimer = setTimeout(async () => {
-    try {
-      await saveLocalTabs(tabs.value)
-      if (currentUser.value) {
-        throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
-      }
-      saveStatus.value = 'saved'
-    } catch (err) {
-      console.error('Error auto-saving local/cloud tabs:', err)
-      saveStatus.value = 'error'
+    await persistTabs()
+    if (currentUser.value) {
+      throttledSyncTabsToCloud(() => tabs.value, currentUser.value.id)
     }
   }, 350)
 }
