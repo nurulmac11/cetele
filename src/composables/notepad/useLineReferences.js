@@ -37,5 +37,5 @@ export function useLineReferences({
     }, 1600)
   }
 
-  return { refTargets, flashLineIndex, flashLine }
+  return { refTargets, flashLineIndex, flashLine, caretLineIndex }
 }

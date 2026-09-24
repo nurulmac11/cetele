@@ -117,8 +117,11 @@
     </footer>
 
     <!-- Toast Feedback Banner -->
-    <div v-if="toastMessage" class="toast-banner">
-      {{ toastMessage }}
+    <!-- Always present, so screen readers announce each message placed in it -->
+    <div class="toast-region" role="status" aria-live="polite" aria-atomic="true">
+      <div v-if="toastMessage" :key="toastId" class="toast-banner">
+        {{ toastMessage }}
+      </div>
     </div>
 
     <!-- Settings & Local Database Modal -->
@@ -213,7 +216,7 @@ const isHistoryOpen = ref(false)
 
 // --- Features (see composables/app) ---
 
-const { toastMessage, showToast } = useToast()
+const { toastMessage, toastId, showToast } = useToast()
 const { userProfile, showSidebar, loadSettings, saveProfile, toggleShowDecimals, toggleTheme, toggleSidebar } =
   useSettings({ showToast })
 

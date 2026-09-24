@@ -60,6 +60,7 @@
           v-model="tabContent"
           class="input-area"
           aria-label="Calculations: type one expression per line"
+          aria-describedby="notepad-sr-hint"
           :readonly="hasCollapsedSections"
           spellcheck="false"
           autocomplete="off"
@@ -91,12 +92,21 @@
       </div>
 
       <!-- Evaluated results column -->
-      <div ref="resultsRef" class="results" @scroll="syncScrollFromResults">
+      <div
+        ref="resultsRef"
+        class="results"
+        role="list"
+        aria-label="Results, one per line"
+        @scroll="syncScrollFromResults"
+      >
         <div class="row-spacer" :style="{ height: `${windowSpacers.top}px` }" aria-hidden="true"></div>
         <div
           v-for="{ k, item, details } in windowRows"
           :key="k"
           class="r"
+          role="listitem"
+          :aria-posinset="item.origIdx + 1"
+          :aria-setsize="evaluation.count"
           :class="[
             evaluation.rendered[item.origIdx]?.cls,
             {
@@ -124,6 +134,7 @@
           @mouseenter="hoveredLineIndex = item.origIdx"
           @mouseleave="hoveredLineIndex = null"
         >
+          <span class="sr-only">Line {{ item.origIdx + 1 }}:</span>
           <!-- Copied badge overlay -->
           <span v-if="copiedIndex === item.origIdx" class="copied-badge">Copied!</span>
 
@@ -223,6 +234,12 @@
         <div class="row-spacer" :style="{ height: `${windowSpacers.bottom}px` }" aria-hidden="true"></div>
       </div>
     </div>
+
+    <!-- Screen readers: how results work, and the result of the line being edited -->
+    <p id="notepad-sr-hint" class="sr-only">
+      Each line's result is read out when you move to it or pause typing. Ctrl+K searches all tabs.
+    </p>
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ lineAnnouncement }}</div>
 
     <!-- Symbol buttons (phones only) -->
     <NotepadHelperBar @insert="insertInlineSymbol" @undo="handleUndo" @redo="handleRedo" />
@@ -391,7 +408,7 @@ function handleRedo() {
 
 // --- Line references: highlight what a line reads, insert #N, jump to a line ---
 
-const { refTargets, flashLineIndex, flashLine } = useLineReferences({
+const { refTargets, flashLineIndex, flashLine, caretLineIndex } = useLineReferences({
   evaluation,
   visibleLines,
   text: tabContent,
@@ -428,6 +445,36 @@ function goToLine(lineIdx) {
     flashLine(idx)
   })
 }
+
+// --- Screen reader announcement of the current line's result ---
+
+function describeLine(lineIdx) {
+  const res = evaluation.value.rendered[lineIdx]
+  if (!res) return ''
+  const line = `Line ${lineIdx + 1}`
+  if (res.cls === 'section-header') {
+    const sec = evaluation.value.sections.find((s) => s.headerIdx === lineIdx)
+    return `${line}: section ${res.text}${sec ? `, subtotal ${sec.subtotalText}` : ''}`
+  }
+  if (res.cls === 'err') return `${line}: error, ${res.error || 'could not calculate'}`
+  if (res.cls === 'pending') return `${line}: ${res.error || 'loading'}`
+  if (res.cls === 'empty' || res.cls === 'comment' || !res.text) return ''
+  return `${line}: ${res.text}`
+}
+
+const lineAnnouncement = ref('')
+let announceTimer = null
+
+// Announce after the cursor settles or typing pauses, not on every keystroke
+watch(
+  () => (caretLineIndex.value === null ? '' : describeLine(caretLineIndex.value)),
+  (text) => {
+    clearTimeout(announceTimer)
+    announceTimer = setTimeout(() => {
+      lineAnnouncement.value = text
+    }, 600)
+  }
+)
 
 // --- Copying results ---
 
