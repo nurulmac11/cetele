@@ -104,6 +104,8 @@ export const UNITS = [
 
 const KEYWORDS = [
   ['today', 'date'],
+  ['tomorrow', 'date'],
+  ['yesterday', 'date'],
   ['now', 'date and time'],
   ['total', 'sum of the lines above'],
   ['subtotal', 'sum since the last header or subtotal'],

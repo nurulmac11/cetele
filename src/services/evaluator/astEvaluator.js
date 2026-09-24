@@ -204,6 +204,18 @@ function startOfToday() {
   return d.getTime()
 }
 
+// The time between two dates, in the largest unit that reads well. Calendar dates give whole
+// days (even across daylight-saving changes); with a time involved, spans under a day are shown
+// in hours and under an hour in minutes (now - today: "9.5 hours", not "0.3958 days").
+function timeBetween(later, earlier) {
+  const ms = later.value - earlier.value
+  if (!later.isTimeIncluded && !earlier.isTimeIncluded) return math.unit(Math.round(ms / MS_PER_DAY), 'days')
+  const abs = Math.abs(ms)
+  if (abs < 3600000) return math.unit(Math.round(ms / 60000), 'minutes')
+  if (abs < MS_PER_DAY) return math.unit(ms / 3600000, 'hours')
+  return math.unit(ms / MS_PER_DAY, 'days')
+}
+
 // Whole calendar months from one timestamp to another (negative when "to" is earlier)
 function calendarMonthsBetween(from, to) {
   if (to < from) return -calendarMonthsBetween(to, from)
@@ -274,9 +286,12 @@ export function evaluateAST(node, ctx) {
 
       if (node.baseTimestamp !== undefined) {
         baseTime = node.baseTimestamp
-      } else if (baseName === 'today') {
+      } else if (baseName === 'today' || baseName === 'tomorrow' || baseName === 'yesterday') {
         const d = new Date()
         d.setHours(0, 0, 0, 0)
+        // Calendar days (not 24 hours), so daylight-saving changes don't shift the date
+        if (baseName === 'tomorrow') d.setDate(d.getDate() + 1)
+        if (baseName === 'yesterday') d.setDate(d.getDate() - 1)
         baseTime = d.getTime()
       } else if (baseName === 'now') {
         baseTime = Date.now()
@@ -484,10 +499,7 @@ export function evaluateAST(node, ctx) {
       if (left.isDate || right.isDate) {
         // date - date gives the time between them
         if (node.op === '-' && left.isDate && right.isDate) {
-          let days = (left.value - right.value) / MS_PER_DAY
-          // Whole days between calendar dates, even across daylight-saving changes
-          if (!left.isTimeIncluded && !right.isTimeIncluded) days = Math.round(days)
-          return { value: math.unit(days, 'days'), isUnit: true }
+          return { value: timeBetween(left, right), isUnit: true }
         }
         return { error: 'Add or subtract dates with units, e.g. + 3 days' }
       }

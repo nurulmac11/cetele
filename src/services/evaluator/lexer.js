@@ -318,7 +318,7 @@ export class Lexer {
           tokens.push({ type: 'CURRENCY_CODE', value: CURRENCY_MAP[upper] || upper, raw: word })
         } else if (['to', 'in', 'of', 'off', 'increase', 'decrease', 'by', 'until', 'since'].includes(lowerWord)) {
           tokens.push({ type: 'KEYWORD', value: lowerWord })
-        } else if (['today', 'now'].includes(lowerWord)) {
+        } else if (['today', 'now', 'tomorrow', 'yesterday'].includes(lowerWord)) {
           tokens.push({ type: 'DATE_KEYWORD', value: lowerWord })
         } else if (
           [

@@ -40,6 +40,27 @@ describe('Date literals and date spans', () => {
   })
 })
 
+describe('Relative dates and time spans', () => {
+  it('knows tomorrow and yesterday', () => {
+    expect(first('tomorrow')).toBe(first(`${isoDaysFromToday(1)}`))
+    expect(first('yesterday')).toBe(first(`${isoDaysFromToday(-1)}`))
+    expect(first('tomorrow - yesterday')).toBe('2 days')
+    expect(first('tomorrow - today')).toBe('1 day')
+    expect(first('days until tomorrow')).toBe('1 day')
+  })
+
+  it('shows short time spans in hours or minutes', () => {
+    expect(first('now - (now - 30 mins)')).toBe('30 minutes')
+    expect(texts('d = now - 90 mins\nnow - d')[1]).toBe('1.5 hours')
+    expect(texts('x = now + 3 days\nx - now')[1]).toBe('3 days')
+    expect(first('now - today')).toMatch(/ (hours|minutes)$/)
+  })
+
+  it('reserves the new date words', () => {
+    expect(evaluateAll('tomorrow = 5').rendered[0].error).toContain('reserved word')
+  })
+})
+
 describe('Temperatures and compound units', () => {
   it('converts temperatures', () => {
     expect(first('20 C to F')).toBe('68 °F')

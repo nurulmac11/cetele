@@ -132,6 +132,8 @@ export const RESERVED_KEYWORDS = new Set([
   'subtotal',
   'today',
   'now',
+  'tomorrow',
+  'yesterday',
   'pi',
   'e',
   'i',

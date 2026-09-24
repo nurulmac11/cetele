@@ -118,8 +118,9 @@
             <span class="var">start</span> = today <span class="comment">// Sun, Aug 02, 2026</span><br />
             <span class="var">deadline</span> = <span class="var">start</span> + 2 weeks - 1 day + 2 months
           </code>
-          <code @click="$emit('insert-snippet', 'now + 3 hours - 30 mins')">
-            now + 3 hours - 30 mins <span class="comment">// Date with time</span>
+          <code @click="$emit('insert-snippet', 'now + 3 hours - 30 mins\ntomorrow - yesterday')">
+            now + 3 hours - 30 mins <span class="comment">// Date with time</span><br />
+            tomorrow - yesterday <span class="comment">// 2 days (now - today gives hours)</span>
           </code>
           <code @click="$emit('insert-snippet', 'deadline = 2026-12-31\ndeadline - today\ndays until 31.12.2026')">
             <span class="var">deadline</span> = 2026-12-31 <span class="comment">// or 31.12.2026</span><br />

@@ -69,6 +69,7 @@ Perform chained date calculations and store dates in variables:
 ```text
 // Base date keywords
 today                  // Sun, Aug 02, 2026
+tomorrow               // Mon, Aug 03, 2026 (also yesterday)
 now                    // Sun, Aug 02, 2026 09:20
 
 // Date variables & chained math
@@ -79,6 +80,7 @@ event = now + 3 hours - 30 mins
 // Date literals: ISO or dd.mm.yyyy
 deadline = 2026-12-31  // same as 31.12.2026
 deadline - today       // days between two dates, e.g. 98 days
+now - today            // with a time: hours or minutes for short spans, e.g. 9.5 hours
 days until 2026-12-31  // also weeks / months / years until
 days since 2025-01-15  // time since a past date
 ```
