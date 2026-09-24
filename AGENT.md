@@ -71,6 +71,18 @@ cetele/
 
 ---
 
+## 🧩 Code Structure (components, composables, services)
+
+Components render; logic lives in composables (stateful, Vue) and services (plain modules, tested directly).
+
+- `src/App.vue` wires features together and runs startup. Features are composables in `src/composables/app/`: `useTabs` (tab state, tab actions, saving, import/export), `useSettings` (theme, decimals, sidebar), `useLibrary`, `useCloudSync` (sign-in merge, refocus refetch, sign-out reset), `useSharing` (share links, Copy All), `usePaletteCommands`, `useGlobalShortcuts`, `useToast`. The example tabs live in `src/services/defaultTabs.js`.
+- `src/components/Notepad.vue` is the editor. Its logic is in `src/composables/notepad/` (`useUndoHistory`, `useSectionFolding`, `useRowWindow`, `useAutocomplete`, `useLineReferences`, `useTextInsertion`) and `src/services/rowDetails.js`. Sub-components are in `src/components/notepad/` (`NotepadStatusBar`, `NotepadHelperBar`, `AutocompleteMenu`).
+- `src/components/Header.vue` holds the top bar. `src/components/header/` has `DesktopTabStrip`, `MobileTabBar` (both rename via `src/composables/useTabRename.js`) and `MobileNavMenu`.
+- `src/components/WelcomeModal.vue` uses `src/components/welcome/` (`WelcomeLanguagePicker`, `WelcomeSteps`, `WelcomeFeatures`).
+- Shared helpers: `src/utils/clipboard.js` (`copyText`), `src/utils/platform.js` (Cmd vs Ctrl).
+- Scoped styles live with the component that renders the elements. A parent's scoped CSS can't style elements inside a child, and `@keyframes` must be in the same file as the `animation` that uses them.
+- `tests/appBehavior.test.js`, `tests/notepadBehavior.test.js` and `tests/welcomeModal.test.js` mount the real components in happy-dom and drive them like a user; run them after moving code around.
+
 ## 🗺️ Feature-to-File Matrix
 
 Use this index to quickly locate the exact files, key functions, and test suites responsible for each feature domain:

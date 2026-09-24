@@ -81,29 +81,13 @@
         ></textarea>
 
         <!-- Autocomplete: variables, functions, currencies, units, keywords -->
-        <div
+        <AutocompleteMenu
           v-if="showAutocomplete && autocompleteSuggestions.length > 0"
-          class="autocomplete-menu"
-          :style="autocompleteStyle"
-          role="listbox"
-          aria-label="Suggestions"
-        >
-          <div class="ac-header">Tab to insert · ↑↓ then Enter</div>
-          <div
-            v-for="(item, idx) in autocompleteSuggestions"
-            :key="item.kind + item.insert"
-            class="ac-item"
-            role="option"
-            :aria-selected="idx === autocompleteIndex"
-            :class="{ active: idx === autocompleteIndex }"
-            :title="item.detail"
-            @mousedown.prevent="applyAutocomplete(item)"
-          >
-            <span class="ac-kind" :class="`ac-kind-${item.kind}`">{{ item.kind }}</span>
-            <span class="ac-name">{{ item.label }}</span>
-            <span class="ac-val">{{ item.detail }}</span>
-          </div>
-        </div>
+          :suggestions="autocompleteSuggestions"
+          :active-index="autocompleteIndex"
+          :menu-style="autocompleteStyle"
+          @choose="applyAutocomplete"
+        />
       </div>
 
       <!-- Evaluated results column -->
@@ -240,277 +224,36 @@
       </div>
     </div>
 
-    <!-- Mobile Helper Bar (Shown ONLY on mobile <= 600px) -->
-    <div class="mobile-helper-bar">
-      <button class="btn-helper accent-op" @mousedown.prevent @click="insertInlineSymbol(' = ')">=</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' + ')">+</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' - ')">-</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' * ')">*</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' / ')">/</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol(' % ')">%</button>
-      <button class="btn-helper" @mousedown.prevent @click="insertInlineSymbol('#')">#line</button>
-      <button aria-label="Undo" class="btn-helper icon-btn" title="Undo" @mousedown.prevent @click="handleUndo">
-        <RotateCcw class="icon-xs" />
-      </button>
-      <button aria-label="Redo" class="btn-helper icon-btn" title="Redo" @mousedown.prevent @click="handleRedo">
-        <RotateCw class="icon-xs" />
-      </button>
-    </div>
+    <!-- Symbol buttons (phones only) -->
+    <NotepadHelperBar @insert="insertInlineSymbol" @undo="handleUndo" @redo="handleRedo" />
 
-    <!-- Status Bar -->
-    <footer class="status-bar">
-      <div class="status-left">
-        <span
-          >lines: <b>{{ evaluation.count }}</b></span
-        >
-        <span class="sep">•</span>
-        <span
-          >total: <b class="total-val" title="Click to copy total" @click="copyTotal">{{ formattedTotal }}</b></span
-        >
-        <span v-if="copiedTotal" class="copied-mini">Copied!</span>
-      </div>
-
-      <div class="status-center desktop-only">
-        <span>direct lines: <b>#1, L1, line1</b></span>
-        <span class="sep">•</span>
-        <span :title="ratesTitle"
-          >rates: <b>{{ ratesAgeText }}</b></span
-        >
-      </div>
-
-      <div class="status-right">
-        <!-- Expand Area Toggle Button -->
-        <button
-          class="btn-expand-area desktop-only"
-          :class="{ expanded: !showSidebar }"
-          :title="showSidebar ? 'Expand calculation area (hide right sidebar)' : 'Show right sidebar'"
-          @click="$emit('toggle-sidebar')"
-        >
-          <Maximize2 v-if="showSidebar" class="icon-xs" />
-          <Minimize2 v-else class="icon-xs" />
-          <span>{{ showSidebar ? 'Expand Area' : 'Show Sidebar' }}</span>
-        </button>
-
-        <!-- Save Status Badge -->
-        <div class="sync-badge" :class="saveStateClass">
-          <HardDrive v-if="saveStatus === 'saved'" class="sync-icon" />
-          <Loader2 v-else-if="saveStatus === 'saving'" class="sync-icon spin" />
-          <AlertCircle v-else class="sync-icon err" />
-          <span>{{ saveStatusText }}</span>
-        </div>
-      </div>
-    </footer>
+    <NotepadStatusBar
+      :line-count="evaluation.count"
+      :total-text="formattedTotal"
+      :show-sidebar="showSidebar"
+      :save-status="saveStatus"
+      @toggle-sidebar="$emit('toggle-sidebar')"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { evaluateAll, ratesUpdatedAt } from '../services/evaluator.js'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { evaluateAll } from '../services/evaluator.js'
 import { highlightDocument } from '../services/highlighter.js'
-import { getCompletions } from '../services/completions.js'
-import {
-  HardDrive,
-  Loader2,
-  AlertCircle,
-  ChevronDown,
-  ChevronRight,
-  RotateCcw,
-  RotateCw,
-  Copy,
-  Maximize2,
-  Minimize2
-} from '@lucide/vue'
-
-// Letters in any script, so Turkish variable names (maaş, ödeme) are recognised
-const IDENT_PATTERN = '[\\p{L}_][\\p{L}\\p{N}_]*'
-const ASSIGNMENT_RE = new RegExp(`^(${IDENT_PATTERN})\\s*=\\s*(.+)$`, 'u')
-
-// Splits "12 miles" / "$1,200" / "0.5 gram gold" into the number and its unit label
-const RESULT_UNIT_RE = /^([-+]?[$€£₺¥₹]?[-+]?[\d.,]+(?:e[-+]?\d+)?)\s+(\S.*)$/i
-
-function getRowDetails(item) {
-  if (!item) return {}
-  const origIdx = item.origIdx
-  const res = evaluation.value?.rendered?.[origIdx] || {}
-  const rawLine = item.lineText || ''
-
-  if (item.isSection) {
-    const sec = item.sec
-    return {
-      type: 'section',
-      isCollapsed: item.isCollapsed,
-      title: sec ? sec.title : res.title || res.text || '',
-      subtotalText: sec ? sec.subtotalText : ''
-    }
-  }
-
-  if (res.cls === 'comment') {
-    return { type: 'comment', text: res.text }
-  }
-
-  if (res.cls === 'num subtotal-line' || res.isSubtotal) {
-    return {
-      type: 'subtotal',
-      label: 'subtotal',
-      valueText: res.text || ''
-    }
-  }
-
-  if (res.cls === 'err') {
-    return {
-      type: 'error',
-      label: getLineLeftLabel(rawLine),
-      valueText: res.text || '—'
-    }
-  }
-
-  if (!res.text || res.cls === 'empty') {
-    return { type: 'empty' }
-  }
-
-  const label = getLineLeftLabel(rawLine)
-  const isNegative = typeof res.text === 'string' && /^[$€£₺¥₹]?-/.test(res.text)
-
-  let numPart = res.text
-  let unitPart = ''
-
-  // Dates have their own format; only split number + unit results
-  if (typeof res.text === 'string' && res.cls !== 'date') {
-    const m = res.text.match(RESULT_UNIT_RE)
-    if (m) {
-      numPart = m[1]
-      unitPart = m[2]
-    }
-  }
-
-  return {
-    type: res.cls || 'num',
-    label,
-    valueText: res.text,
-    numPart,
-    unitPart,
-    isNegative
-  }
-}
-
-function getLineLeftLabel(rawLine) {
-  if (!rawLine) return ''
-  const clean = rawLine.replace(/(\/\*[\s\S]*?\*\/|\/\/.*|"""[\s\S]*?"""|'''[\s\S]*?''')/g, '').trim()
-  if (!clean) return ''
-
-  const assignMatch = clean.match(ASSIGNMENT_RE)
-  if (assignMatch) {
-    return assignMatch[1]
-  }
-
-  if (clean.startsWith('===') || clean.startsWith('---')) {
-    return ''
-  }
-
-  if (clean.includes(' to ') || clean.includes(' in ') || /[+\-*/%#]/.test(clean)) {
-    return clean
-  }
-
-  if (['total', 'subtotal', 'prev'].includes(clean.toLowerCase())) {
-    return clean.toLowerCase()
-  }
-
-  if (/^[0-9]+(?:\.[0-9]+)?[kmbT]?$/i.test(clean)) {
-    return clean
-  }
-
-  return clean
-}
-
-const collapsedSections = ref({})
-const hoveredLineIndex = ref(null)
-const backdropRef = ref(null)
-
-const formattedEditorLines = computed(() => highlightDocument(tabContent.value || ''))
-
-const collapsedLineIndices = computed(() => {
-  const set = new Set()
-  const secs = evaluation.value.sections || []
-  secs.forEach((sec) => {
-    if (collapsedSections.value[sec.headerIdx]) {
-      for (let i = sec.headerIdx + 1; i <= sec.endIdx; i++) {
-        set.add(i)
-      }
-    }
-  })
-  return set
-})
-
-// Only folds on sections that exist in this document count
-const hasCollapsedSections = computed(() => collapsedLineIndices.value.size > 0)
-
-// --- Line references: highlight what the current line reads, insert #N from a result ---
-
-const isEditorFocused = ref(false)
-const flashLineIndex = ref(null)
-let flashTimer = null
-
-// Line under the text cursor while the editor has focus
-const caretLineIndex = computed(() => {
-  if (!isEditorFocused.value) return null
-  // The textarea shows folded text, so map its row back to the document line
-  const row = tabContent.value.slice(0, cursorPosition.value).split('\n').length - 1
-  return visibleLines.value[row]?.origIdx ?? null
-})
-
-// Lines read by the hovered line, or by the line being edited
-const refTargets = computed(() => {
-  const focusIdx = hoveredLineIndex.value ?? caretLineIndex.value
-  const deps = focusIdx === null ? null : evaluation.value.rendered[focusIdx]?.deps
-  return new Set(deps || [])
-})
-
-function onResultClick(event, lineIdx) {
-  if (event.altKey) {
-    insertReference(lineIdx)
-    return
-  }
-  copyResult(evaluation.value.rendered[lineIdx], lineIdx)
-}
-
-function insertReference(lineIdx) {
-  if (hasCollapsedSections.value) return
-  const textarea = inputRef.value
-  const pos = textarea ? textarea.selectionStart || 0 : tabContent.value.length
-  const before = tabContent.value.slice(0, pos)
-  const needsSpace = before.length > 0 && !/[\s(]$/.test(before)
-  insertInlineSymbol(`${needsSpace ? ' ' : ''}#${lineIdx + 1}`)
-}
-
-// Moves the cursor to a line, scrolls it into view and briefly highlights it
-function goToLine(lineIdx) {
-  const textarea = inputRef.value
-  if (!textarea) return
-  if (collapsedLineIndices.value.has(lineIdx)) collapsedSections.value = {}
-
-  const lines = (props.tab?.content || '').split('\n')
-  const idx = Math.max(0, Math.min(lineIdx, lines.length - 1))
-  const start = lines.slice(0, idx).reduce((sum, line) => sum + line.length + 1, 0)
-
-  nextTick(() => {
-    textarea.focus({ preventScroll: true })
-    textarea.setSelectionRange(start + lines[idx].length, start + lines[idx].length)
-    cursorPosition.value = start + lines[idx].length
-    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 26
-    textarea.scrollTop = Math.max(0, idx * lineHeight - textarea.clientHeight / 3)
-    syncScroll()
-
-    flashLineIndex.value = idx
-    clearTimeout(flashTimer)
-    flashTimer = setTimeout(() => {
-      flashLineIndex.value = null
-    }, 1600)
-  })
-}
-
-function toggleSectionCollapse(headerIdx) {
-  collapsedSections.value[headerIdx] = !collapsedSections.value[headerIdx]
-}
+import { getRowDetails, ASSIGNMENT_RE } from '../services/rowDetails.js'
+import { copyText } from '../utils/clipboard.js'
+import { hasCommandModifier } from '../utils/platform.js'
+import { useUndoHistory } from '../composables/notepad/useUndoHistory.js'
+import { useSectionFolding } from '../composables/notepad/useSectionFolding.js'
+import { useRowWindow } from '../composables/notepad/useRowWindow.js'
+import { useLineReferences } from '../composables/notepad/useLineReferences.js'
+import { useAutocomplete } from '../composables/notepad/useAutocomplete.js'
+import { useTextInsertion } from '../composables/notepad/useTextInsertion.js'
+import { ChevronDown, ChevronRight, Copy } from '@lucide/vue'
+import AutocompleteMenu from './notepad/AutocompleteMenu.vue'
+import NotepadHelperBar from './notepad/NotepadHelperBar.vue'
+import NotepadStatusBar from './notepad/NotepadStatusBar.vue'
 
 const props = defineProps({
   tab: { type: Object, required: true },
@@ -523,433 +266,177 @@ const emit = defineEmits(['update:content', 'toggle-sidebar', 'variables-updated
 
 const inputRef = ref(null)
 const gutterRef = ref(null)
+const backdropRef = ref(null)
 const resultsRef = ref(null)
-const copiedIndex = ref(null)
-const copiedTotal = ref(false)
-let copyTimer = null
-let totalCopyTimer = null
-
-// Undo / Redo History State
-const historyStack = ref([])
-const historyIndex = ref(-1)
-let isUndoRedoAction = false
-let historyDebounceTimer = null
-
-// Autocomplete State
-const currentPrefix = ref('')
-const autocompleteIndex = ref(0)
-const showAutocomplete = ref(false)
+const hoveredLineIndex = ref(null)
+const isEditorFocused = ref(false)
 const cursorPosition = ref(0)
 
-const visibleLines = computed(() => {
-  const raw = props.tab?.content || ''
-  const lines = raw.split('\n')
-  // Map by header line: looking sections up with find() for every line was O(lines × sections)
-  const sectionByHeader = new Map((evaluation.value.sections || []).map((sec) => [sec.headerIdx, sec]))
-  const result = []
-  let skipUntil = -1
+// --- Evaluation ---
 
-  lines.forEach((lineText, origIdx) => {
-    if (origIdx <= skipUntil) return
+const evaluation = computed(() => evaluateAll(props.tab?.content || '', { disableFloat: props.disableFloat }))
+const formattedTotal = computed(() => evaluation.value.sumText)
 
-    const sec = sectionByHeader.get(origIdx)
-    if (sec && collapsedSections.value[origIdx]) {
-      const hiddenCount = sec.endIdx - sec.headerIdx
-      const formattedSub = sec.subtotalText
-      result.push({
-        origIdx,
-        lineText: `${lineText} // [▶ ${hiddenCount} lines folded | Subtotal: ${formattedSub}]`,
-        isSection: true,
-        isCollapsed: true,
-        sec
-      })
-      skipUntil = sec.endIdx
-    } else {
-      result.push({
-        origIdx,
-        lineText,
-        isSection: Boolean(sec),
-        isCollapsed: false,
-        sec
-      })
-    }
-  })
+// --- Folding, undo and the text shown in the textarea ---
 
-  return result
-})
+const {
+  collapsedSections,
+  visibleLines,
+  collapsedLineIndices,
+  hasCollapsedSections,
+  toggleSectionCollapse,
+  unfoldAll
+} = useSectionFolding(
+  () => props.tab?.content,
+  () => evaluation.value.sections
+)
 
+const history = useUndoHistory((content) => emit('update:content', content))
+
+// What the textarea edits: the document, or its folded projection (read-only)
 const tabContent = computed({
-  get: () => {
-    if (!visibleLines.value || !Array.isArray(visibleLines.value)) {
-      return props.tab?.content || ''
-    }
-    return visibleLines.value.map((item) => item.lineText).join('\n')
-  },
+  get: () => visibleLines.value.map((item) => item.lineText).join('\n'),
   set: (val) => {
     // The folded view is a shortened display projection, not the document itself.
     // Editing it would otherwise save that projection and drop the hidden lines.
     if (hasCollapsedSections.value) return
     emit('update:content', val)
-    debouncedRecordHistory(val)
+    history.recordSoon(val)
   }
 })
-
-function recordHistoryNow(content) {
-  if (isUndoRedoAction) return
-  if (historyIndex.value < historyStack.value.length - 1) {
-    historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
-  }
-  if (historyStack.value[historyIndex.value] === content) return
-
-  historyStack.value.push(content)
-  historyIndex.value = historyStack.value.length - 1
-
-  if (historyStack.value.length > 100) {
-    historyStack.value.shift()
-    historyIndex.value--
-  }
-}
-
-function debouncedRecordHistory(content) {
-  clearTimeout(historyDebounceTimer)
-  historyDebounceTimer = setTimeout(() => {
-    recordHistoryNow(content)
-  }, 300)
-}
-
-function undo() {
-  if (historyIndex.value > 0) {
-    historyIndex.value--
-    isUndoRedoAction = true
-    emit('update:content', historyStack.value[historyIndex.value])
-    setTimeout(() => {
-      isUndoRedoAction = false
-    }, 50)
-  }
-}
-
-function redo() {
-  if (historyIndex.value < historyStack.value.length - 1) {
-    historyIndex.value++
-    isUndoRedoAction = true
-    emit('update:content', historyStack.value[historyIndex.value])
-    setTimeout(() => {
-      isUndoRedoAction = false
-    }, 50)
-  }
-}
-
-// Evaluation output
-const evaluation = computed(() => {
-  return evaluateAll(props.tab?.content || '', { disableFloat: props.disableFloat })
-})
-
-const formattedTotal = computed(() => evaluation.value.sumText)
 
 // --- Rendering only the rows in view ---
-// Lines are a fixed 26px (no wrapping), so the gutter, highlight layer and results column draw
-// just the rows around the visible area, with spacers above and below. The textarea still holds
-// the full text. Row details and highlighting are computed for those rows only.
 
-const LINE_HEIGHT = 26
-const OVERSCAN_ROWS = 30
-const scrollTopPx = ref(0)
-const viewportPx = ref(900)
-
-const windowRange = computed(() => {
-  const total = visibleLines.value.length
-  const first = Math.floor(scrollTopPx.value / LINE_HEIGHT)
-  const start = Math.max(0, first - OVERSCAN_ROWS)
-  const end = Math.min(total, first + Math.ceil(viewportPx.value / LINE_HEIGHT) + OVERSCAN_ROWS)
-  return { start, end, total }
+const highlightedLines = computed(() => highlightDocument(tabContent.value || ''))
+const { scrollTopPx, windowRows, windowSpacers } = useRowWindow({
+  inputRef,
+  visibleLines,
+  highlightedLines,
+  rowDetails: (item) => getRowDetails(item, evaluation.value.rendered)
 })
 
-const windowSpacers = computed(() => ({
-  top: windowRange.value.start * LINE_HEIGHT,
-  bottom: (windowRange.value.total - windowRange.value.end) * LINE_HEIGHT
-}))
-
-const windowRows = computed(() => {
-  const { start, end } = windowRange.value
-  const lines = formattedEditorLines.value
-  const rows = []
-  for (let k = start; k < end; k++) {
-    const item = visibleLines.value[k]
-    rows.push({ k, item, line: lines[k] || { tokens: [] }, details: getRowDetails(item) })
-  }
-  return rows
-})
-
-function measureViewport() {
-  if (inputRef.value) viewportPx.value = inputRef.value.clientHeight || viewportPx.value
-}
-
-// How old the exchange rates are
-const nowTick = ref(Date.now())
-let nowTimer = null
-const ratesAgeText = computed(() => {
-  if (!ratesUpdatedAt.value) return 'offline defaults'
-  const minutes = Math.floor((nowTick.value - ratesUpdatedAt.value) / 60000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 48) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
-})
-const ratesTitle = computed(() =>
-  ratesUpdatedAt.value
-    ? `Exchange rates updated ${new Date(ratesUpdatedAt.value).toLocaleString()}`
-    : 'Live rates have not loaded yet; using built-in approximate rates'
-)
-
-const saveStateClass = computed(() => {
-  if (props.saveStatus === 'saving') return 'saving'
-  if (props.saveStatus === 'error') return 'error'
-  return 'saved'
-})
-
-const saveStatusText = computed(() => {
-  if (props.saveStatus === 'saving') return 'Saving...'
-  if (props.saveStatus === 'error') return 'Save error'
-  return 'Saved'
-})
-
-// Extract declared variables from document
-const declaredVariablesMap = computed(() => {
-  const map = new Map()
-  // Use the full document: line indexes must match evaluation.rendered even when sections are folded
-  const lines = (props.tab?.content || '').split('\n')
-  const scope = evaluation.value
-
-  lines.forEach((l, idx) => {
-    const m = l.trim().match(ASSIGNMENT_RE)
-    if (m) {
-      const varName = m[1]
-      if (!['prev', 'total', 'pi', 'e'].includes(varName)) {
-        const lineRes = scope.rendered[idx]
-        const valText = lineRes && (lineRes.cls === 'num' || lineRes.cls === 'date') && lineRes.text ? lineRes.text : ''
-        map.set(varName, valText)
-      }
-    }
-  })
-
-  return map
-})
+// --- Variables declared in the document (sidebar list, autocomplete) ---
 
 const declaredVariablesList = computed(() => {
-  const list = []
-  declaredVariablesMap.value.forEach((value, name) => {
-    list.push({ name, value: value || '0' })
+  const variables = new Map()
+  // Use the full document: line indexes must match evaluation.rendered even when sections are folded
+  ;(props.tab?.content || '').split('\n').forEach((line, idx) => {
+    const match = line.trim().match(ASSIGNMENT_RE)
+    if (!match || ['prev', 'total', 'pi', 'e'].includes(match[1])) return
+    const res = evaluation.value.rendered[idx]
+    const valueText = res && (res.cls === 'num' || res.cls === 'date') && res.text ? res.text : ''
+    variables.set(match[1], valueText)
   })
-  return list
+  return [...variables].map(([name, value]) => ({ name, value: value || '0' }))
 })
 
-watch(
-  declaredVariablesList,
-  (newList) => {
-    emit('variables-updated', newList)
-  },
-  { immediate: true }
-)
+watch(declaredVariablesList, (list) => emit('variables-updated', list), { immediate: true })
 
-// Autocomplete: variables, functions, currencies, units and keywords for the word being typed
-const autocompleteContext = ref('')
-const autocompleteNavigated = ref(false)
-const autocompleteSuggestions = computed(() =>
-  getCompletions(currentPrefix.value, autocompleteContext.value, declaredVariablesList.value)
-)
+// --- Editing helpers ---
 
-const autocompletePos = ref({ top: 40, left: 10 })
-
-function getCaretCoordinates() {
-  if (!inputRef.value) return { top: 40, left: 10 }
-
-  const pos = inputRef.value.selectionStart || 0
-  const textBefore = tabContent.value.slice(0, pos)
-  const lines = textBefore.split('\n')
-  const lineIndex = lines.length - 1
-  const currentLineText = lines[lineIndex]
-
-  const textarea = inputRef.value
-  const style = window.getComputedStyle(textarea)
-
-  const lineHeight = parseFloat(style.lineHeight) || 26
-  const paddingTop = parseFloat(style.paddingTop) || 16
-  const paddingLeft = parseFloat(style.paddingLeft) || 14
-  const scrollTop = textarea.scrollTop || 0
-  const scrollLeft = textarea.scrollLeft || 0
-
-  let measurer = document.getElementById('caret-measurer')
-  if (!measurer) {
-    measurer = document.createElement('span')
-    measurer.id = 'caret-measurer'
-    measurer.style.visibility = 'hidden'
-    measurer.style.position = 'absolute'
-    measurer.style.whiteSpace = 'pre'
-    measurer.style.top = '-9999px'
-    measurer.style.left = '-9999px'
-    measurer.style.pointerEvents = 'none'
-    document.body.appendChild(measurer)
-  }
-  measurer.style.font = style.font
-  measurer.style.fontFamily = style.fontFamily
-  measurer.style.fontSize = style.fontSize
-  measurer.style.fontWeight = style.fontWeight
-  measurer.style.letterSpacing = style.letterSpacing
-  measurer.textContent = currentLineText
-
-  const textWidth = measurer.getBoundingClientRect().width
-
-  let top = paddingTop + (lineIndex + 1) * lineHeight - scrollTop + 2
-  let left = paddingLeft + textWidth - scrollLeft
-
-  const wrapperEl = textarea.parentElement
-  if (wrapperEl) {
-    const wrapperWidth = wrapperEl.clientWidth || 300
-    if (left + 230 > wrapperWidth) {
-      left = Math.max(10, wrapperWidth - 240)
-    }
-  }
-
-  return { top: Math.max(10, top), left: Math.max(10, left) }
-}
-
-const autocompleteStyle = computed(() => {
-  return {
-    top: `${autocompletePos.value.top}px`,
-    left: `${autocompletePos.value.left}px`
-  }
+const { insertInlineSymbol, insertTabIndent, insertTextAtCursor } = useTextInsertion({
+  inputRef,
+  text: tabContent,
+  recordHistory: history.record
 })
 
-function updateCursorState() {
-  if (!inputRef.value) return
-  const pos = inputRef.value.selectionStart || 0
-  cursorPosition.value = pos
-
-  const textBefore = tabContent.value.slice(0, pos)
-  // Only the end of the current line matters. Matching the whole document before the cursor was
-  // quadratic on long runs of letters and could freeze typing.
-  const lineStartIdx = textBefore.lastIndexOf('\n') + 1
-  const tail = textBefore.slice(Math.max(lineStartIdx, textBefore.length - 64))
-  const match = tail.match(/([\p{L}_][\p{L}\p{N}_]*)$/u)
-  if (match) {
-    const wasShowing = showAutocomplete.value && currentPrefix.value
-    currentPrefix.value = match[1]
-    const lineStart = textBefore.lastIndexOf('\n') + 1
-    autocompleteContext.value = textBefore.slice(lineStart, textBefore.length - match[1].length)
-    if (!wasShowing) autocompleteNavigated.value = false
-    if (autocompleteSuggestions.value.length > 0) {
-      showAutocomplete.value = true
-      autocompletePos.value = getCaretCoordinates()
-      if (autocompleteIndex.value >= autocompleteSuggestions.value.length) {
-        autocompleteIndex.value = 0
-      }
-    } else {
-      showAutocomplete.value = false
-    }
-  } else {
-    currentPrefix.value = ''
-    showAutocomplete.value = false
-  }
-}
-
-function applyAutocomplete(item) {
-  if (!inputRef.value || !item || !currentPrefix.value) return
-
-  const pos = inputRef.value.selectionStart
-  const startPos = pos - currentPrefix.value.length
-  const current = tabContent.value
-
-  recordHistoryNow(current)
-  tabContent.value = current.substring(0, startPos) + item.insert + current.substring(pos)
-
-  showAutocomplete.value = false
-  autocompleteNavigated.value = false
-  currentPrefix.value = ''
-
-  setTimeout(() => {
-    inputRef.value.focus({ preventScroll: true })
-    // Functions put the cursor between the brackets
-    const newPos = startPos + item.insert.length + (item.caretOffset || 0)
-    inputRef.value.selectionStart = inputRef.value.selectionEnd = newPos
-    recordHistoryNow(tabContent.value)
-  }, 0)
-}
+const {
+  showAutocomplete,
+  autocompleteSuggestions,
+  autocompleteIndex,
+  autocompleteStyle,
+  updateCursorState,
+  repositionAutocomplete,
+  applyAutocomplete,
+  handleAutocompleteKey
+} = useAutocomplete({
+  inputRef,
+  text: tabContent,
+  cursorPosition,
+  variables: declaredVariablesList,
+  recordHistory: history.record
+})
 
 function handleKeyDown(e) {
-  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0
-  const modifier = isMac ? e.metaKey : e.ctrlKey
-
-  // Handle Ctrl+Z (Undo) and Ctrl+Y / Ctrl+Shift+Z (Redo)
-  if (modifier && (e.key === 'z' || e.key === 'Z')) {
-    e.preventDefault()
-    if (e.shiftKey) {
-      redo()
-    } else {
-      undo()
-    }
-    return
-  }
-
-  if (modifier && (e.key === 'y' || e.key === 'Y')) {
-    e.preventDefault()
-    redo()
-    return
-  }
-
-  if (showAutocomplete.value && autocompleteSuggestions.value.length > 0) {
-    if (e.key === 'ArrowDown') {
+  if (hasCommandModifier(e)) {
+    const key = e.key.toLowerCase()
+    // Ctrl+Z undo; Ctrl+Shift+Z or Ctrl+Y redo
+    if (key === 'z' || key === 'y') {
       e.preventDefault()
-      autocompleteNavigated.value = true
-      autocompleteIndex.value = (autocompleteIndex.value + 1) % autocompleteSuggestions.value.length
-      return
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      autocompleteNavigated.value = true
-      autocompleteIndex.value =
-        (autocompleteIndex.value - 1 + autocompleteSuggestions.value.length) % autocompleteSuggestions.value.length
-      return
-    }
-    // Tab always accepts. Enter only accepts after choosing with the arrow keys, so typing
-    // "5 km" and pressing Enter still starts a new line instead of inserting "km/h".
-    if (e.key === 'Tab' || (e.key === 'Enter' && autocompleteNavigated.value)) {
-      e.preventDefault()
-      const selected = autocompleteSuggestions.value[autocompleteIndex.value]
-      if (selected) {
-        applyAutocomplete(selected)
-      }
-      return
-    }
-    if (e.key === 'Enter') {
-      showAutocomplete.value = false
-    }
-    if (e.key === 'Escape') {
-      showAutocomplete.value = false
+      if (key === 'z' && !e.shiftKey) history.undo()
+      else history.redo()
       return
     }
   }
-
+  if (handleAutocompleteKey(e)) return
   if (e.key === 'Tab') {
     e.preventDefault()
     insertTabIndent()
   }
 }
 
+function focusEditor() {
+  nextTick(() => inputRef.value?.focus())
+}
+
+function handleUndo() {
+  history.undo()
+  focusEditor()
+}
+
+function handleRedo() {
+  history.redo()
+  focusEditor()
+}
+
+// --- Line references: highlight what a line reads, insert #N, jump to a line ---
+
+const { refTargets, flashLineIndex, flashLine } = useLineReferences({
+  evaluation,
+  visibleLines,
+  text: tabContent,
+  cursorPosition,
+  isEditorFocused,
+  hoveredLineIndex
+})
+
+function insertReference(lineIdx) {
+  if (hasCollapsedSections.value) return
+  const pos = inputRef.value ? inputRef.value.selectionStart || 0 : tabContent.value.length
+  const before = tabContent.value.slice(0, pos)
+  const needsSpace = before.length > 0 && !/[\s(]$/.test(before)
+  insertInlineSymbol(`${needsSpace ? ' ' : ''}#${lineIdx + 1}`)
+}
+
+// Moves the cursor to a line, scrolls it into view and briefly highlights it
+function goToLine(lineIdx) {
+  const textarea = inputRef.value
+  if (!textarea) return
+  if (collapsedLineIndices.value.has(lineIdx)) unfoldAll()
+
+  const lines = (props.tab?.content || '').split('\n')
+  const idx = Math.max(0, Math.min(lineIdx, lines.length - 1))
+  const lineEnd = lines.slice(0, idx).reduce((sum, line) => sum + line.length + 1, 0) + lines[idx].length
+
+  nextTick(() => {
+    textarea.focus({ preventScroll: true })
+    textarea.setSelectionRange(lineEnd, lineEnd)
+    cursorPosition.value = lineEnd
+    const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 26
+    textarea.scrollTop = Math.max(0, idx * lineHeight - textarea.clientHeight / 3)
+    syncScroll()
+    flashLine(idx)
+  })
+}
+
+// --- Copying results ---
+
+const copiedIndex = ref(null)
+let copyTimer = null
+
 async function copyResult(res, idx) {
   if (!res.text || res.cls === 'empty' || res.cls === 'comment' || res.cls === 'err') return
-
-  try {
-    await navigator.clipboard.writeText(res.text)
-  } catch (e) {
-    const textInput = document.createElement('textarea')
-    textInput.value = res.text
-    document.body.appendChild(textInput)
-    textInput.select()
-    document.execCommand('copy')
-    document.body.removeChild(textInput)
-  }
-
+  await copyText(res.text)
   copiedIndex.value = idx
   clearTimeout(copyTimer)
   copyTimer = setTimeout(() => {
@@ -957,27 +444,12 @@ async function copyResult(res, idx) {
   }, 1000)
 }
 
-async function copyTotal() {
-  const val = formattedTotal.value
-  if (!val) return
-
-  try {
-    await navigator.clipboard.writeText(val)
-  } catch (e) {
-    const textInput = document.createElement('textarea')
-    textInput.value = val
-    document.body.appendChild(textInput)
-    textInput.select()
-    document.execCommand('copy')
-    document.body.removeChild(textInput)
-  }
-
-  copiedTotal.value = true
-  clearTimeout(totalCopyTimer)
-  totalCopyTimer = setTimeout(() => {
-    copiedTotal.value = false
-  }, 1000)
+function onResultClick(event, lineIdx) {
+  if (event.altKey) insertReference(lineIdx)
+  else copyResult(evaluation.value.rendered[lineIdx], lineIdx)
 }
+
+// --- Scroll sync between the textarea, highlight layer, gutter and results ---
 
 let isSyncingInput = false
 let isSyncingResults = false
@@ -986,17 +458,14 @@ function syncScroll() {
   if (inputRef.value) scrollTopPx.value = inputRef.value.scrollTop
   if (!inputRef.value || isSyncingInput) return
   isSyncingResults = true
-  const scrollTop = inputRef.value.scrollTop
-  const scrollLeft = inputRef.value.scrollLeft
+  const { scrollTop, scrollLeft } = inputRef.value
   if (backdropRef.value) {
     backdropRef.value.scrollTop = scrollTop
     backdropRef.value.scrollLeft = scrollLeft
   }
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   if (resultsRef.value) resultsRef.value.scrollTop = scrollTop
-  if (showAutocomplete.value) {
-    autocompletePos.value = getCaretCoordinates()
-  }
+  repositionAutocomplete()
   requestAnimationFrame(() => {
     isSyncingResults = false
   })
@@ -1006,7 +475,7 @@ function syncScrollFromResults() {
   if (resultsRef.value) scrollTopPx.value = resultsRef.value.scrollTop
   if (!resultsRef.value || isSyncingResults) return
   isSyncingInput = true
-  const scrollTop = resultsRef.value.scrollTop
+  const { scrollTop } = resultsRef.value
   if (inputRef.value) inputRef.value.scrollTop = scrollTop
   if (backdropRef.value) backdropRef.value.scrollTop = scrollTop
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
@@ -1015,156 +484,23 @@ function syncScrollFromResults() {
   })
 }
 
-function insertTabIndent() {
-  recordHistoryNow(tabContent.value)
-  const textarea = inputRef.value
-  if (!textarea) {
-    tabContent.value += '  '
-    recordHistoryNow(tabContent.value)
-    return
-  }
-  const start = textarea.selectionStart || 0
-  const end = textarea.selectionEnd || 0
-  const current = tabContent.value
-  tabContent.value = current.substring(0, start) + '  ' + current.substring(end)
-  nextTick(() => {
-    textarea.focus()
-    textarea.selectionStart = textarea.selectionEnd = start + 2
-    recordHistoryNow(tabContent.value)
-  })
-}
+// --- Lifecycle ---
 
-function insertInlineSymbol(strToInsert) {
-  const textarea = inputRef.value
-  const start = textarea ? textarea.selectionStart || 0 : tabContent.value.length
-  const end = textarea ? textarea.selectionEnd || 0 : tabContent.value.length
-
-  recordHistoryNow(tabContent.value)
-
-  if (!textarea) {
-    tabContent.value += strToInsert
-    recordHistoryNow(tabContent.value)
-    return
-  }
-
-  const current = tabContent.value
-  const newText = current.substring(0, start) + strToInsert + current.substring(end)
-  tabContent.value = newText
-
-  const newPos = start + strToInsert.length
-  nextTick(() => {
-    textarea.focus()
-    textarea.setSelectionRange(newPos, newPos)
-    recordHistoryNow(tabContent.value)
-  })
-}
-
-function handleUndo() {
-  undo()
-  nextTick(() => {
-    if (inputRef.value) {
-      inputRef.value.focus()
-    }
-  })
-}
-
-function handleRedo() {
-  redo()
-  nextTick(() => {
-    if (inputRef.value) {
-      inputRef.value.focus()
-    }
-  })
-}
-
-function insertTextAtCursor(textToInsert) {
-  recordHistoryNow(tabContent.value)
-
-  const textarea = inputRef.value
-  if (!textarea) {
-    const needPrefix = tabContent.value && !tabContent.value.endsWith('\n') ? '\n' : ''
-    tabContent.value += `${needPrefix}${textToInsert}\n`
-    recordHistoryNow(tabContent.value)
-    return
-  }
-
-  const start = textarea.selectionStart || 0
-  const current = tabContent.value
-
-  let prefix = ''
-  if (start > 0 && current[start - 1] !== '\n') {
-    prefix = '\n'
-  }
-
-  let suffix = '\n'
-  if (start < current.length && current[start] === '\n') {
-    suffix = ''
-  }
-
-  const formattedSnippet = prefix + textToInsert + suffix
-  const newText = current.substring(0, start) + formattedSnippet + current.substring(start)
-  tabContent.value = newText
-  recordHistoryNow(newText)
-
-  setTimeout(() => {
-    textarea.focus({ preventScroll: true })
-    const newPos = start + formattedSnippet.length
-    textarea.selectionStart = textarea.selectionEnd = newPos
-  }, 0)
-}
-
-defineExpose({
-  insertTextAtCursor,
-  goToLine
-})
-
-let viewportObserver = null
+defineExpose({ insertTextAtCursor, goToLine })
 
 onMounted(() => {
-  measureViewport()
-  if (typeof ResizeObserver !== 'undefined' && inputRef.value) {
-    viewportObserver = new ResizeObserver(measureViewport)
-    viewportObserver.observe(inputRef.value)
-  }
-  nowTimer = setInterval(() => {
-    nowTick.value = Date.now()
-  }, 60000)
-  if (typeof window !== 'undefined') {
-    window.scrollTo(0, 0)
-  }
-  // Initialize initial history snapshot
-  recordHistoryNow(tabContent.value)
+  if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  history.record(tabContent.value)
 })
-
-onUnmounted(() => {
-  viewportObserver?.disconnect()
-  clearInterval(nowTimer)
-})
-
-// Undo history for tabs that aren't shown, so switching tabs doesn't lose it
-const historyByTab = new Map()
 
 watch(
   () => props.tab?.id,
   (newId, oldId) => {
     // Folds are per document; carrying them over could lock another tab read-only
-    collapsedSections.value = {}
+    unfoldAll()
     // The textarea keeps a scroll position per content; re-read it for the row window
     nextTick(syncScroll)
-
-    clearTimeout(historyDebounceTimer)
-    if (oldId) historyByTab.set(oldId, { stack: historyStack.value, index: historyIndex.value })
-    const saved = newId ? historyByTab.get(newId) : null
-    if (saved) {
-      historyStack.value = saved.stack
-      historyIndex.value = saved.index
-      // Content may have changed elsewhere (cloud sync, import) while the tab was hidden
-      recordHistoryNow(tabContent.value)
-    } else {
-      historyStack.value = []
-      historyIndex.value = -1
-      recordHistoryNow(tabContent.value)
-    }
+    history.switchTab(oldId, newId, tabContent.value)
   }
 )
 </script>
@@ -1253,10 +589,6 @@ watch(
   height: 13px;
 }
 
-.hidden-row {
-  display: none !important;
-}
-
 .row-spacer {
   flex-shrink: 0;
 }
@@ -1266,12 +598,14 @@ watch(
 }
 
 /* Lines read by the line being edited or hovered (#3, a variable's line, prev) */
+
 .is-ref-target {
   background: color-mix(in srgb, var(--syn-number) 12%, transparent) !important;
   box-shadow: inset 2px 0 0 var(--syn-number);
 }
 
 /* Brief highlight after jumping to a line from the command palette */
+
 .line-flash {
   animation: line-flash 1.6s ease-out;
 }
@@ -1324,38 +658,10 @@ watch(
   padding-left: 8px !important;
 }
 
-.section-title-text {
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
 .r.subtotal-line {
   font-weight: 600;
   color: var(--syn-keyword, #9b8afb) !important;
   border-top: 1px dashed var(--line-soft);
-}
-
-.btn-expand-area {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--card-bg);
-  color: var(--muted);
-  border: 1px solid var(--line);
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11.5px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-expand-area:hover,
-.btn-expand-area.expanded {
-  color: var(--accent);
-  border-color: rgba(22, 217, 196, 0.25);
-  background: rgba(22, 217, 196, 0.08);
 }
 
 .input-wrapper {
@@ -1478,92 +784,8 @@ watch(
 }
 
 /* Autocomplete Overlay Menu */
-.autocomplete-menu {
-  position: absolute;
-  z-index: 100;
-  background: var(--panel-solid);
-  border: 1px solid var(--line-hover);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg);
-  width: 300px;
-  max-width: calc(100vw - 32px);
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.ac-header {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  padding: 4px 8px;
-  font-weight: 700;
-  border-bottom: 1px solid var(--line-soft);
-  margin-bottom: 2px;
-}
-
-.ac-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--paper);
-  transition: all 0.1s ease;
-}
-
-.ac-item:hover,
-.ac-item.active {
-  background: rgba(22, 217, 196, 0.1);
-  color: var(--accent);
-}
-
-.ac-name {
-  font-weight: 600;
-  color: var(--var-color);
-}
-
-.ac-val {
-  font-size: 11.5px;
-  color: var(--muted);
-  margin-left: auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ac-name {
-  flex-shrink: 0;
-}
 
 /* Kind badge, coloured like the syntax highlighter */
-.ac-kind {
-  flex-shrink: 0;
-  width: 58px;
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  color: var(--muted);
-}
-.ac-kind-variable {
-  color: var(--syn-variable);
-}
-.ac-kind-function,
-.ac-kind-keyword {
-  color: var(--syn-keyword);
-}
-.ac-kind-currency {
-  color: var(--syn-currency);
-}
-.ac-kind-unit {
-  color: var(--syn-unit);
-}
 
 .results {
   width: 310px;
@@ -1694,6 +916,7 @@ watch(
 }
 
 /* Subtotal Row */
+
 .subtotal-row {
   border-top: 1px dashed var(--line);
 }
@@ -1710,6 +933,7 @@ watch(
 }
 
 /* Section Header in Results */
+
 .res-section-header {
   display: flex;
   align-items: center;
@@ -1761,6 +985,7 @@ watch(
 }
 
 /* Waiting for historical exchange rates */
+
 .r.pending .res-value {
   color: var(--muted);
   animation: pending-pulse 1.2s ease-in-out infinite;
@@ -1837,110 +1062,8 @@ watch(
   white-space: nowrap;
 }
 
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 18px;
-  border-top: 1px solid var(--line-soft);
-  background: var(--panel-solid);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12.5px;
-  color: var(--muted);
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.status-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-left b {
-  color: var(--paper);
-}
-
-.total-val {
-  color: var(--accent) !important;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 1px 4px;
-  border-radius: 4px;
-  transition: background 0.15s;
-}
-
-.total-val:hover {
-  background: rgba(22, 217, 196, 0.1);
-}
-
-.copied-mini {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.sep {
-  color: var(--line-soft);
-}
-
-.status-center b {
-  color: var(--amber);
-}
-
-.status-right {
-  display: flex;
-  align-items: center;
-}
-
-.sync-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-}
-
-.sync-badge.saved {
-  color: var(--accent);
-  border-color: rgba(22, 217, 196, 0.25);
-  background: rgba(22, 217, 196, 0.08);
-}
-
-.sync-badge.saving {
-  color: var(--amber);
-  border-color: rgba(245, 185, 76, 0.25);
-  background: rgba(245, 185, 76, 0.08);
-}
-
-.sync-badge.error {
-  color: var(--err);
-  border-color: rgba(229, 83, 83, 0.25);
-  background: rgba(229, 83, 83, 0.08);
-}
-
-.sync-icon {
-  width: 13px;
-  height: 13px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* Mobile & Tablet Optimizations */
+
 @media (max-width: 768px) {
   .gutter {
     width: 36px;
@@ -1964,6 +1087,7 @@ watch(
   }
 
   /* Hide variable labels and hover icons on mobile for clean compact single-column display */
+
   .res-label {
     display: none !important;
   }
@@ -2003,15 +1127,6 @@ watch(
     line-height: 26px;
     padding: 12px 6px;
   }
-
-  .desktop-only {
-    display: none;
-  }
-
-  .status-bar {
-    padding: 8px 12px;
-    font-size: 11.5px;
-  }
 }
 
 @media (max-width: 400px) {
@@ -2033,127 +1148,6 @@ watch(
 }
 
 /* Mobile Quick Helper Toolbar */
-.mobile-helper-bar {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--panel-solid);
-  border-top: 1px solid var(--line);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.mobile-helper-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.btn-helper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--line-soft);
-  border: 1px solid var(--line);
-  color: var(--paper);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-height: 36px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.btn-helper:active {
-  background: var(--accent-glow);
-  border-color: var(--accent);
-  color: var(--accent);
-  transform: scale(0.96);
-}
-
-.btn-helper.accent-op {
-  background: var(--accent-glow);
-  border-color: var(--accent-dim);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.btn-helper.icon-btn {
-  padding: 6px 10px;
-}
-
-@media (max-width: 600px) {
-  .mobile-helper-bar {
-    display: flex;
-  }
-}
 
 /* Mobile Variables Modal */
-.mobile-vars-modal {
-  position: fixed;
-  top: 96px;
-  left: 16px;
-  right: 16px;
-  max-width: 480px;
-  margin: 0 auto;
-  background: var(--panel-solid);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-  z-index: 10000;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  animation: slideDown 0.18s ease-out;
-}
-
-.vars-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-}
-
-.vars-modal-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--paper);
-}
-
-.vars-modal-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-.vars-modal-item {
-  display: grid;
-  grid-template-columns: minmax(70px, 1fr) 20px minmax(70px, 1fr);
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.vars-modal-item:hover {
-  background: var(--accent-glow);
-  border-color: var(--accent);
-}
 </style>
