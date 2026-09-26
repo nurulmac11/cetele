@@ -4,7 +4,7 @@ import { getCompletions } from '../../services/completions.js'
 const MENU_WIDTH = 240
 
 // Pixel position just below the caret, by measuring the current line's text in the same font
-function caretCoordinates(textarea, text) {
+export function caretCoordinates(textarea, text) {
   const pos = textarea.selectionStart || 0
   const linesBefore = text.slice(0, pos).split('\n')
   const lineIndex = linesBefore.length - 1

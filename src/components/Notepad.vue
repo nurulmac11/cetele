@@ -74,11 +74,11 @@
           "
           @scroll="syncScroll"
           @focus="isEditorFocused = true"
-          @blur="isEditorFocused = false"
+          @blur="onEditorBlur"
           @keydown="handleKeyDown"
           @keyup="updateCursorState"
-          @click="updateCursorState"
-          @input="updateCursorState"
+          @click="onEditorClick"
+          @input="onEditorInput"
         ></textarea>
 
         <!-- Autocomplete: variables, functions, currencies, units, keywords -->
@@ -88,6 +88,14 @@
           :active-index="autocompleteIndex"
           :menu-style="autocompleteStyle"
           @choose="applyAutocomplete"
+        />
+
+        <!-- Clicked variable: what it is calculated from -->
+        <VariableInputsPanel
+          v-if="variableInputs"
+          :panel="variableInputs"
+          :panel-style="variableInputsStyle"
+          @go="goToInput"
         />
       </div>
 
@@ -267,8 +275,10 @@ import { useRowWindow } from '../composables/notepad/useRowWindow.js'
 import { useLineReferences } from '../composables/notepad/useLineReferences.js'
 import { useAutocomplete } from '../composables/notepad/useAutocomplete.js'
 import { useTextInsertion } from '../composables/notepad/useTextInsertion.js'
+import { useVariableInputs } from '../composables/notepad/useVariableInputs.js'
 import { ChevronDown, ChevronRight, Copy } from '@lucide/vue'
 import AutocompleteMenu from './notepad/AutocompleteMenu.vue'
+import VariableInputsPanel from './notepad/VariableInputsPanel.vue'
 import NotepadHelperBar from './notepad/NotepadHelperBar.vue'
 import NotepadStatusBar from './notepad/NotepadStatusBar.vue'
 
@@ -374,7 +384,44 @@ const {
   recordHistory: history.record
 })
 
+const { variableInputs, variableInputsStyle, inspectVariableAtCaret, closeVariableInputs, repositionVariableInputs } =
+  useVariableInputs({
+    inputRef,
+    text: tabContent,
+    content: () => props.tab?.content || '',
+    visibleLines,
+    evaluation
+  })
+
+// Clicking a variable lists what it is calculated from, instead of suggesting the same name
+function onEditorClick() {
+  updateCursorState()
+  if (inspectVariableAtCaret()) showAutocomplete.value = false
+}
+
+function onEditorInput() {
+  closeVariableInputs()
+  updateCursorState()
+}
+
+function onEditorBlur() {
+  isEditorFocused.value = false
+  closeVariableInputs()
+}
+
+function goToInput(lineIdx) {
+  closeVariableInputs()
+  goToLine(lineIdx)
+}
+
 function handleKeyDown(e) {
+  if (variableInputs.value) {
+    closeVariableInputs()
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      return
+    }
+  }
   if (hasCommandModifier(e)) {
     const key = e.key.toLowerCase()
     // Ctrl+Z undo; Ctrl+Shift+Z or Ctrl+Y redo
@@ -513,6 +560,7 @@ function syncScroll() {
   if (gutterRef.value) gutterRef.value.scrollTop = scrollTop
   if (resultsRef.value) resultsRef.value.scrollTop = scrollTop
   repositionAutocomplete()
+  repositionVariableInputs()
   requestAnimationFrame(() => {
     isSyncingResults = false
   })
